@@ -360,6 +360,73 @@ namespace esp32serialctl
       }
     }
 
+    bool printHelp(const char *topic = nullptr)
+    {
+      const bool hasTopic = topic && *topic;
+      if (!hasTopic)
+      {
+        emitOK("help");
+        for (size_t i = 0; i < commandCount_; ++i)
+        {
+          const Command &cmd = commands_[i];
+          if (!cmd.name)
+          {
+            continue;
+          }
+          emitHelpEntry(cmd);
+        }
+        return true;
+      }
+
+      const char *topicText = topic;
+      bool groupMatch = false;
+      for (size_t i = 0; i < commandCount_; ++i)
+      {
+        const Command &cmd = commands_[i];
+        if (cmd.group && equalsIgnoreCase(cmd.group, topicText))
+        {
+          groupMatch = true;
+          break;
+        }
+      }
+
+      if (groupMatch)
+      {
+        char header[64];
+        snprintf(header, sizeof(header), "help %s", topicText);
+        emitOK(header);
+        for (size_t i = 0; i < commandCount_; ++i)
+        {
+          const Command &cmd = commands_[i];
+          if (cmd.group && equalsIgnoreCase(cmd.group, topicText))
+          {
+            emitHelpEntry(cmd);
+          }
+        }
+        return true;
+      }
+
+      for (size_t i = 0; i < commandCount_; ++i)
+      {
+        const Command &cmd = commands_[i];
+        if (!cmd.name)
+        {
+          continue;
+        }
+        const bool isTopLevel = !cmd.group || !*cmd.group;
+        if (isTopLevel && equalsIgnoreCase(cmd.name, topicText))
+        {
+          char header[64];
+          snprintf(header, sizeof(header), "help %s", topicText);
+          emitOK(header);
+          emitHelpEntry(cmd);
+          return true;
+        }
+      }
+
+      return false;
+    }
+
   private:
     struct Token
     {
@@ -644,6 +711,10 @@ namespace esp32serialctl
 
       if (!selected)
       {
+        if (printHelp(positional[0].c_str()))
+        {
+          return;
+        }
         emitError(404, "Unknown command");
         return;
       }
@@ -673,6 +744,36 @@ namespace esp32serialctl
 
       selected->handler(context_);
       queuePrompt();
+    }
+
+    void emitHelpEntry(const Command &cmd)
+    {
+      if (!cmd.name)
+      {
+        return;
+      }
+
+      char commandText[48];
+      if (cmd.group && *cmd.group)
+      {
+        snprintf(commandText, sizeof(commandText), "%s %s", cmd.group, cmd.name);
+      }
+      else
+      {
+        snprintf(commandText, sizeof(commandText), "%s", cmd.name);
+      }
+
+      const char *help = cmd.help ? cmd.help : "";
+      if (help && *help)
+      {
+        char line[128];
+        snprintf(line, sizeof(line), "%s %s", commandText, help);
+        emitList(line);
+      }
+      else
+      {
+        emitList(commandText);
+      }
     }
 
     static char *ltrim(char *text)
@@ -1319,29 +1420,22 @@ namespace esp32serialctl
 
     static void handleHelp(Context &ctx)
     {
-      const char *topic = ctx.arg(0).c_str();
-      if (topic && *topic)
+      if (ctx.argc() > 1)
       {
-        ctx.printError(404, "Unknown help topic");
+        ctx.printError(400, "Usage: help [topic]");
         return;
       }
-      ctx.printOK("help");
-      ctx.controller().forEachCommand([&ctx](const Command &cmd)
-                                      {
-      char commandText[48];
-      if (cmd.group && *cmd.group) {
-        snprintf(commandText, sizeof(commandText), "%s %s", cmd.group, cmd.name);
-      } else {
-        snprintf(commandText, sizeof(commandText), "%s", cmd.name);
+
+      if (!ctx.arg(0).empty())
+      {
+        if (!ctx.controller().printHelp(ctx.arg(0).c_str()))
+        {
+          ctx.printError(404, "Unknown help topic");
+        }
+        return;
       }
-      const char *help = cmd.help ? cmd.help : "";
-      if (help && *help) {
-        char line[128];
-        snprintf(line, sizeof(line), "%s %s", commandText, help);
-        ctx.printList(line);
-      } else {
-        ctx.printList(commandText);
-      } });
+
+      ctx.controller().printHelp();
     }
 
     static void handleGpioMode(Context &ctx)
