@@ -1,0 +1,11 @@
+# Python cache
+__pycache__/
+
+# Generated bundle and helper downloads
+tools/cache/
+
+# User settings
+.vscode/
+arduino_secrets.h
+*.bat
+sketch.yaml
