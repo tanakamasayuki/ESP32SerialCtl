@@ -4,10 +4,10 @@
 #include <esp_system.h>
 #include <esp_chip_info.h>
 #include <esp_heap_caps.h>
+#include <driver/gpio.h>
+#include <hal/gpio_types.h>
 #include <esp32-hal-ledc.h>
-#ifdef ARDUINO_ARCH_ESP32
 #include <core_version.h>
-#endif
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <ctype.h>
@@ -925,7 +925,7 @@ namespace esp32serialctl
         ctx.printError(400, "Invalid duty");
         return false;
       }
-      const uint32_t dutyMax = (1u << bits) - 1u;
+      const uint32_t dutyMax = (1u << bits);
       int64_t value = number.value;
       if (number.unit == NumberUnit::Percent)
       {
@@ -1031,26 +1031,7 @@ namespace esp32serialctl
       return true;
     }
 
-    static bool parseBitsParameter(Context &ctx,
-                                   const typename Base::Argument *arg,
-                                   uint8_t defaultBits,
-                                   uint8_t &out)
-    {
-      if (!arg)
-      {
-        out = defaultBits;
-        return true;
-      }
-      ParsedNumber number;
-      if (!arg->toNumber(number) || number.unit != NumberUnit::None ||
-          number.value < 1 || number.value > 16)
-      {
-        ctx.printError(400, "Invalid bits");
-        return false;
-      }
-      out = static_cast<uint8_t>(number.value);
-      return true;
-    }
+    static constexpr uint8_t kPwmResolutionBits = 8;
 
     static void handleSysInfo(Context &ctx)
     {
@@ -1323,6 +1304,16 @@ namespace esp32serialctl
       ctx.printBody("Restarting...");
       ctx.controller().output().flush();
       delay(50);
+
+      if (rgbDefaultPin_ >= 0)
+      {
+        rgbLedWrite(rgbDefaultPin_, 0, 0, 0);
+      }
+      for (int i = 0; i < GPIO_PIN_COUNT; i++)
+      {
+        pinMode(i, INPUT);
+      }
+
       ESP.restart();
     }
 
@@ -1458,6 +1449,16 @@ namespace esp32serialctl
         ctx.printError(400, "Invalid value");
         return;
       }
+      gpio_io_config_t io_conf;
+      if (gpio_get_io_config(static_cast<gpio_num_t>(pin), &io_conf) != ESP_OK)
+      {
+        ctx.printError(500, "GPIO config query failed");
+        return;
+      }
+      if (!io_conf.oe)
+      {
+        pinMode(pin, OUTPUT);
+      }
       digitalWrite(pin, state ? HIGH : LOW);
       ctx.printOK("gpio write");
       char line[48];
@@ -1544,7 +1545,7 @@ namespace esp32serialctl
     {
       if (ctx.argc() < 3)
       {
-        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty> [bits]");
+        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty> ");
         return;
       }
       uint8_t pin;
@@ -1557,11 +1558,10 @@ namespace esp32serialctl
       {
         return;
       }
-      const typename Base::Argument *bitsArg =
-          ctx.argc() >= 4 ? &ctx.arg(3) : nullptr;
-      uint8_t bits = 0;
-      if (!parseBitsParameter(ctx, bitsArg, 8, bits))
+      const uint8_t bits = kPwmResolutionBits;
+      if (ctx.argc() >= 4)
       {
+        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty>");
         return;
       }
       uint32_t dutyValue = 0;
@@ -1570,21 +1570,24 @@ namespace esp32serialctl
         return;
       }
 
-      ledcAttach(pin, static_cast<double>(freqHz), bits);
-      ledcWrite(pin, dutyValue);
-      Serial.println("pwm freqHz: " + String(freqHz) + " bits: " + String(bits) + " dutyValue: " + String(dutyValue));
+      ledcAttach(pin, freqHz, bits);
+      if (!ledcWrite(pin, dutyValue))
+      {
+        ctx.printError(500, "pwm write failed");
+        return;
+      }
 
       ctx.printOK("pwm set");
       char line[64];
       snprintf(line, sizeof(line), "pin: %u", pin);
       ctx.printBody(line);
-      snprintf(line, sizeof(line), "freq: %lu Hz", static_cast<unsigned long>(freqHz));
+      snprintf(line, sizeof(line), "freq: %lu Hz", freqHz);
       ctx.printBody(line);
-      snprintf(line, sizeof(line), "bits: %u", bits);
+      snprintf(line, sizeof(line), "bits: %u", kPwmResolutionBits);
       ctx.printBody(line);
       snprintf(line, sizeof(line), "duty: %lu / %lu",
                static_cast<unsigned long>(dutyValue),
-               static_cast<unsigned long>((1u << bits) - 1u));
+               static_cast<unsigned long>(1u << bits));
       ctx.printBody(line);
     }
 
@@ -1600,7 +1603,11 @@ namespace esp32serialctl
       {
         return;
       }
-      ledcDetach(pin);
+
+      if (ledcReadFreq(pin) != 0)
+      {
+        ledcDetach(pin);
+      }
       ctx.printOK("pwm stop");
       char line[48];
       snprintf(line, sizeof(line), "pin: %u", pin);
@@ -1771,7 +1778,7 @@ namespace esp32serialctl
           {"adc", "read", &ESP32SerialCtl::handleAdcRead,
            "<pin> [samples N] : Read ADC value (average)"},
           {"pwm", "set", &ESP32SerialCtl::handlePwmSet,
-           "<pin> <freq> <duty> [bits] : Start PWM output"},
+           "<pin> <freq> <duty> : Start PWM output (12-bit fixed)"},
           {"pwm", "stop", &ESP32SerialCtl::handlePwmStop,
            "<pin> : Stop PWM output"},
           {"rgb", "pin", &ESP32SerialCtl::handleRgbPin,

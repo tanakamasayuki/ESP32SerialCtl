@@ -98,10 +98,18 @@ void loop() {
 
 ## ビルトインコマンド
 - `sys info` : チップモデル、リビジョン、CPU クロック、フラッシュサイズ、SDK を表示
-- `sys uptime` : 稼働時間を `hh:mm:ss`（およびミリ秒）で表示
-- `sys mem` : ヒープ / PSRAM の残量と最大割当可能サイズを表示
-- `sys reset` : メッセージ送信後に `ESP.restart()` を実行
+- `sys uptime` : 稼働時間を `hh:mm:ss` とミリ秒で表示
+- `sys time` : 現在時刻を ISO 8601 形式で表示
+- `sys mem` : ヒープ/PSRAM の合計・空き・最小・最大ブロックとスタック余裕を表示
+- `sys reset` : リクエストを確認後に `ESP.restart()` を実行
+- `gpio mode/read/write/toggle` : GPIO のモード設定・入出力・トグルを制御
+- `adc read` : ADC をサンプリングし、`samples` オプションで平均化
+- `pwm set/stop` : LEDC PWM を自動割り当てで開始/停止（`pwm set <pin> <freq> <duty>`、解像度 12bit 固定・duty は 0..4095 または % 指定）
+- `rgb pin/set/stream` : `rgbLedWrite` で RGB LED を制御（デフォルト pin 対応）
 - `help` / `?` : 登録済みコマンドと説明を一覧表示
+
+スケッチから RGB のデフォルト pin を設定する場合は `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);` を呼び出してください。
+
 
 ## サンプル
 
@@ -113,3 +121,11 @@ void loop() {
 ESP32SerialCtl は MIT ライセンスで提供されています。詳細は `LICENSE` を参照してください。
 
 [English version](README.md)
+
+## 変更ログ
+
+- **Unreleased**
+  - GPIO（`mode/read/write/toggle`）、ADC、PWM、RGB コマンドを追加（OK 先行で整形）
+  - `sys time`（ISO 8601）を追加し、`sys info` と `sys mem` を拡張
+  - PWM を 12 ビット固定にし、duty のスケーリングを改善
+  - GPIO 出力時のモード自動設定と RGB ストリーミングのオプション強化
