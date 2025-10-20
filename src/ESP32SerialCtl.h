@@ -4,6 +4,7 @@
 #include <esp_system.h>
 #include <esp_chip_info.h>
 #include <esp_heap_caps.h>
+#include <esp32-hal-ledc.h>
 #ifdef ARDUINO_ARCH_ESP32
 #include <core_version.h>
 #endif
@@ -98,7 +99,7 @@ namespace esp32serialctl
     class Context
     {
     public:
-    SerialCtl &controller() const { return *owner_; }
+      SerialCtl &controller() const { return *owner_; }
       Stream &input() const { return owner_->input_; }
       Print &output() const { return owner_->output_; }
       const Command &command() const { return *command_; }
@@ -850,7 +851,207 @@ namespace esp32serialctl
     Print &output() { return cli_.output(); }
     Stream &input() { return cli_.input(); }
 
+    static void setDefaultRgbPin(int pin) { rgbDefaultPin_ = pin; }
+    static int defaultRgbPin() { return rgbDefaultPin_; }
+
   private:
+    static bool parsePinArgument(Context &ctx, const typename Base::Argument &arg,
+                                 uint8_t &pin, const char *field)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.unit != NumberUnit::None || number.value < 0 ||
+          number.value > 255)
+      {
+        ctx.printError(400, field);
+        return false;
+      }
+      pin = static_cast<uint8_t>(number.value);
+      return true;
+    }
+
+    static bool parseUint8Component(Context &ctx, const typename Base::Argument &arg,
+                                    uint8_t &value, const char *field)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.unit != NumberUnit::None ||
+          number.value < 0 || number.value > 255)
+      {
+        ctx.printError(400, field);
+        return false;
+      }
+      value = static_cast<uint8_t>(number.value);
+      return true;
+    }
+
+    static bool parseBooleanToken(const typename Base::Argument &arg, bool &value)
+    {
+      if (arg.equals("on") || arg.equals("high") || arg.equals("1") || arg.equals("true"))
+      {
+        value = true;
+        return true;
+      }
+      if (arg.equals("off") || arg.equals("low") || arg.equals("0") || arg.equals("false"))
+      {
+        value = false;
+        return true;
+      }
+      return false;
+    }
+
+    static bool parseFrequencyArgument(Context &ctx, const typename Base::Argument &arg,
+                                       uint32_t &freqHz)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.value <= 0)
+      {
+        ctx.printError(400, "Invalid frequency");
+        return false;
+      }
+      if (number.unit != NumberUnit::None && number.unit != NumberUnit::FrequencyHz)
+      {
+        ctx.printError(400, "Invalid frequency unit");
+        return false;
+      }
+      freqHz = static_cast<uint32_t>(number.value);
+      return true;
+    }
+
+    static bool parseDutyArgument(Context &ctx, const typename Base::Argument &arg,
+                                  uint8_t bits, uint32_t &dutyValue)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number))
+      {
+        ctx.printError(400, "Invalid duty");
+        return false;
+      }
+      const uint32_t dutyMax = (1u << bits) - 1u;
+      int64_t value = number.value;
+      if (number.unit == NumberUnit::Percent)
+      {
+        if (value < 0)
+        {
+          value = 0;
+        }
+        if (value > 100)
+        {
+          value = 100;
+        }
+        dutyValue = static_cast<uint32_t>((static_cast<uint64_t>(dutyMax) * value + 50) / 100);
+        return true;
+      }
+      if (number.unit != NumberUnit::None)
+      {
+        ctx.printError(400, "Invalid duty unit");
+        return false;
+      }
+      if (value < 0)
+      {
+        ctx.printError(400, "Duty out of range");
+        return false;
+      }
+      const uint32_t rawMax = (1u << bits);
+      if (value > static_cast<int64_t>(rawMax))
+      {
+        ctx.printError(400, "Duty out of range");
+        return false;
+      }
+      if (value == static_cast<int64_t>(rawMax))
+      {
+        dutyValue = dutyMax;
+        return true;
+      }
+      dutyValue = static_cast<uint32_t>(value);
+      return true;
+    }
+
+    static uint32_t parseCountOption(Context &ctx, const char *name, uint32_t defaultValue)
+    {
+      const typename Base::Option *opt = ctx.findOption(name);
+      if (!opt)
+      {
+        return defaultValue;
+      }
+      ParsedNumber number;
+      if (!opt->toNumber(number) || number.unit != NumberUnit::None || number.value <= 0)
+      {
+        ctx.printError(400, "Invalid option");
+        return 0;
+      }
+      return static_cast<uint32_t>(number.value);
+    }
+
+    static int resolveRgbPin(Context &ctx)
+    {
+      const typename Base::Option *pinOpt = ctx.findOption("pin");
+      if (pinOpt && pinOpt->value)
+      {
+        ParsedNumber number;
+        if (!Base::parseNumber(pinOpt->value, number) ||
+            number.unit != NumberUnit::None || number.value < 0 || number.value > 255)
+        {
+          ctx.printError(400, "Invalid pin");
+          return -1;
+        }
+        return static_cast<int>(number.value);
+      }
+      if (rgbDefaultPin_ < 0)
+      {
+        ctx.printError(404, "RGB pin not set");
+        return -1;
+      }
+      return rgbDefaultPin_;
+    }
+
+    static bool resolveWaitOption(Context &ctx, uint32_t defaultWait, uint32_t &out)
+    {
+      const typename Base::Option *waitOpt = ctx.findOption("wait");
+      if (!waitOpt)
+      {
+        out = defaultWait;
+        return true;
+      }
+      ParsedNumber number;
+      if (!Base::parseNumber(waitOpt->value, number) ||
+          (number.unit != NumberUnit::None && number.unit != NumberUnit::TimeMilliseconds))
+      {
+        ctx.printError(400, "Invalid wait");
+        return false;
+      }
+      int64_t value = number.value;
+      if (number.unit == NumberUnit::TimeMilliseconds)
+      {
+        value *= 1000;
+      }
+      if (value < 0)
+      {
+        value = 0;
+      }
+      out = static_cast<uint32_t>(value);
+      return true;
+    }
+
+    static bool parseBitsParameter(Context &ctx,
+                                   const typename Base::Argument *arg,
+                                   uint8_t defaultBits,
+                                   uint8_t &out)
+    {
+      if (!arg)
+      {
+        out = defaultBits;
+        return true;
+      }
+      ParsedNumber number;
+      if (!arg->toNumber(number) || number.unit != NumberUnit::None ||
+          number.value < 1 || number.value > 16)
+      {
+        ctx.printError(400, "Invalid bits");
+        return false;
+      }
+      out = static_cast<uint8_t>(number.value);
+      return true;
+    }
+
     static void handleSysInfo(Context &ctx)
     {
       char buffer[128];
@@ -893,7 +1094,8 @@ namespace esp32serialctl
         featureLen = 0;
       }
 #if defined(CHIP_FEATURE_BT) || defined(CHIP_FEATURE_BLE) || defined(CHIP_FEATURE_IEEE802154)
-      auto appendFeatureSuffix = [&](const char *suffix) {
+      auto appendFeatureSuffix = [&](const char *suffix)
+      {
         if (!suffix)
         {
           return;
@@ -1039,7 +1241,8 @@ namespace esp32serialctl
       char lines[24][96];
       size_t lineCount = 0;
 
-      auto addLine = [&](const char *fmt, ...) {
+      auto addLine = [&](const char *fmt, ...)
+      {
         if (lineCount >= (sizeof(lines) / sizeof(lines[0])))
         {
           return;
@@ -1133,7 +1336,7 @@ namespace esp32serialctl
       }
       ctx.printOK("help");
       ctx.controller().forEachCommand([&ctx](const Command &cmd)
-                                       {
+                                      {
       char commandText[48];
       if (cmd.group && *cmd.group) {
         snprintf(commandText, sizeof(commandText), "%s %s", cmd.group, cmd.name);
@@ -1142,16 +1345,404 @@ namespace esp32serialctl
       }
       const char *help = cmd.help ? cmd.help : "";
       if (help && *help) {
-        char line[96];
-        snprintf(line, sizeof(line), "%s : %s", commandText, help);
+        char line[128];
+        snprintf(line, sizeof(line), "%s %s", commandText, help);
         ctx.printList(line);
       } else {
         ctx.printList(commandText);
       } });
     }
 
+    static void handleGpioMode(Context &ctx)
+    {
+      if (ctx.argc() < 2)
+      {
+        ctx.printError(400, "Usage: gpio mode <pin> <mode>");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      const typename Base::Argument &modeArg = ctx.arg(1);
+      int mode = -1;
+      const char *modeName = nullptr;
+      if (modeArg.equals("in"))
+      {
+        mode = INPUT;
+        modeName = "in";
+      }
+      else if (modeArg.equals("out"))
+      {
+        mode = OUTPUT;
+        modeName = "out";
+      }
+      else if (modeArg.equals("pullup"))
+      {
+        mode = INPUT_PULLUP;
+        modeName = "pullup";
+      }
+      else if (modeArg.equals("pulldown"))
+      {
+#ifdef INPUT_PULLDOWN
+        mode = INPUT_PULLDOWN;
+        modeName = "pulldown";
+#else
+        ctx.printError(501, "pulldown unsupported");
+        return;
+#endif
+      }
+      else if (modeArg.equals("opendrain"))
+      {
+#ifdef OUTPUT_OPEN_DRAIN
+        mode = OUTPUT_OPEN_DRAIN;
+        modeName = "opendrain";
+#else
+        ctx.printError(501, "opendrain unsupported");
+        return;
+#endif
+      }
+
+      if (mode < 0)
+      {
+        ctx.printError(400, "Invalid mode");
+        return;
+      }
+
+      pinMode(pin, mode);
+      ctx.printOK("gpio mode");
+      char line[48];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "mode: %s", modeName);
+      ctx.printBody(line);
+    }
+
+    static void handleGpioRead(Context &ctx)
+    {
+      if (ctx.argc() < 1)
+      {
+        ctx.printError(400, "Usage: gpio read <pin>");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      int value = digitalRead(pin);
+      ctx.printOK("gpio read");
+      char line[48];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "value: %d", value);
+      ctx.printBody(line);
+    }
+
+    static void handleGpioWrite(Context &ctx)
+    {
+      if (ctx.argc() < 2)
+      {
+        ctx.printError(400, "Usage: gpio write <pin> <value>");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      bool state;
+      if (!parseBooleanToken(ctx.arg(1), state))
+      {
+        ctx.printError(400, "Invalid value");
+        return;
+      }
+      digitalWrite(pin, state ? HIGH : LOW);
+      ctx.printOK("gpio write");
+      char line[48];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "value: %s", state ? "high" : "low");
+      ctx.printBody(line);
+    }
+
+    static void handleGpioToggle(Context &ctx)
+    {
+      if (ctx.argc() < 1)
+      {
+        ctx.printError(400, "Usage: gpio toggle <pin>");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      int current = digitalRead(pin);
+      int next = current ? LOW : HIGH;
+      digitalWrite(pin, next);
+      ctx.printOK("gpio toggle");
+      char line[48];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "value: %s", next ? "high" : "low");
+      ctx.printBody(line);
+    }
+
+    static void handleAdcRead(Context &ctx)
+    {
+      if (ctx.argc() < 1)
+      {
+        ctx.printError(400, "Usage: adc read <pin> [samples N]");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      uint32_t samples = 1;
+      if (ctx.argc() >= 3 && ctx.arg(1).equals("samples"))
+      {
+        ParsedNumber number;
+        if (!ctx.arg(2).toNumber(number) || number.unit != NumberUnit::None || number.value <= 0)
+        {
+          ctx.printError(400, "Invalid samples");
+          return;
+        }
+        samples = static_cast<uint32_t>(number.value);
+      }
+      else if (ctx.argc() == 2 && !ctx.arg(1).equals("samples"))
+      {
+        ParsedNumber number;
+        if (!ctx.arg(1).toNumber(number) || number.unit != NumberUnit::None || number.value <= 0)
+        {
+          ctx.printError(400, "Invalid samples");
+          return;
+        }
+        samples = static_cast<uint32_t>(number.value);
+      }
+
+      uint64_t total = 0;
+      for (uint32_t i = 0; i < samples; ++i)
+      {
+        total += static_cast<uint32_t>(analogRead(pin));
+      }
+      uint32_t average = static_cast<uint32_t>(total / samples);
+      ctx.printOK("adc read");
+      char line[64];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "samples: %lu", static_cast<unsigned long>(samples));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "value: %lu", static_cast<unsigned long>(average));
+      ctx.printBody(line);
+    }
+
+    static void handlePwmSet(Context &ctx)
+    {
+      if (ctx.argc() < 3)
+      {
+        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty> [bits]");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      uint32_t freqHz;
+      if (!parseFrequencyArgument(ctx, ctx.arg(1), freqHz))
+      {
+        return;
+      }
+      const typename Base::Argument *bitsArg =
+          ctx.argc() >= 4 ? &ctx.arg(3) : nullptr;
+      uint8_t bits = 0;
+      if (!parseBitsParameter(ctx, bitsArg, 8, bits))
+      {
+        return;
+      }
+      uint32_t dutyValue = 0;
+      if (!parseDutyArgument(ctx, ctx.arg(2), bits, dutyValue))
+      {
+        return;
+      }
+
+      ledcAttach(pin, static_cast<double>(freqHz), bits);
+      ledcWrite(pin, dutyValue);
+      Serial.println("pwm freqHz: " + String(freqHz) + " bits: " + String(bits) + " dutyValue: " + String(dutyValue));
+
+      ctx.printOK("pwm set");
+      char line[64];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "freq: %lu Hz", static_cast<unsigned long>(freqHz));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "bits: %u", bits);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "duty: %lu / %lu",
+               static_cast<unsigned long>(dutyValue),
+               static_cast<unsigned long>((1u << bits) - 1u));
+      ctx.printBody(line);
+    }
+
+    static void handlePwmStop(Context &ctx)
+    {
+      if (ctx.argc() < 1)
+      {
+        ctx.printError(400, "Usage: pwm stop <pin>");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      ledcDetach(pin);
+      ctx.printOK("pwm stop");
+      char line[48];
+      snprintf(line, sizeof(line), "pin: %u", pin);
+      ctx.printBody(line);
+    }
+
+    static void handleRgbPin(Context &ctx)
+    {
+      if (ctx.argc() < 1)
+      {
+        ctx.printError(400, "Usage: rgb pin <pin>");
+        return;
+      }
+      uint8_t pin;
+      if (!parsePinArgument(ctx, ctx.arg(0), pin, "Invalid pin"))
+      {
+        return;
+      }
+      rgbDefaultPin_ = pin;
+      ctx.printOK("rgb pin");
+      char line[48];
+      snprintf(line, sizeof(line), "default: %u", pin);
+      ctx.printBody(line);
+    }
+
+    static void rgbWriteRepeated(int pin, uint8_t r, uint8_t g, uint8_t b,
+                                 uint32_t count, uint32_t waitUs)
+    {
+      for (uint32_t i = 0; i < count; ++i)
+      {
+        rgbLedWrite(pin, r, g, b);
+        if (waitUs > 0 && i + 1 < count)
+        {
+          delayMicroseconds(waitUs);
+        }
+      }
+    }
+
+    static void handleRgbSet(Context &ctx)
+    {
+      if (ctx.argc() < 3)
+      {
+        ctx.printError(400, "Usage: rgb set [--pin pin] [--count N] [--wait us] <r> <g> <b>");
+        return;
+      }
+      int pin = resolveRgbPin(ctx);
+      if (pin < 0)
+      {
+        return;
+      }
+
+      uint8_t r, g, b;
+      if (!parseUint8Component(ctx, ctx.arg(0), r, "Invalid red") ||
+          !parseUint8Component(ctx, ctx.arg(1), g, "Invalid green") ||
+          !parseUint8Component(ctx, ctx.arg(2), b, "Invalid blue"))
+      {
+        return;
+      }
+
+      uint32_t count = parseCountOption(ctx, "count", 1);
+      if (count == 0)
+      {
+        return;
+      }
+      uint32_t waitUs = 0;
+      if (!resolveWaitOption(ctx, 100, waitUs))
+      {
+        return;
+      }
+
+      rgbWriteRepeated(pin, r, g, b, count, waitUs);
+
+      ctx.printOK("rgb set");
+      char line[64];
+      snprintf(line, sizeof(line), "pin: %d", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "rgb: %u %u %u", r, g, b);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "count: %lu wait: %lu us",
+               static_cast<unsigned long>(count),
+               static_cast<unsigned long>(waitUs));
+      ctx.printBody(line);
+    }
+
+    static void handleRgbStream(Context &ctx)
+    {
+      if (ctx.argc() < 3 || (ctx.argc() % 3) != 0)
+      {
+        ctx.printError(400, "Usage: rgb stream [--pin pin] [--wait us] <r g b>...");
+        return;
+      }
+      int pin = resolveRgbPin(ctx);
+      if (pin < 0)
+      {
+        return;
+      }
+      uint32_t waitUs = 0;
+      if (!resolveWaitOption(ctx, 100, waitUs))
+      {
+        return;
+      }
+
+      const size_t colorCount = ctx.argc() / 3;
+      uint8_t colors[64][3];
+      if (colorCount > 64)
+      {
+        ctx.printError(413, "Too many colors");
+        return;
+      }
+      for (size_t i = 0; i < colorCount; ++i)
+      {
+        if (!parseUint8Component(ctx, ctx.arg(i * 3 + 0), colors[i][0], "Invalid red") ||
+            !parseUint8Component(ctx, ctx.arg(i * 3 + 1), colors[i][1], "Invalid green") ||
+            !parseUint8Component(ctx, ctx.arg(i * 3 + 2), colors[i][2], "Invalid blue"))
+        {
+          return;
+        }
+      }
+
+      for (size_t i = 0; i < colorCount; ++i)
+      {
+        rgbLedWrite(pin, colors[i][0], colors[i][1], colors[i][2]);
+        if (waitUs > 0 && i + 1 < colorCount)
+        {
+          delayMicroseconds(waitUs);
+        }
+      }
+
+      ctx.printOK("rgb stream");
+      char line[64];
+      snprintf(line, sizeof(line), "pin: %d", pin);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "colors: %u wait: %lu us",
+               static_cast<unsigned int>(colorCount),
+               static_cast<unsigned long>(waitUs));
+      ctx.printBody(line);
+    }
+
     static const Command kCommands[];
     static const size_t kCommandCount;
+
+    static int rgbDefaultPin_;
 
     Base cli_;
   };
@@ -1160,24 +1751,47 @@ namespace esp32serialctl
   const typename ESP32SerialCtl<MaxLineLength, MaxTokens>::Command
       ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands[] = {
           {"sys", "info", &ESP32SerialCtl::handleSysInfo,
-           "Show board and firmware information"},
+           ": Show board and firmware information"},
           {"sys", "uptime", &ESP32SerialCtl::handleSysUptime,
-           "Show system uptime"},
+           ": Show system uptime"},
           {"sys", "time", &ESP32SerialCtl::handleSysTime,
-           "Show local time (ISO 8601)"},
+           ": Show local time (ISO 8601)"},
           {"sys", "mem", &ESP32SerialCtl::handleSysMem,
-           "Show heap and PSRAM usage"},
+           ": Show heap and PSRAM usage"},
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
-           "Software reset"},
+           ": Software reset"},
+          {"gpio", "mode", &ESP32SerialCtl::handleGpioMode,
+           "<pin> <in|out|pullup|pulldown|opendrain> : Set pin mode"},
+          {"gpio", "read", &ESP32SerialCtl::handleGpioRead,
+           "<pin> : Read GPIO input value"},
+          {"gpio", "write", &ESP32SerialCtl::handleGpioWrite,
+           "<pin> <0|1|on|off|low|high> : Write GPIO output"},
+          {"gpio", "toggle", &ESP32SerialCtl::handleGpioToggle,
+           "<pin> : Toggle output"},
+          {"adc", "read", &ESP32SerialCtl::handleAdcRead,
+           "<pin> [samples N] : Read ADC value (average)"},
+          {"pwm", "set", &ESP32SerialCtl::handlePwmSet,
+           "<pin> <freq> <duty> [bits] : Start PWM output"},
+          {"pwm", "stop", &ESP32SerialCtl::handlePwmStop,
+           "<pin> : Stop PWM output"},
+          {"rgb", "pin", &ESP32SerialCtl::handleRgbPin,
+           "<pin> : Set default RGB output pin"},
+          {"rgb", "set", &ESP32SerialCtl::handleRgbSet,
+           "[--pin pin] [--count N] [--wait us] <r> <g> <b> : Set RGB LED color"},
+          {"rgb", "stream", &ESP32SerialCtl::handleRgbStream,
+           "[--pin pin] [--wait us] <r> <g> <b> [...] : Stream RGB colors sequentially"},
           {nullptr, "help", &ESP32SerialCtl::handleHelp,
-           "Show help for commands"},
+           ": Show help for commands"},
           {nullptr, "?", &ESP32SerialCtl::handleHelp,
-           "Shortcut for help"},
+           ": Shortcut for help"},
   };
 
   template <size_t MaxLineLength, size_t MaxTokens>
   const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommandCount =
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands) /
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands[0]);
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  int ESP32SerialCtl<MaxLineLength, MaxTokens>::rgbDefaultPin_ = -1;
 
 } // namespace esp32serialctl
