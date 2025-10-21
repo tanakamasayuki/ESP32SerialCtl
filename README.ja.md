@@ -102,6 +102,10 @@ void loop() {
 - `sys time` : 現在時刻を ISO 8601 形式で表示
 - `sys mem` : ヒープ/PSRAM の合計・空き・最小・最大ブロックとスタック余裕を表示
 - `sys reset` : リクエストを確認後に `ESP.restart()` を実行
+- `storage list/use/status` : `SD` / `SPIFFS` / `LittleFS` / `FFat` などインクルード済みのストレージを列挙・選択し、容量や使用量を確認
+- `fs ls/cat/write/rm/stat/mkdir/mv` : `storage use` で選択したストレージ（または `--storage <name>` 指定）に対して、ファイル一覧・内容表示・テキスト書き込み・削除・情報表示・ディレクトリ作成・移動/リネームを行う
+- `fs b64read/b64write` : Base64 でエンコードしたチャンクを送受信し、バイナリデータも転送可能。複数チャンクは `--append` で追記。
+- `fs hash` : `sha256`（既定）や `md5` のハッシュとファイルサイズを表示し、転送後の整合性を確認
 - `i2c scan/read/write` : `Wire` をインクルードしている場合に自動提供され、複数 I2C コントローラでは `--bus` で `Wire` / `Wire1` などを指定可能
 - `gpio mode/read/write/toggle` : GPIO のモード設定・入出力・トグルを制御
 - `adc read` : ADC をサンプリングし、`samples` オプションで平均化

@@ -10,6 +10,28 @@
 #include <core_version.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <FS.h>
+#include <mbedtls/base64.h>
+#include <mbedtls/md5.h>
+#include <mbedtls/sha256.h>
+#if !defined(mbedtls_sha256_starts_ret)
+#define mbedtls_sha256_starts_ret mbedtls_sha256_starts
+#endif
+#if !defined(mbedtls_sha256_update_ret)
+#define mbedtls_sha256_update_ret mbedtls_sha256_update
+#endif
+#if !defined(mbedtls_sha256_finish_ret)
+#define mbedtls_sha256_finish_ret mbedtls_sha256_finish
+#endif
+#if !defined(mbedtls_md5_starts_ret)
+#define mbedtls_md5_starts_ret mbedtls_md5_starts
+#endif
+#if !defined(mbedtls_md5_update_ret)
+#define mbedtls_md5_update_ret mbedtls_md5_update
+#endif
+#if !defined(mbedtls_md5_finish_ret)
+#define mbedtls_md5_finish_ret mbedtls_md5_finish
+#endif
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -34,6 +56,55 @@
 #if !defined(ESP32SERIALCTL_HAS_WIRE2) && (defined(SOC_I2C_NUM) && (SOC_I2C_NUM > 2))
 #define ESP32SERIALCTL_HAS_WIRE2 1
 #endif
+#endif
+
+#if defined(ESP32SERIALCTL_ENABLE_SD)
+#include <SD.h>
+#define ESP32SERIALCTL_HAS_SD 1
+#endif
+#if !defined(ESP32SERIALCTL_HAS_SD)
+#if defined(SD_H) || defined(SD_h) || defined(_SD_H_) || defined(_SD_H)
+#define ESP32SERIALCTL_HAS_SD 1
+#endif
+#endif
+
+#if defined(ESP32SERIALCTL_ENABLE_SPIFFS)
+#include <SPIFFS.h>
+#define ESP32SERIALCTL_HAS_SPIFFS 1
+#endif
+#if !defined(ESP32SERIALCTL_HAS_SPIFFS)
+#if defined(SPIFFS_H) || defined(SPIFFS_h) || defined(_SPIFFS_H_) ||           \
+    defined(_SPIFFS_H)
+#define ESP32SERIALCTL_HAS_SPIFFS 1
+#endif
+#endif
+
+#if defined(ESP32SERIALCTL_ENABLE_LITTLEFS)
+#include <LittleFS.h>
+#define ESP32SERIALCTL_HAS_LITTLEFS 1
+#endif
+#if !defined(ESP32SERIALCTL_HAS_LITTLEFS)
+#if defined(LITTLEFS_H) || defined(LITTLEFS_h) || defined(_LITTLEFS_H_) ||      \
+    defined(_LITTLEFS_H)
+#define ESP32SERIALCTL_HAS_LITTLEFS 1
+#endif
+#endif
+
+#if defined(ESP32SERIALCTL_ENABLE_FFAT) || defined(ESP32SERIALCTL_ENABLE_FATFS)
+#include <FFat.h>
+#define ESP32SERIALCTL_HAS_FFAT 1
+#endif
+#if !defined(ESP32SERIALCTL_HAS_FFAT)
+#if defined(FFATFS_H) || defined(_FFATFS_H_) || defined(FFatFS_H) ||            \
+    defined(FFatFS_h) || defined(FFAT_H) || defined(_FFAT_H_) ||                \
+    defined(FFat_h)
+#define ESP32SERIALCTL_HAS_FFAT 1
+#endif
+#endif
+
+#if defined(ESP32SERIALCTL_HAS_SD) || defined(ESP32SERIALCTL_HAS_SPIFFS) ||  \
+    defined(ESP32SERIALCTL_HAS_LITTLEFS) || defined(ESP32SERIALCTL_HAS_FFAT)
+#define ESP32SERIALCTL_HAS_STORAGE 1
 #endif
 
 namespace esp32serialctl
@@ -1150,6 +1221,1187 @@ namespace esp32serialctl
       out = static_cast<uint32_t>(value);
       return true;
     }
+
+#if defined(ESP32SERIALCTL_HAS_STORAGE)
+    struct StorageEntry
+    {
+      const char *name;
+      const char *description;
+      fs::FS *fs;
+      uint64_t (*totalBytes)();
+      uint64_t (*usedBytes)();
+    };
+
+    static const StorageEntry kStorageEntries[];
+    static const size_t kStorageCount;
+    static int currentStorageIndex_;
+
+    static int findStorageIndex(const char *name)
+    {
+      if (!name || !*name)
+      {
+        return -1;
+      }
+      for (size_t i = 0; i < kStorageCount; ++i)
+      {
+        if (Base::equalsIgnoreCase(name, kStorageEntries[i].name))
+        {
+          return static_cast<int>(i);
+        }
+      }
+      return -1;
+    }
+
+    static bool checkStorageMounted(fs::FS &fs)
+    {
+      File root = fs.open("/");
+      if (!root)
+      {
+        return false;
+      }
+      root.close();
+      return true;
+    }
+
+    static bool getStorageEntry(Context &ctx, int index,
+                                const StorageEntry *&entryOut, fs::FS *&fsOut,
+                                bool requireMounted)
+    {
+      if (kStorageCount == 0)
+      {
+        ctx.printError(404, "No storage backends");
+        return false;
+      }
+      if (index < 0)
+      {
+        ctx.printError(412, "No storage selected");
+        return false;
+      }
+      if (static_cast<size_t>(index) >= kStorageCount)
+      {
+        ctx.printError(404, "Unknown storage");
+        return false;
+      }
+      entryOut = &kStorageEntries[index];
+      fsOut = entryOut->fs;
+      if (!fsOut)
+      {
+        ctx.printError(500, "Storage backend unavailable");
+        return false;
+      }
+      if (requireMounted && !checkStorageMounted(*fsOut))
+      {
+        char message[96];
+        snprintf(message, sizeof(message), "%s not mounted", entryOut->name);
+        ctx.printError(503, message);
+        return false;
+      }
+      return true;
+    }
+
+    static const typename Base::Option *findStorageOption(Context &ctx)
+    {
+      const typename Base::Option *opt = ctx.findOption("storage");
+      if (opt)
+      {
+        return opt;
+      }
+      return ctx.findOption("store");
+    }
+
+    static bool resolveStorageForFs(Context &ctx, const StorageEntry *&entryOut,
+                                    fs::FS *&fsOut)
+    {
+      const typename Base::Option *opt = findStorageOption(ctx);
+      if (opt && (!opt->value || !*opt->value))
+      {
+        ctx.printError(400, "Storage name required");
+        return false;
+      }
+
+      int index = -1;
+      if (opt && opt->value)
+      {
+        index = findStorageIndex(opt->value);
+        if (index < 0)
+        {
+          ctx.printError(404, "Unknown storage");
+          return false;
+        }
+      }
+      else
+      {
+        index = currentStorageIndex_;
+      }
+
+      if (!getStorageEntry(ctx, index, entryOut, fsOut, true))
+      {
+        return false;
+      }
+      return true;
+    }
+
+    static bool parseSizeArgument(Context &ctx, const typename Base::Argument &arg,
+                                  uint64_t &out, const char *message)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.unit != NumberUnit::None || number.value < 0)
+      {
+        ctx.printError(400, message);
+        return false;
+      }
+      out = static_cast<uint64_t>(number.value);
+      return true;
+    }
+
+    static const char *resolvePathArgument(const typename Base::Argument &arg,
+                                           const char *fallback)
+    {
+      return arg.empty() ? fallback : arg.c_str();
+    }
+
+    static bool parseSizeOption(Context &ctx, const typename Base::Option *opt,
+                                uint64_t &out, const char *message, bool &present)
+    {
+      if (!opt || !opt->value)
+      {
+        present = false;
+        return true;
+      }
+      present = true;
+      ParsedNumber number;
+      if (!Base::parseNumber(opt->value, number) || number.unit != NumberUnit::None ||
+          number.value < 0)
+      {
+        ctx.printError(400, message);
+        return false;
+      }
+      out = static_cast<uint64_t>(number.value);
+      return true;
+    }
+
+    template <typename T>
+    struct RemoveReference
+    {
+      using type = T;
+    };
+    template <typename T>
+    struct RemoveReference<T &>
+    {
+      using type = T;
+    };
+    template <typename T>
+    struct RemoveReference<T &&>
+    {
+      using type = T;
+    };
+
+    template <typename FS>
+    static constexpr bool storageHasTotalBytes(decltype(&FS::totalBytes))
+    {
+      return true;
+    }
+
+    template <typename FS>
+    static constexpr bool storageHasTotalBytes(...)
+    {
+      return false;
+    }
+
+    template <typename FS>
+    static constexpr bool storageHasUsedBytes(decltype(&FS::usedBytes))
+    {
+      return true;
+    }
+
+    template <typename FS>
+    static constexpr bool storageHasUsedBytes(...)
+    {
+      return false;
+    }
+
+    template <typename FS>
+    static auto detectTotalBytes(FS &fs, int)
+        -> decltype(static_cast<uint64_t>(fs.totalBytes()))
+    {
+      return static_cast<uint64_t>(fs.totalBytes());
+    }
+
+    template <typename FS>
+    static uint64_t detectTotalBytes(FS &, ...)
+    {
+      return 0;
+    }
+
+    template <typename FS>
+    static auto detectUsedBytes(FS &fs, int)
+        -> decltype(static_cast<uint64_t>(fs.usedBytes()))
+    {
+      return static_cast<uint64_t>(fs.usedBytes());
+    }
+
+    template <typename FS>
+    static uint64_t detectUsedBytes(FS &, ...)
+    {
+      return 0;
+    }
+
+#if defined(ESP32SERIALCTL_HAS_SD)
+    using SdStorageType = typename RemoveReference<decltype(SD)>::type;
+    static constexpr bool kSdHasTotalBytes = storageHasTotalBytes<SdStorageType>(nullptr);
+    static constexpr bool kSdHasUsedBytes = storageHasUsedBytes<SdStorageType>(nullptr);
+
+    static uint64_t storageSdTotalBytes()
+    {
+      return detectTotalBytes(SD, 0);
+    }
+
+    static uint64_t storageSdUsedBytes()
+    {
+      return detectUsedBytes(SD, 0);
+    }
+#endif
+
+#if defined(ESP32SERIALCTL_HAS_SPIFFS)
+    using SpiffsStorageType = typename RemoveReference<decltype(SPIFFS)>::type;
+    static constexpr bool kSpiffsHasTotalBytes =
+        storageHasTotalBytes<SpiffsStorageType>(nullptr);
+    static constexpr bool kSpiffsHasUsedBytes =
+        storageHasUsedBytes<SpiffsStorageType>(nullptr);
+
+    static uint64_t storageSpiffsTotalBytes()
+    {
+      return detectTotalBytes(SPIFFS, 0);
+    }
+
+    static uint64_t storageSpiffsUsedBytes()
+    {
+      return detectUsedBytes(SPIFFS, 0);
+    }
+#endif
+
+#if defined(ESP32SERIALCTL_HAS_LITTLEFS)
+    using LittleFsStorageType = typename RemoveReference<decltype(LittleFS)>::type;
+    static constexpr bool kLittleFsHasTotalBytes =
+        storageHasTotalBytes<LittleFsStorageType>(nullptr);
+    static constexpr bool kLittleFsHasUsedBytes =
+        storageHasUsedBytes<LittleFsStorageType>(nullptr);
+
+    static uint64_t storageLittleFsTotalBytes()
+    {
+      return detectTotalBytes(LittleFS, 0);
+    }
+
+    static uint64_t storageLittleFsUsedBytes()
+    {
+      return detectUsedBytes(LittleFS, 0);
+    }
+#endif
+
+#if defined(ESP32SERIALCTL_HAS_FFAT)
+    using FatFsStorageType = typename RemoveReference<decltype(FFat)>::type;
+    static constexpr bool kFatFsHasTotalBytes =
+        storageHasTotalBytes<FatFsStorageType>(nullptr);
+    static constexpr bool kFatFsHasUsedBytes =
+        storageHasUsedBytes<FatFsStorageType>(nullptr);
+
+    static uint64_t storageFatFsTotalBytes()
+    {
+      return detectTotalBytes(FFat, 0);
+    }
+
+    static uint64_t storageFatFsUsedBytes()
+    {
+      return detectUsedBytes(FFat, 0);
+    }
+#endif
+
+    static void handleStorageList(Context &ctx)
+    {
+      ctx.printOK("storage list");
+      if (kStorageCount == 0)
+      {
+        ctx.printBody("No storage backends");
+        return;
+      }
+      for (size_t i = 0; i < kStorageCount; ++i)
+      {
+        const StorageEntry &entry = kStorageEntries[i];
+        fs::FS *fs = entry.fs;
+        const bool mounted = fs && checkStorageMounted(*fs);
+        const char indicator = (currentStorageIndex_ == static_cast<int>(i)) ? '*' : ' ';
+        char line[128];
+        if (entry.description && *entry.description)
+        {
+          snprintf(line, sizeof(line), "%c %s (%s) [%s]", indicator, entry.name,
+                   entry.description, mounted ? "mounted" : "not mounted");
+        }
+        else
+        {
+          snprintf(line, sizeof(line), "%c %s [%s]", indicator, entry.name,
+                   mounted ? "mounted" : "not mounted");
+        }
+        ctx.printBody(line);
+      }
+    }
+
+    static void handleStorageUse(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: storage use <name>");
+        return;
+      }
+      const char *name = ctx.arg(0).c_str();
+      const int index = findStorageIndex(name);
+      if (index < 0)
+      {
+        ctx.printError(404, "Unknown storage");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!getStorageEntry(ctx, index, entry, fs, true))
+      {
+        return;
+      }
+      currentStorageIndex_ = index;
+      ctx.printOK("storage use");
+      char line[96];
+      snprintf(line, sizeof(line), "current: %s", entry->name);
+      ctx.printBody(line);
+    }
+
+    static bool resolveStorageForStatus(Context &ctx, const StorageEntry *&entryOut,
+                                        fs::FS *&fsOut)
+    {
+      if (ctx.argc() > 1)
+      {
+        ctx.printError(400, "Usage: storage status [name]");
+        return false;
+      }
+      int index = currentStorageIndex_;
+      if (ctx.argc() == 1)
+      {
+        index = findStorageIndex(ctx.arg(0).c_str());
+        if (index < 0)
+        {
+          ctx.printError(404, "Unknown storage");
+          return false;
+        }
+      }
+      if (!getStorageEntry(ctx, index, entryOut, fsOut, false))
+      {
+        return false;
+      }
+      return true;
+    }
+
+    static void handleStorageStatus(Context &ctx)
+    {
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForStatus(ctx, entry, fs))
+      {
+        return;
+      }
+      const bool mounted = fs && checkStorageMounted(*fs);
+      ctx.printOK("storage status");
+      char line[128];
+      snprintf(line, sizeof(line), "storage: %s", entry->name);
+      ctx.printBody(line);
+      ctx.printBody(mounted ? "mounted: yes" : "mounted: no");
+      if (!mounted)
+      {
+        return;
+      }
+
+      if (!entry->totalBytes || !entry->usedBytes)
+      {
+        ctx.printBody("capacity: unavailable");
+        return;
+      }
+      const uint64_t total = entry->totalBytes();
+      const uint64_t used = entry->usedBytes();
+      if (total == 0 && used == 0)
+      {
+        ctx.printBody("capacity: unavailable");
+        return;
+      }
+      const uint64_t freeBytes = (total >= used) ? (total - used) : 0;
+
+      snprintf(line, sizeof(line), "total: %llu bytes",
+               static_cast<unsigned long long>(total));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "used: %llu bytes",
+               static_cast<unsigned long long>(used));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "free: %llu bytes",
+               static_cast<unsigned long long>(freeBytes));
+      ctx.printBody(line);
+    }
+
+    static void handleFsLs(Context &ctx)
+    {
+      if (ctx.argc() > 1)
+      {
+        ctx.printError(400, "Usage: fs ls [path]");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+
+      const char *path = (ctx.argc() == 0) ? "/" : resolvePathArgument(ctx.arg(0), "/");
+      File dir = fs->open(path);
+      if (!dir)
+      {
+        ctx.printError(404, "Path not found");
+        return;
+      }
+
+      ctx.printOK("fs ls");
+      char header[160];
+      snprintf(header, sizeof(header), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(header);
+
+      if (!dir.isDirectory())
+      {
+        char line[160];
+        snprintf(line, sizeof(line), "file %s (%llu bytes)", dir.name(),
+                 static_cast<unsigned long long>(dir.size()));
+        ctx.printBody(line);
+        dir.close();
+        return;
+      }
+
+      bool any = false;
+      while (true)
+      {
+        File child = dir.openNextFile();
+        if (!child)
+        {
+          break;
+        }
+        char line[160];
+        if (child.isDirectory())
+        {
+          snprintf(line, sizeof(line), "<DIR> %s", child.name());
+        }
+        else
+        {
+          snprintf(line, sizeof(line), "%10llu %s",
+                   static_cast<unsigned long long>(child.size()), child.name());
+        }
+        ctx.printBody(line);
+        child.close();
+        any = true;
+      }
+      if (!any)
+      {
+        ctx.printBody("(empty)");
+      }
+      dir.close();
+    }
+
+    static void handleFsCat(Context &ctx)
+    {
+      if (ctx.argc() < 1 || ctx.argc() > 3)
+      {
+        ctx.printError(400, "Usage: fs cat <path> [offset] [len]");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+
+      const char *path = ctx.arg(0).c_str();
+      uint64_t offset = 0;
+      uint64_t length = 0;
+      bool limit = false;
+
+      if (ctx.argc() >= 2 &&
+          !parseSizeArgument(ctx, ctx.arg(1), offset, "Invalid offset"))
+      {
+        return;
+      }
+      if (ctx.argc() == 3 &&
+          !parseSizeArgument(ctx, ctx.arg(2), length, "Invalid length"))
+      {
+        return;
+      }
+      limit = (ctx.argc() == 3);
+
+      File file = fs->open(path, FILE_READ);
+      if (!file)
+      {
+        ctx.printError(404, "File not found");
+        return;
+      }
+      if (offset > 0 && !file.seek(offset))
+      {
+        file.close();
+        ctx.printError(400, "Seek failed");
+        return;
+      }
+
+      ctx.printOK("fs cat");
+      char info[160];
+      snprintf(info, sizeof(info), "storage: %s path: %s offset: %llu",
+               entry->name, path, static_cast<unsigned long long>(offset));
+      ctx.printBody(info);
+      if (limit)
+      {
+        snprintf(info, sizeof(info), "length: %llu bytes",
+                 static_cast<unsigned long long>(length));
+        ctx.printBody(info);
+      }
+      else
+      {
+        ctx.printBody("length: until EOF");
+      }
+
+      static const size_t kChunkSize = 96;
+      uint8_t buffer[kChunkSize];
+      uint64_t remaining = length;
+      const bool limited = limit;
+      bool lineOpen = false;
+      bool hasData = false;
+      Print &out = ctx.controller().output();
+
+      auto openLine = [&]()
+      {
+        if (!lineOpen)
+        {
+          out.print("| ");
+          lineOpen = true;
+        }
+      };
+      auto closeLine = [&]()
+      {
+        if (lineOpen)
+        {
+          out.print("\r\n");
+          lineOpen = false;
+        }
+      };
+
+      while (file.available())
+      {
+        if (limited && remaining == 0)
+        {
+          break;
+        }
+        size_t toRead = kChunkSize;
+        if (limited && remaining < toRead)
+        {
+          toRead = static_cast<size_t>(remaining);
+        }
+        size_t readBytes = file.read(buffer, toRead);
+        if (readBytes == 0)
+        {
+          break;
+        }
+        if (limited)
+        {
+          remaining -= readBytes;
+        }
+        for (size_t i = 0; i < readBytes; ++i)
+        {
+          const uint8_t ch = buffer[i];
+          if (ch == '\r')
+          {
+            continue;
+          }
+          if (ch == '\n')
+          {
+            closeLine();
+            hasData = true;
+            continue;
+          }
+          openLine();
+          hasData = true;
+          if (ch == '\t')
+          {
+            out.print("\\t");
+          }
+          else if (isprint(ch))
+          {
+            out.write(ch);
+          }
+          else
+          {
+            char hex[5];
+            snprintf(hex, sizeof(hex), "\\x%02X",
+                     static_cast<unsigned int>(ch));
+            out.print(hex);
+          }
+        }
+      }
+      closeLine();
+      file.close();
+      if (!hasData)
+      {
+        ctx.printBody("(no data)");
+      }
+    }
+
+    static void handleFsB64Read(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: fs b64read <path> [--offset N] [--len N] [--chunk N]");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+
+      uint64_t offset = 0;
+      uint64_t length = 0;
+      bool limit = false;
+      bool hasOffset = false;
+      bool hasLength = false;
+
+      if (!parseSizeOption(ctx, ctx.findOption("offset"), offset, "Invalid offset",
+                           hasOffset))
+      {
+        return;
+      }
+      if (!parseSizeOption(ctx, ctx.findOption("len"), length, "Invalid length",
+                           hasLength))
+      {
+        return;
+      }
+      limit = hasLength;
+
+      uint64_t chunkOpt = 0;
+      bool hasChunk = false;
+      if (!parseSizeOption(ctx, ctx.findOption("chunk"), chunkOpt, "Invalid chunk size",
+                           hasChunk))
+      {
+        return;
+      }
+      size_t chunkSize = hasChunk ? static_cast<size_t>(chunkOpt) : 48U;
+      if (chunkSize == 0U || chunkSize > 192U)
+      {
+        ctx.printError(400, "Chunk must be 1..192");
+        return;
+      }
+
+      const char *path = ctx.arg(0).c_str();
+      File file = fs->open(path, FILE_READ);
+      if (!file)
+      {
+        ctx.printError(404, "File not found");
+        return;
+      }
+      if (hasOffset && offset > 0 && !file.seek(offset))
+      {
+        file.close();
+        ctx.printError(400, "Seek failed");
+        return;
+      }
+
+      ctx.printOK("fs b64read");
+      char info[160];
+      snprintf(info, sizeof(info), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(info);
+      if (hasOffset)
+      {
+        snprintf(info, sizeof(info), "offset: %llu",
+                 static_cast<unsigned long long>(offset));
+        ctx.printBody(info);
+      }
+      if (limit)
+      {
+        snprintf(info, sizeof(info), "length: %llu",
+                 static_cast<unsigned long long>(length));
+        ctx.printBody(info);
+      }
+      snprintf(info, sizeof(info), "chunk: %u",
+               static_cast<unsigned int>(chunkSize));
+      ctx.printBody(info);
+
+      uint8_t buffer[192];
+      char encoded[260];
+      size_t chunkIndex = 0;
+      uint64_t remaining = length;
+      const bool limited = limit;
+
+      while (file.available())
+      {
+        if (limited && remaining == 0)
+        {
+          break;
+        }
+        size_t toRead = chunkSize;
+        if (limited && remaining < toRead)
+        {
+          toRead = static_cast<size_t>(remaining);
+        }
+        size_t readBytes = file.read(buffer, toRead);
+        if (readBytes == 0)
+        {
+          break;
+        }
+
+        size_t encodedLen = 0;
+        if (mbedtls_base64_encode(reinterpret_cast<unsigned char *>(encoded),
+                                  sizeof(encoded) - 1, &encodedLen, buffer, readBytes) !=
+            0)
+        {
+          file.close();
+          ctx.printError(500, "Base64 encode failed");
+          return;
+        }
+        encoded[encodedLen] = '\0';
+
+        snprintf(info, sizeof(info), "data[%u]: %s",
+                 static_cast<unsigned int>(chunkIndex), encoded);
+        ctx.printBody(info);
+
+        if (limited)
+        {
+          remaining -= readBytes;
+        }
+        ++chunkIndex;
+      }
+
+      file.close();
+      snprintf(info, sizeof(info), "chunks: %u", static_cast<unsigned int>(chunkIndex));
+      ctx.printBody(info);
+    }
+
+    static void handleFsB64Write(Context &ctx)
+    {
+      if (ctx.argc() < 2)
+      {
+        ctx.printError(400, "Usage: fs b64write <path> <base64...> [--append]");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+
+      const char *path = ctx.arg(0).c_str();
+      const bool append = ctx.hasOption("append");
+
+      char base64Data[MaxLineLength + 1];
+      size_t dataLen = 0;
+      base64Data[0] = '\0';
+
+      for (size_t i = 1; i < ctx.argc(); ++i)
+      {
+        const typename Base::Argument &arg = ctx.arg(i);
+        for (size_t j = 0; j < arg.size(); ++j)
+        {
+          const char ch = arg.c_str()[j];
+          if (isspace(static_cast<unsigned char>(ch)))
+          {
+            continue;
+          }
+          if (dataLen + 1 >= sizeof(base64Data))
+          {
+            ctx.printError(413, "Input too long");
+            return;
+          }
+          base64Data[dataLen++] = ch;
+        }
+      }
+      base64Data[dataLen] = '\0';
+
+      if (dataLen == 0)
+      {
+        ctx.printError(400, "No data");
+        return;
+      }
+
+      const size_t decodedCapacity =
+          static_cast<size_t>(((dataLen + 3U) / 4U) * 3U + 4U);
+      uint8_t decoded[((MaxLineLength + 3U) / 4U) * 3U + 4U];
+      if (decodedCapacity > sizeof(decoded))
+      {
+        ctx.printError(413, "Data too long");
+        return;
+      }
+      size_t decodedLen = 0;
+      int rc = mbedtls_base64_decode(decoded, sizeof(decoded), &decodedLen,
+                                     reinterpret_cast<const unsigned char *>(base64Data),
+                                     dataLen);
+      if (rc == MBEDTLS_ERR_BASE64_INVALID_CHARACTER)
+      {
+        ctx.printError(400, "Invalid base64");
+        return;
+      }
+      if (rc != 0)
+      {
+        ctx.printError(500, "Base64 decode failed");
+        return;
+      }
+
+      File file = fs->open(path, append ? "a" : "w");
+      if (!file)
+      {
+        ctx.printError(500, "Open failed");
+        return;
+      }
+      const size_t written = file.write(decoded, decodedLen);
+      file.close();
+      if (written != decodedLen)
+      {
+        ctx.printError(500, "Write failed");
+        return;
+      }
+
+      ctx.printOK("fs b64write");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "bytes: %u append: %s",
+               static_cast<unsigned int>(written), append ? "yes" : "no");
+      ctx.printBody(line);
+    }
+
+    static void handleFsWrite(Context &ctx)
+    {
+      if (ctx.argc() != 2)
+      {
+        ctx.printError(400, "Usage: fs write <path> \"<data>\"");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+      const char *path = ctx.arg(0).c_str();
+      const char *data = ctx.arg(1).c_str();
+      File file = fs->open(path, "w");
+      if (!file)
+      {
+        ctx.printError(500, "Write failed");
+        return;
+      }
+      const size_t length = strlen(data);
+      const size_t written = file.write(reinterpret_cast<const uint8_t *>(data), length);
+      file.close();
+      if (written != length)
+      {
+        ctx.printError(500, "Write failed");
+        return;
+      }
+      ctx.printOK("fs write");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s path: %s bytes: %u",
+               entry->name, path, static_cast<unsigned int>(written));
+      ctx.printBody(line);
+    }
+
+    static void handleFsRm(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: fs rm <path>");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+      const char *path = ctx.arg(0).c_str();
+      File target = fs->open(path);
+      if (!target)
+      {
+        ctx.printError(404, "Path not found");
+        return;
+      }
+      const bool isDir = target.isDirectory();
+      target.close();
+
+      bool ok = false;
+      if (isDir)
+      {
+        ok = fs->rmdir(path);
+      }
+      else
+      {
+        ok = fs->remove(path);
+      }
+      if (!ok)
+      {
+        ctx.printError(500, "Delete failed");
+        return;
+      }
+
+      ctx.printOK("fs rm");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(line);
+      ctx.printBody(isDir ? "type: directory" : "type: file");
+    }
+
+    static void handleFsStat(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: fs stat <path>");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+      const char *path = ctx.arg(0).c_str();
+      File file = fs->open(path);
+      if (!file)
+      {
+        ctx.printError(404, "Path not found");
+        return;
+      }
+
+      ctx.printOK("fs stat");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(line);
+      ctx.printBody(file.isDirectory() ? "type: directory" : "type: file");
+      snprintf(line, sizeof(line), "size: %llu bytes",
+               static_cast<unsigned long long>(file.size()));
+      ctx.printBody(line);
+      const uint64_t modified = file.getLastWrite();
+      if (modified > 0)
+      {
+        snprintf(line, sizeof(line), "modified: %llu",
+                 static_cast<unsigned long long>(modified));
+        ctx.printBody(line);
+      }
+      file.close();
+    }
+
+    static void handleFsMkdir(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: fs mkdir <path>");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+      const char *path = ctx.arg(0).c_str();
+      if (!fs->mkdir(path))
+      {
+        ctx.printError(500, "mkdir failed");
+        return;
+      }
+      ctx.printOK("fs mkdir");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(line);
+    }
+
+    static void handleFsMv(Context &ctx)
+    {
+      if (ctx.argc() != 2)
+      {
+        ctx.printError(400, "Usage: fs mv <src> <dst>");
+        return;
+      }
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+      const char *src = ctx.arg(0).c_str();
+      const char *dst = ctx.arg(1).c_str();
+      if (!fs->rename(src, dst))
+      {
+        ctx.printError(500, "rename failed");
+        return;
+      }
+      ctx.printOK("fs mv");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s", entry->name);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "src: %s", src);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "dst: %s", dst);
+      ctx.printBody(line);
+    }
+
+    enum class HashAlgorithm : uint8_t
+    {
+      Sha256 = 0,
+      Md5
+    };
+
+    static bool parseHashAlgorithmOption(Context &ctx, HashAlgorithm &algo)
+    {
+      const typename Base::Option *opt = ctx.findOption("algo");
+      if (!opt || !opt->value)
+      {
+        algo = HashAlgorithm::Sha256;
+        return true;
+      }
+      if (Base::equalsIgnoreCase(opt->value, "sha256"))
+      {
+        algo = HashAlgorithm::Sha256;
+        return true;
+      }
+      if (Base::equalsIgnoreCase(opt->value, "md5"))
+      {
+        algo = HashAlgorithm::Md5;
+        return true;
+      }
+      ctx.printError(400, "Unknown algorithm");
+      return false;
+    }
+
+    static void digestToHex(const unsigned char *digest, size_t length, char *out,
+                            size_t outSize)
+    {
+      static const char hexDigits[] = "0123456789abcdef";
+      size_t pos = 0;
+      for (size_t i = 0; i < length && pos + 2 < outSize; ++i)
+      {
+        const unsigned char value = digest[i];
+        out[pos++] = hexDigits[(value >> 4) & 0x0F];
+        out[pos++] = hexDigits[value & 0x0F];
+      }
+      out[pos] = '\0';
+    }
+
+    static void handleFsHash(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: fs hash <path> [--algo sha256|md5]");
+        return;
+      }
+
+      HashAlgorithm algo;
+      if (!parseHashAlgorithmOption(ctx, algo))
+      {
+        return;
+      }
+
+      const StorageEntry *entry = nullptr;
+      fs::FS *fs = nullptr;
+      if (!resolveStorageForFs(ctx, entry, fs))
+      {
+        return;
+      }
+
+      const char *path = ctx.arg(0).c_str();
+      File file = fs->open(path, FILE_READ);
+      if (!file)
+      {
+        ctx.printError(404, "Path not found");
+        return;
+      }
+      if (file.isDirectory())
+      {
+        file.close();
+        ctx.printError(400, "Path is directory");
+        return;
+      }
+
+      const uint64_t fileSize = file.size();
+
+      unsigned char digest[32];
+      size_t digestLen = 0;
+      uint8_t buffer[256];
+      int rc = 0;
+
+      if (algo == HashAlgorithm::Sha256)
+      {
+        mbedtls_sha256_context sha;
+        mbedtls_sha256_init(&sha);
+        rc = mbedtls_sha256_starts_ret(&sha, 0);
+        while (rc == 0 && file.available())
+        {
+          const size_t readBytes = file.read(buffer, sizeof(buffer));
+          if (readBytes == 0)
+          {
+            break;
+          }
+          rc = mbedtls_sha256_update_ret(&sha, buffer, readBytes);
+        }
+        if (rc == 0)
+        {
+          rc = mbedtls_sha256_finish_ret(&sha, digest);
+        }
+        mbedtls_sha256_free(&sha);
+        digestLen = 32;
+      }
+      else
+      {
+        mbedtls_md5_context md5;
+        mbedtls_md5_init(&md5);
+        rc = mbedtls_md5_starts_ret(&md5);
+        while (rc == 0 && file.available())
+        {
+          const size_t readBytes = file.read(buffer, sizeof(buffer));
+          if (readBytes == 0)
+          {
+            break;
+          }
+          rc = mbedtls_md5_update_ret(&md5, buffer, readBytes);
+        }
+        if (rc == 0)
+        {
+          rc = mbedtls_md5_finish_ret(&md5, digest);
+        }
+        mbedtls_md5_free(&md5);
+        digestLen = 16;
+      }
+
+      file.close();
+
+      if (rc != 0)
+      {
+        ctx.printError(500, "Hash failed");
+        return;
+      }
+
+      char hex[65];
+      digestToHex(digest, digestLen, hex, sizeof(hex));
+
+      ctx.printOK("fs hash");
+      char line[160];
+      snprintf(line, sizeof(line), "storage: %s path: %s", entry->name, path);
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "algo: %s",
+               (algo == HashAlgorithm::Sha256) ? "sha256" : "md5");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "size: %llu bytes",
+               static_cast<unsigned long long>(fileSize));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "digest: %s", hex);
+      ctx.printBody(line);
+    }
+#endif // defined(ESP32SERIALCTL_HAS_STORAGE)
 
     static bool isGpioOutputEnabled(uint8_t pin)
     {
@@ -2328,6 +3580,34 @@ namespace esp32serialctl
            ": Show heap and PSRAM usage"},
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},
+#if defined(ESP32SERIALCTL_HAS_STORAGE)
+          {"storage", "list", &ESP32SerialCtl::handleStorageList,
+           ": List available storage devices"},
+          {"storage", "use", &ESP32SerialCtl::handleStorageUse,
+           "<name> : Set current storage backend"},
+          {"storage", "status", &ESP32SerialCtl::handleStorageStatus,
+           "[name] : Show storage status and capacity"},
+          {"fs", "ls", &ESP32SerialCtl::handleFsLs,
+           "[path] [--storage name] : List files and directories"},
+          {"fs", "cat", &ESP32SerialCtl::handleFsCat,
+           "<path> [offset] [len] [--storage name] : Show file contents"},
+          {"fs", "b64read", &ESP32SerialCtl::handleFsB64Read,
+           "<path> [--offset N] [--len N] [--chunk N] [--storage name] : Read file as Base64"},
+          {"fs", "b64write", &ESP32SerialCtl::handleFsB64Write,
+           "<path> <base64...> [--append] [--storage name] : Write Base64 data to file"},
+          {"fs", "write", &ESP32SerialCtl::handleFsWrite,
+           "<path> \"data\" [--storage name] : Write text to file"},
+          {"fs", "rm", &ESP32SerialCtl::handleFsRm,
+           "<path> [--storage name] : Delete file or directory"},
+          {"fs", "stat", &ESP32SerialCtl::handleFsStat,
+           "<path> [--storage name] : Show file information"},
+          {"fs", "mkdir", &ESP32SerialCtl::handleFsMkdir,
+           "<path> [--storage name] : Create directory"},
+          {"fs", "mv", &ESP32SerialCtl::handleFsMv,
+           "<src> <dst> [--storage name] : Move or rename entry"},
+          {"fs", "hash", &ESP32SerialCtl::handleFsHash,
+           "<path> [--algo sha256|md5] [--storage name] : Show file hash"},
+#endif
 #if defined(ESP32SERIALCTL_HAS_WIRE)
           {"i2c", "scan", &ESP32SerialCtl::handleI2cScan,
            "[--bus name|index] : Scan for I2C devices"},
@@ -2361,6 +3641,57 @@ namespace esp32serialctl
           {nullptr, "?", &ESP32SerialCtl::handleHelp,
            ": Shortcut for help"},
   };
+
+#if defined(ESP32SERIALCTL_HAS_STORAGE)
+template <size_t MaxLineLength, size_t MaxTokens>
+const typename ESP32SerialCtl<MaxLineLength, MaxTokens>::StorageEntry
+    ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries[] = {
+#if defined(ESP32SERIALCTL_HAS_SD)
+        {"sd", "SD card", &SD,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSdHasTotalBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSdTotalBytes
+             : nullptr,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSdHasUsedBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSdUsedBytes
+             : nullptr},
+#endif
+#if defined(ESP32SERIALCTL_HAS_SPIFFS)
+        {"spiffs", "SPIFFS", &SPIFFS,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSpiffsHasTotalBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSpiffsTotalBytes
+             : nullptr,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSpiffsHasUsedBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSpiffsUsedBytes
+             : nullptr},
+#endif
+#if defined(ESP32SERIALCTL_HAS_LITTLEFS)
+        {"littlefs", "LittleFS", &LittleFS,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kLittleFsHasTotalBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageLittleFsTotalBytes
+             : nullptr,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kLittleFsHasUsedBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageLittleFsUsedBytes
+             : nullptr},
+#endif
+#if defined(ESP32SERIALCTL_HAS_FFAT)
+        {"fatfs", "FAT FS", &FFat,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kFatFsHasTotalBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageFatFsTotalBytes
+             : nullptr,
+         ESP32SerialCtl<MaxLineLength, MaxTokens>::kFatFsHasUsedBytes
+             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageFatFsUsedBytes
+             : nullptr},
+#endif
+};
+
+template <size_t MaxLineLength, size_t MaxTokens>
+const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageCount =
+    sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries) /
+    sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries[0]);
+
+template <size_t MaxLineLength, size_t MaxTokens>
+int ESP32SerialCtl<MaxLineLength, MaxTokens>::currentStorageIndex_ = -1;
+#endif
 
   template <size_t MaxLineLength, size_t MaxTokens>
   const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommandCount =

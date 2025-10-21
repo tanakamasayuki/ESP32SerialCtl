@@ -104,6 +104,10 @@ These are emitted automatically before the command handler is called.
 - `sys time` returns the current local time in ISO 8601 format.
 - `sys mem` lists heap/PSRAM totals, free, minimum, and largest blocks plus stack watermarks.
 - `sys reset` confirms the request, flushes output, then calls `ESP.restart()`.
+- `storage list/use/status` exposes whichever storage backends have been linked in (`SD`, `SPIFFS`, `LittleFS`, `FFat`). Use `storage use <name>` to select the active target and `storage status [name]` to inspect capacity and usage.
+- `fs ls/cat/write/rm/stat/mkdir/mv` manipulate the filesystem on the active storage (or one specified via `--storage <name>`), covering directory listings, file inspection, text writes, deletions, and renames.
+- `fs b64read/b64write` move arbitrary binary blobs by streaming Base64-encoded chunks; pair with `--append` for multi-chunk uploads.
+- `fs hash` computes file digests (`sha256` default, `md5` optional) and reports byte size to confirm transfers.
 - `i2c scan/read/write` becomes available automatically when `Wire` is included; use `--bus` to target `Wire`, `Wire1`, etc. on multi-controller boards.
 - `gpio mode/read/write/toggle` manipulate pins with familiar semantics.
 - `adc read` samples an ADC channel with optional averaging.

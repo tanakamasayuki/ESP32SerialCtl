@@ -13,3 +13,7 @@
 - (JA) PWM を 12 ビット固定とし、duty のスケーリングを改善。
 - (EN) Added automatic GPIO output-mode adjustments and richer RGB streaming options.
 - (JA) GPIO 出力時に必要なモードへ自動切り替えを行い、RGB ストリーミングオプションを強化。
+- (EN) Introduced storage management (`storage list/use/status`) and filesystem tooling (`fs ls/cat/write/rm/stat/mkdir/mv`) with Base64 transfer helpers (`fs b64read/b64write`).
+- (JA) ストレージ管理（`storage list/use/status`）とファイルシステム操作（`fs ls/cat/write/rm/stat/mkdir/mv`）、Base64 転送ヘルパー（`fs b64read/b64write`）を追加。
+- (EN) `fs hash` now reports the file size alongside `sha256` / `md5` digests.
+- (JA) `fs hash` が `sha256` / `md5` のダイジェストに加えてファイルサイズも表示するよう改善。
