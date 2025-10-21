@@ -17,6 +17,23 @@
 #include <string.h>
 #include <time.h>
 
+#if defined(ESP32SERIALCTL_ENABLE_I2C) || defined(Wire_h) || defined(_WIRE_H_) || \
+    defined(_WIRE_H) || defined(_TWOWIRE_H_) || defined(TwoWire_h) ||             \
+    defined(_WIRELIB_H_)
+#define ESP32SERIALCTL_HAS_WIRE 1
+#endif
+
+#if defined(ESP32SERIALCTL_HAS_WIRE)
+#if !defined(ESP32SERIALCTL_HAS_WIRE1) &&           \
+    ((defined(SOC_I2C_NUM) && (SOC_I2C_NUM > 1)) || \
+     (defined(SOC_HP_I2C_NUM) && (SOC_HP_I2C_NUM > 1)))
+#define ESP32SERIALCTL_HAS_WIRE1 1
+#endif
+#if !defined(ESP32SERIALCTL_HAS_WIRE2) && (defined(SOC_I2C_NUM) && (SOC_I2C_NUM > 2))
+#define ESP32SERIALCTL_HAS_WIRE2 1
+#endif
+#endif
+
 namespace esp32serialctl
 {
 
@@ -1132,6 +1149,407 @@ namespace esp32serialctl
       return true;
     }
 
+#if defined(ESP32SERIALCTL_HAS_WIRE)
+    struct I2cBusEntry
+    {
+      TwoWire *wire;
+      const char *name;
+      uint8_t index;
+    };
+
+    static const I2cBusEntry *availableI2cBuses(size_t &count)
+    {
+      static const I2cBusEntry entries[] = {
+          {&Wire, "Wire", 0},
+#if defined(ESP32SERIALCTL_HAS_WIRE1)
+          {&Wire1, "Wire1", 1},
+#endif
+#if defined(ESP32SERIALCTL_HAS_WIRE2)
+          {&Wire2, "Wire2", 2},
+#endif
+      };
+      count = sizeof(entries) / sizeof(entries[0]);
+      count = count > 0 ? count : 0;
+      return entries;
+    }
+
+    static const I2cBusEntry *resolveI2cBus(Context &ctx)
+    {
+      size_t busCount = 0;
+      const I2cBusEntry *buses = availableI2cBuses(busCount);
+      if (busCount == 0 || !buses)
+      {
+        ctx.printError(500, "I2C unavailable");
+        return nullptr;
+      }
+
+      const typename Base::Option *busOpt = ctx.findOption("bus");
+      if (!busOpt || !busOpt->value || !*busOpt->value)
+      {
+        return &buses[0];
+      }
+
+      const char *value = busOpt->value;
+      for (size_t i = 0; i < busCount; ++i)
+      {
+        if (Base::equalsIgnoreCase(value, buses[i].name))
+        {
+          return &buses[i];
+        }
+        char alias[8];
+        if (buses[i].index == 0)
+        {
+          if (Base::equalsIgnoreCase(value, "wire0") ||
+              Base::equalsIgnoreCase(value, "default") ||
+              Base::equalsIgnoreCase(value, "0"))
+          {
+            return &buses[i];
+          }
+        }
+        else
+        {
+          snprintf(alias, sizeof(alias), "wire%u",
+                   static_cast<unsigned int>(buses[i].index));
+          if (Base::equalsIgnoreCase(value, alias))
+          {
+            return &buses[i];
+          }
+        }
+      }
+
+      ParsedNumber number;
+      if (Base::parseNumber(value, number) &&
+          number.unit == NumberUnit::None)
+      {
+        for (size_t i = 0; i < busCount; ++i)
+        {
+          if (number.value == static_cast<int64_t>(buses[i].index))
+          {
+            return &buses[i];
+          }
+        }
+      }
+
+      ctx.printError(404, "Unknown bus");
+      return nullptr;
+    }
+
+    static bool parseI2cAddress(Context &ctx, const typename Base::Argument &arg, uint8_t &address)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.unit != NumberUnit::None ||
+          number.value < 0 || number.value > 0x7F)
+      {
+        ctx.printError(400, "Invalid address");
+        return false;
+      }
+      address = static_cast<uint8_t>(number.value);
+      return true;
+    }
+
+    static bool parseI2cRegister(Context &ctx, const typename Base::Argument &arg, uint8_t &reg)
+    {
+      return parseUint8Component(ctx, arg, reg, "Invalid register");
+    }
+
+    static bool parseI2cLength(Context &ctx, const typename Base::Argument &arg, size_t &length)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.unit != NumberUnit::None ||
+          number.value <= 0 || number.value > 32)
+      {
+        ctx.printError(400, "Invalid length");
+        return false;
+      }
+      length = static_cast<size_t>(number.value);
+      return true;
+    }
+
+    static void printI2cTransmissionError(Context &ctx, uint8_t code, const char *stage)
+    {
+      const char *reason = "unknown error";
+      switch (code)
+      {
+      case 1:
+        reason = "data too long";
+        break;
+      case 2:
+        reason = "nack on address";
+        break;
+      case 3:
+        reason = "nack on data";
+        break;
+      case 4:
+        reason = "bus error";
+        break;
+      case 5:
+        reason = "timeout";
+        break;
+      default:
+        break;
+      }
+      char line[80];
+      if (stage && *stage)
+      {
+        snprintf(line, sizeof(line), "%s failed: %s (%u)", stage, reason, static_cast<unsigned int>(code));
+      }
+      else
+      {
+        snprintf(line, sizeof(line), "I2C error: %s (%u)", reason, static_cast<unsigned int>(code));
+      }
+      ctx.printError(502, line);
+    }
+
+    static void handleI2cScan(Context &ctx)
+    {
+      size_t busCount = 0;
+      const I2cBusEntry *buses = availableI2cBuses(busCount);
+      if (busCount == 0)
+      {
+        ctx.printError(500, "I2C unavailable");
+        return;
+      }
+
+      ctx.printOK("i2c scan");
+      auto scanBus = [&](const I2cBusEntry &bus)
+      {
+        char line[48];
+        snprintf(line, sizeof(line), "bus: %s (%u)", bus.name,
+                 static_cast<unsigned int>(bus.index));
+        ctx.printBody(line);
+
+        bool any = false;
+        for (uint8_t addr = 0x03; addr <= 0x77; ++addr)
+        {
+          bus.wire->beginTransmission(addr);
+          uint8_t error = bus.wire->endTransmission();
+          if (error == 0)
+          {
+            snprintf(line, sizeof(line), "addr: 0x%02X",
+                     static_cast<unsigned int>(addr));
+            ctx.printList(line);
+            any = true;
+          }
+        }
+
+        if (!any)
+        {
+          ctx.printBody("no devices");
+        }
+      };
+
+      const typename Base::Option *busOpt = ctx.findOption("bus");
+      if (busOpt && busOpt->value && *busOpt->value)
+      {
+        const I2cBusEntry *selected = resolveI2cBus(ctx);
+        if (!selected)
+        {
+          return;
+        }
+        scanBus(*selected);
+        return;
+      }
+
+      for (size_t i = 0; i < busCount; ++i)
+      {
+        scanBus(buses[i]);
+      }
+    }
+
+    static void handleI2cRead(Context &ctx)
+    {
+      if (ctx.argc() < 2 || ctx.argc() > 3)
+      {
+        ctx.printError(400, "Usage: i2c read [--bus name|index] <addr> <reg> [len]");
+        return;
+      }
+
+      const I2cBusEntry *bus = resolveI2cBus(ctx);
+      if (!bus)
+      {
+        return;
+      }
+      TwoWire &i2c = *bus->wire;
+
+      uint8_t address;
+      if (!parseI2cAddress(ctx, ctx.arg(0), address))
+      {
+        return;
+      }
+
+      uint8_t reg;
+      if (!parseI2cRegister(ctx, ctx.arg(1), reg))
+      {
+        return;
+      }
+
+      size_t length = 1;
+      if (ctx.argc() == 3 && !parseI2cLength(ctx, ctx.arg(2), length))
+      {
+        return;
+      }
+
+      i2c.beginTransmission(address);
+      i2c.write(reg);
+      uint8_t error = i2c.endTransmission(false);
+      if (error != 0)
+      {
+        char stage[48];
+        snprintf(stage, sizeof(stage), "register write (bus %s)", bus->name);
+        printI2cTransmissionError(ctx, error, stage);
+        return;
+      }
+
+      size_t received =
+          i2c.requestFrom(static_cast<uint8_t>(address),
+                          static_cast<uint8_t>(length), true);
+      if (received != length)
+      {
+        ctx.printError(504, "Incomplete read");
+        while (i2c.available() > 0)
+        {
+          i2c.read();
+        }
+        return;
+      }
+
+      uint8_t buffer[32];
+      for (size_t i = 0; i < length; ++i)
+      {
+        int value = i2c.read();
+        if (value < 0)
+        {
+          ctx.printError(504, "Read failed");
+          return;
+        }
+        buffer[i] = static_cast<uint8_t>(value);
+      }
+
+      char dataLine[3 * 32 + 1];
+      size_t pos = 0;
+      const char *hex = "0123456789ABCDEF";
+      for (size_t i = 0; i < length && pos + 2 < sizeof(dataLine); ++i)
+      {
+        if (i > 0 && pos < sizeof(dataLine) - 1)
+        {
+          dataLine[pos++] = ' ';
+        }
+        if (pos + 2 >= sizeof(dataLine))
+        {
+          break;
+        }
+        dataLine[pos++] = hex[buffer[i] >> 4];
+        dataLine[pos++] = hex[buffer[i] & 0x0F];
+      }
+      dataLine[pos] = '\0';
+
+      ctx.printOK("i2c read");
+      char line[128];
+      snprintf(line, sizeof(line), "bus: %s (%u)", bus->name,
+               static_cast<unsigned int>(bus->index));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "addr: 0x%02X", static_cast<unsigned int>(address));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "reg: 0x%02X", static_cast<unsigned int>(reg));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "len: %u", static_cast<unsigned int>(length));
+      ctx.printBody(line);
+      if (length > 0)
+      {
+        snprintf(line, sizeof(line), "data: %s", dataLine);
+        ctx.printBody(line);
+      }
+    }
+
+    static void handleI2cWrite(Context &ctx)
+    {
+      if (ctx.argc() < 3)
+      {
+        ctx.printError(400, "Usage: i2c write [--bus name|index] <addr> <reg> <bytes...>");
+        return;
+      }
+
+      const I2cBusEntry *bus = resolveI2cBus(ctx);
+      if (!bus)
+      {
+        return;
+      }
+      TwoWire &i2c = *bus->wire;
+
+      uint8_t address;
+      if (!parseI2cAddress(ctx, ctx.arg(0), address))
+      {
+        return;
+      }
+
+      uint8_t reg;
+      if (!parseI2cRegister(ctx, ctx.arg(1), reg))
+      {
+        return;
+      }
+
+      const size_t dataCount = ctx.argc() - 2;
+      if (dataCount > 32)
+      {
+        ctx.printError(413, "Too many bytes");
+        return;
+      }
+      uint8_t data[32];
+      for (size_t i = 0; i < dataCount; ++i)
+      {
+        if (!parseUint8Component(ctx, ctx.arg(i + 2), data[i], "Invalid data byte"))
+        {
+          return;
+        }
+      }
+
+      i2c.beginTransmission(address);
+      i2c.write(reg);
+      for (size_t i = 0; i < dataCount; ++i)
+      {
+        i2c.write(data[i]);
+      }
+      uint8_t error = i2c.endTransmission(true);
+      if (error != 0)
+      {
+        char stage[40];
+        snprintf(stage, sizeof(stage), "write (bus %s)", bus->name);
+        printI2cTransmissionError(ctx, error, stage);
+        return;
+      }
+
+      char bytesLine[3 * 32 + 1];
+      size_t pos = 0;
+      const char *hex = "0123456789ABCDEF";
+      for (size_t i = 0; i < dataCount && pos + 2 < sizeof(bytesLine); ++i)
+      {
+        if (i > 0 && pos < sizeof(bytesLine) - 1)
+        {
+          bytesLine[pos++] = ' ';
+        }
+        if (pos + 2 >= sizeof(bytesLine))
+        {
+          break;
+        }
+        bytesLine[pos++] = hex[data[i] >> 4];
+        bytesLine[pos++] = hex[data[i] & 0x0F];
+      }
+      bytesLine[pos] = '\0';
+
+      ctx.printOK("i2c write");
+      char line[128];
+      snprintf(line, sizeof(line), "bus: %s (%u)", bus->name,
+               static_cast<unsigned int>(bus->index));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "addr: 0x%02X", static_cast<unsigned int>(address));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "reg: 0x%02X", static_cast<unsigned int>(reg));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "bytes: %s", bytesLine);
+      ctx.printBody(line);
+    }
+#endif
+
     static constexpr uint8_t kPwmResolutionBits = 8;
 
     static void handleSysInfo(Context &ctx)
@@ -1543,16 +1961,7 @@ namespace esp32serialctl
         ctx.printError(400, "Invalid value");
         return;
       }
-      gpio_io_config_t io_conf;
-      if (gpio_get_io_config(static_cast<gpio_num_t>(pin), &io_conf) != ESP_OK)
-      {
-        ctx.printError(500, "GPIO config query failed");
-        return;
-      }
-      if (!io_conf.oe)
-      {
-        pinMode(pin, OUTPUT);
-      }
+
       digitalWrite(pin, state ? HIGH : LOW);
       ctx.printOK("gpio write");
       char line[48];
@@ -1861,6 +2270,14 @@ namespace esp32serialctl
            ": Show heap and PSRAM usage"},
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},
+#if defined(ESP32SERIALCTL_HAS_WIRE)
+          {"i2c", "scan", &ESP32SerialCtl::handleI2cScan,
+           "[--bus name|index] : Scan for I2C devices"},
+          {"i2c", "read", &ESP32SerialCtl::handleI2cRead,
+           "[--bus name|index] <addr> <reg> [len] : Read bytes from device"},
+          {"i2c", "write", &ESP32SerialCtl::handleI2cWrite,
+           "[--bus name|index] <addr> <reg> <bytes...> : Write bytes to device"},
+#endif
           {"gpio", "mode", &ESP32SerialCtl::handleGpioMode,
            "<pin> <in|out|pullup|pulldown|opendrain> : Set pin mode"},
           {"gpio", "read", &ESP32SerialCtl::handleGpioRead,
@@ -1893,6 +2310,11 @@ namespace esp32serialctl
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands[0]);
 
   template <size_t MaxLineLength, size_t MaxTokens>
-  int ESP32SerialCtl<MaxLineLength, MaxTokens>::rgbDefaultPin_ = -1;
+  int ESP32SerialCtl<MaxLineLength, MaxTokens>::rgbDefaultPin_ =
+#ifdef RGB_BUILTIN
+      RGB_BUILTIN;
+#else
+      -1;
+#endif
 
 } // namespace esp32serialctl

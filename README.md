@@ -104,6 +104,7 @@ These are emitted automatically before the command handler is called.
 - `sys time` returns the current local time in ISO 8601 format.
 - `sys mem` lists heap/PSRAM totals, free, minimum, and largest blocks plus stack watermarks.
 - `sys reset` confirms the request, flushes output, then calls `ESP.restart()`.
+- `i2c scan/read/write` becomes available automatically when `Wire` is included; use `--bus` to target `Wire`, `Wire1`, etc. on multi-controller boards.
 - `gpio mode/read/write/toggle` manipulate pins with familiar semantics.
 - `adc read` samples an ADC channel with optional averaging.
 - `pwm set/stop` manage LEDC PWM (`pwm set <pin> <freq> <duty>`, 12-bit resolution; duty accepts raw 0..4095 or percent).
@@ -111,20 +112,13 @@ These are emitted automatically before the command handler is called.
 - `help` / `?` enumerates registered commands with their descriptions.
 
 Library users can also configure the default RGB pin from code via
-`esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);`.
+`esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);`. When the platform
+defines `RGB_BUILTIN`, that pin is picked up automatically.
 
 ## Examples
 
 `examples/BasicCli/BasicCli.ino` mirrors the minimal setup shown above so you
 can upload and interact with the CLI immediately after adding the library.
-
-## Changelog
-
-- **Unreleased**
-  - Added GPIO (`mode/read/write/toggle`), ADC, PWM, and RGB command handlers with unified OK/body output format.
-  - Introduced `sys time` (ISO 8601) and enhanced `sys info`/`sys mem`.
-  - Simplified PWM to fixed 12-bit resolution and improved duty scaling.
-  - Added automatic GPIO mode upgrade on write and richer RGB streaming options.
 
 ## License
 

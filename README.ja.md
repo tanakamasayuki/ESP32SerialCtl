@@ -102,6 +102,7 @@ void loop() {
 - `sys time` : 現在時刻を ISO 8601 形式で表示
 - `sys mem` : ヒープ/PSRAM の合計・空き・最小・最大ブロックとスタック余裕を表示
 - `sys reset` : リクエストを確認後に `ESP.restart()` を実行
+- `i2c scan/read/write` : `Wire` をインクルードしている場合に自動提供され、複数 I2C コントローラでは `--bus` で `Wire` / `Wire1` などを指定可能
 - `gpio mode/read/write/toggle` : GPIO のモード設定・入出力・トグルを制御
 - `adc read` : ADC をサンプリングし、`samples` オプションで平均化
 - `pwm set/stop` : LEDC PWM を自動割り当てで開始/停止（`pwm set <pin> <freq> <duty>`、解像度 12bit 固定・duty は 0..4095 または % 指定）
@@ -109,6 +110,7 @@ void loop() {
 - `help` / `?` : 登録済みコマンドと説明を一覧表示
 
 スケッチから RGB のデフォルト pin を設定する場合は `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);` を呼び出してください。
+`RGB_BUILTIN` が定義されているプラットフォームでは、その値が自動的に既定 pin として利用されます。
 
 
 ## サンプル
@@ -121,11 +123,3 @@ void loop() {
 ESP32SerialCtl は MIT ライセンスで提供されています。詳細は `LICENSE` を参照してください。
 
 [English version](README.md)
-
-## 変更ログ
-
-- **Unreleased**
-  - GPIO（`mode/read/write/toggle`）、ADC、PWM、RGB コマンドを追加（OK 先行で整形）
-  - `sys time`（ISO 8601）を追加し、`sys info` と `sys mem` を拡張
-  - PWM を 12 ビット固定にし、duty のスケーリングを改善
-  - GPIO 出力時のモード自動設定と RGB ストリーミングのオプション強化
