@@ -1,337 +1,304 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ESP32 WebSerial Control (Mock)</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div class="page">
-      <header class="topbar">
-        <div class="app-title">
-          <h1>ESP32 Serial Control</h1>
-          <p>
-            WebSerial を利用して ESP32 Built-in Commands を操作するためのモック画面
-          </p>
-        </div>
-        <div class="connection-panel">
-          <div class="status-pill status-pill--disconnected">
-            <span class="status-indicator"></span>
-            <span id="connection-status-label">未接続</span>
-          </div>
-          <div class="connection-actions">
-            <button class="btn btn-primary" id="connect-button" disabled>
-              デバイスに接続
-            </button>
-            <button class="btn btn-secondary" id="disconnect-button" disabled>
-              切断
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <main class="main-layout">
-        <nav class="side-panel">
-          <h2>操作グループ</h2>
-          <ul class="tab-list" role="tablist">
-            <li>
-              <button
-                class="tab-button is-active"
-                role="tab"
-                aria-selected="true"
-                data-tab="system"
-              >
-                <span class="tab-label">システム</span>
-                <span class="tab-desc">sys info / uptime / reset</span>
-              </button>
-            </li>
-            <li>
-              <button class="tab-button" role="tab" data-tab="storage">
-                <span class="tab-label">ストレージ</span>
-                <span class="tab-desc">storage list / use / status</span>
-              </button>
-            </li>
-            <li>
-              <button class="tab-button" role="tab" data-tab="filesystem">
-                <span class="tab-label">ファイル操作</span>
-                <span class="tab-desc">fs ls / write / hash</span>
-              </button>
-            </li>
-            <li>
-              <button class="tab-button" role="tab" data-tab="peripherals">
-                <span class="tab-label">ペリフェラル</span>
-                <span class="tab-desc">i2c / gpio / adc / pwm / rgb</span>
-              </button>
-            </li>
-            <li>
-              <button class="tab-button" role="tab" data-tab="help">
-                <span class="tab-label">ヘルプ</span>
-                <span class="tab-desc">help / ?</span>
-              </button>
-            </li>
-          </ul>
-        </nav>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 WebSerial Control</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
 
-        <section class="content-panel">
-          <div class="tab-content is-active" id="tab-system" role="tabpanel">
-            <header class="tab-header">
-              <h2>システムコマンド</h2>
-              <p>
-                ESP32 の状態確認やリセットに関する Built-in Commands をまとめています。
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="app-title">
+        <h1 data-i18n="header.title">ESP32 Serial Control</h1>
+        <p data-i18n="header.subtitle">
+          WebSerial を利用して ESP32 の標準コマンドとユーザー定義コマンドを管理する Web コンソールです。
+        </p>
+      </div>
+      <div class="connection-panel">
+        <div class="status-pill status-pill--disconnected">
+          <span class="status-indicator"></span>
+          <span id="connection-status-label" data-i18n="connection.status.disconnected">未接続</span>
+        </div>
+        <div class="connection-actions">
+          <button class="btn btn-primary" id="connect-button" disabled data-i18n="connection.actions.connect">
+            デバイスに接続
+          </button>
+          <button class="btn btn-secondary" id="disconnect-button" disabled data-i18n="connection.actions.disconnect">
+            切断
+          </button>
+        </div>
+        <div class="language-switcher">
+          <label for="language-select" data-i18n="language.label">表示言語</label>
+          <select id="language-select" data-i18n-aria-label="language.ariaLabel">
+            <option value="en" data-i18n="language.option.en">English</option>
+            <option value="ja" data-i18n="language.option.ja">日本語</option>
+            <option value="zh" data-i18n="language.option.zh">中文</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <nav class="side-panel">
+        <h2 data-i18n="nav.heading">操作グループ</h2>
+        <ul class="tab-list" role="tablist">
+          <li>
+            <button class="tab-button is-active" role="tab" aria-selected="true" data-tab="system">
+              <span class="tab-label" data-i18n="nav.tabs.system.label">システム</span>
+              <span class="tab-desc" data-i18n="nav.tabs.system.desc">sys info / uptime / reset</span>
+            </button>
+          </li>
+          <li>
+            <button class="tab-button" role="tab" data-tab="storage">
+              <span class="tab-label" data-i18n="nav.tabs.storage.label">ストレージ</span>
+              <span class="tab-desc" data-i18n="nav.tabs.storage.desc">storage list / use / status</span>
+            </button>
+          </li>
+          <li>
+            <button class="tab-button" role="tab" data-tab="filesystem">
+              <span class="tab-label" data-i18n="nav.tabs.filesystem.label">ファイル操作</span>
+              <span class="tab-desc" data-i18n="nav.tabs.filesystem.desc">fs ls / write / hash</span>
+            </button>
+          </li>
+          <li>
+            <button class="tab-button" role="tab" data-tab="peripherals">
+              <span class="tab-label" data-i18n="nav.tabs.peripherals.label">ペリフェラル</span>
+              <span class="tab-desc" data-i18n="nav.tabs.peripherals.desc">i2c / gpio / adc / pwm / rgb</span>
+            </button>
+          </li>
+          <li>
+            <button class="tab-button" role="tab" data-tab="help">
+              <span class="tab-label" data-i18n="nav.tabs.help.label">ヘルプ</span>
+              <span class="tab-desc" data-i18n="nav.tabs.help.desc">help / ?</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <section class="content-panel">
+        <div class="tab-content is-active" id="tab-system" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.system.title">システムコマンド</h2>
+            <p data-i18n="sections.system.description">
+              ESP32 の動作状態の確認やシステム制御に関する標準コマンドとユーザー定義コマンドをまとめています。
+            </p>
+          </header>
+
+          <div class="command-layout">
+            <div class="command-tablist" role="tablist" aria-label="システムコマンド"
+              data-i18n-aria-label="sections.system.ariaTablist">
+              <button id="tab-system-sys-info" class="command-tab is-active" role="tab" aria-selected="true"
+                data-command="sys-info" aria-controls="command-system-sys-info">
+                sys info
+              </button>
+              <button id="tab-system-sys-uptime" class="command-tab" role="tab" aria-selected="false"
+                data-command="sys-uptime" aria-controls="command-system-sys-uptime">
+                sys uptime
+              </button>
+              <button id="tab-system-sys-time" class="command-tab" role="tab" aria-selected="false"
+                data-command="sys-time" aria-controls="command-system-sys-time">
+                sys time
+              </button>
+              <button id="tab-system-sys-mem" class="command-tab" role="tab" aria-selected="false"
+                data-command="sys-mem" aria-controls="command-system-sys-mem">
+                sys mem
+              </button>
+              <button id="tab-system-sys-reset" class="command-tab" role="tab" aria-selected="false"
+                data-command="sys-reset" aria-controls="command-system-sys-reset">
+                sys reset
+              </button>
+            </div>
+
+            <article class="card command-panel is-active" id="command-system-sys-info" data-command="sys-info"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-info">
+              <h3>sys info</h3>
+              <p data-i18n="commands.system.sysInfo.description">
+                チップモデル、リビジョン、クロック、SDK/IDF バージョンなどを取得します。
               </p>
-            </header>
+              <ul class="command-list" data-i18n-html="commands.system.sysInfo.bullets">
+                <li>チップ情報の即時確認に利用</li>
+                <li>サポート問い合わせ時の環境共有</li>
+                <li>ビルドメタデータの検証</li>
+              </ul>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.system.sysInfo.action">sys info
+                  を送信</button>
+              </div>
+              <div class="result-section" data-result="sys-info">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
 
-            <div class="command-layout">
-              <div
-                class="command-tablist"
-                role="tablist"
-                aria-label="システムコマンド"
-              >
-                <button
-                  id="tab-system-sys-info"
-                  class="command-tab is-active"
-                  role="tab"
-                  aria-selected="true"
-                  data-command="sys-info"
-                  aria-controls="command-system-sys-info"
-                >
-                  sys info
-                </button>
-                <button
-                  id="tab-system-sys-uptime"
-                  class="command-tab"
-                  role="tab"
-                  aria-selected="false"
-                  data-command="sys-uptime"
-                  aria-controls="command-system-sys-uptime"
-                >
-                  sys uptime
-                </button>
-                <button
-                  id="tab-system-sys-time"
-                  class="command-tab"
-                  role="tab"
-                  aria-selected="false"
-                  data-command="sys-time"
-                  aria-controls="command-system-sys-time"
-                >
-                  sys time
-                </button>
-                <button
-                  id="tab-system-sys-mem"
-                  class="command-tab"
-                  role="tab"
-                  aria-selected="false"
-                  data-command="sys-mem"
-                  aria-controls="command-system-sys-mem"
-                >
-                  sys mem
-                </button>
-                <button
-                  id="tab-system-sys-reset"
-                  class="command-tab"
-                  role="tab"
-                  aria-selected="false"
-                  data-command="sys-reset"
-                  aria-controls="command-system-sys-reset"
-                >
-                  sys reset
+            <article class="card command-panel" id="command-system-sys-uptime" data-command="sys-uptime"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-uptime">
+              <h3>sys uptime</h3>
+              <p data-i18n="commands.system.sysUptime.description">
+                起動からの経過時間を hh:mm:ss とミリ秒で表示します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.system.sysUptime.action">
+                  sys uptime を送信
                 </button>
               </div>
+              <div class="result-section" data-result="sys-uptime">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">
+                    結果がここに表示されます
+                  </pre>
+              </div>
+            </article>
 
-              <article
-                class="card command-panel is-active"
-                id="command-system-sys-info"
-                data-command="sys-info"
-                data-auto-fetch="true"
-                role="tabpanel"
-                aria-labelledby="tab-system-sys-info"
-              >
-                <h3>sys info</h3>
-                <p>チップモデル、リビジョン、クロック、SDK/IDF バージョンなどを取得します。</p>
-                <ul class="command-list">
-                  <li>チップ情報の即時確認に利用</li>
-                  <li>サポート問い合わせ時の環境共有</li>
-                  <li>ビルドメタデータの検証</li>
-                </ul>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>sys info を送信</button>
-                </div>
-                <div class="result-section" data-result="sys-info">
-                  <header class="result-header">
-                    <span class="result-title">最新結果 (自動取得)</span>
-                    <span class="result-timestamp" data-result-timestamp>--:--</span>
-                  </header>
-                  <table class="kv-table" data-result-table hidden>
-                    <tbody></tbody>
-                  </table>
-                  <pre class="result-raw" data-result-raw>結果がここに表示されます</pre>
-                </div>
-              </article>
+            <article class="card command-panel" id="command-system-sys-time" data-command="sys-time"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-time">
+              <h3>sys time</h3>
+              <p data-i18n="commands.system.sysTime.description">
+                現在時刻を ISO 8601 形式で取得します。タイムゾーンや RTC の同期確認に使用します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.system.sysTime.action">sys time
+                  を送信</button>
+              </div>
+              <div class="result-section" data-result="sys-time">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
 
-              <article
-                class="card command-panel"
-                id="command-system-sys-uptime"
-                data-command="sys-uptime"
-                data-auto-fetch="true"
-                role="tabpanel"
-                aria-labelledby="tab-system-sys-uptime"
-              >
-                <h3>sys uptime</h3>
-                <p>起動からの経過時間を hh:mm:ss とミリ秒で表示します。</p>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>sys uptime を送信</button>
-                </div>
-                <div class="result-section" data-result="sys-uptime">
-                  <header class="result-header">
-                    <span class="result-title">最新結果 (自動取得)</span>
-                    <span class="result-timestamp" data-result-timestamp>--:--</span>
-                  </header>
-                  <table class="kv-table" data-result-table hidden>
-                    <tbody></tbody>
-                  </table>
-                  <pre class="result-raw" data-result-raw>結果がここに表示されます</pre>
-                </div>
-              </article>
+            <article class="card command-panel" id="command-system-sys-mem" data-command="sys-mem"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-mem">
+              <h3>sys mem</h3>
+              <p data-i18n="commands.system.sysMem.description">
+                ヒープおよび PSRAM の総量・空き・最小値・最大ブロックを確認します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.system.sysMem.action">sys mem を送信</button>
+              </div>
+              <div class="result-section" data-result="sys-mem">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
 
-              <article
-                class="card command-panel"
-                id="command-system-sys-time"
-                data-command="sys-time"
-                data-auto-fetch="true"
-                role="tabpanel"
-                aria-labelledby="tab-system-sys-time"
-              >
-                <h3>sys time</h3>
-                <p>現在時刻を ISO 8601 形式で取得します。タイムゾーンや RTC の同期確認に使用。</p>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>sys time を送信</button>
-                </div>
-                <div class="result-section" data-result="sys-time">
-                  <header class="result-header">
-                    <span class="result-title">最新結果 (自動取得)</span>
-                    <span class="result-timestamp" data-result-timestamp>--:--</span>
-                  </header>
-                  <table class="kv-table" data-result-table hidden>
-                    <tbody></tbody>
-                  </table>
-                  <pre class="result-raw" data-result-raw>結果がここに表示されます</pre>
-                </div>
-              </article>
-
-              <article
-                class="card command-panel"
-                id="command-system-sys-mem"
-                data-command="sys-mem"
-                data-auto-fetch="true"
-                role="tabpanel"
-                aria-labelledby="tab-system-sys-mem"
-              >
-                <h3>sys mem</h3>
-                <p>ヒープおよび PSRAM の総量・空き・最小値・最大ブロックを確認します。</p>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>sys mem を送信</button>
-                </div>
-                <div class="result-section" data-result="sys-mem">
-                  <header class="result-header">
-                    <span class="result-title">最新結果 (自動取得)</span>
-                    <span class="result-timestamp" data-result-timestamp>--:--</span>
-                  </header>
-                  <table class="kv-table" data-result-table hidden>
-                    <tbody></tbody>
-                  </table>
-                  <pre class="result-raw" data-result-raw>結果がここに表示されます</pre>
-                </div>
-              </article>
-
-              <article
-                class="card command-panel"
-                id="command-system-sys-reset"
-                data-command="sys-reset"
-                role="tabpanel"
-                aria-labelledby="tab-system-sys-reset"
-              >
-                <h3>sys reset</h3>
-                <p>ESP32 をソフトリセットします。実行前に確認を挟む想定です。</p>
-                <ul class="command-list">
-                  <li>確認ダイアログでオペレーターの意図を確認</li>
-                  <li>必要であればログを保存</li>
-                  <li>ESP.restart() を呼び出して再起動</li>
-                </ul>
-                <div class="card-actions">
-                  <button class="btn btn-danger" disabled>sys reset を送信</button>
-                </div>
-              </article>
-            </div>
+            <article class="card command-panel" id="command-system-sys-reset" data-command="sys-reset" role="tabpanel"
+              aria-labelledby="tab-system-sys-reset">
+              <h3>sys reset</h3>
+              <p data-i18n="commands.system.sysReset.description">
+                ESP32 をソフトリセットします。実行前に確認ステップを挟む想定です。
+              </p>
+              <ul class="command-list" data-i18n-html="commands.system.sysReset.bullets">
+                <li>確認ダイアログでオペレーターの意図を確認</li>
+                <li>必要であればログを保存</li>
+                <li>ESP.restart() を呼び出して再起動</li>
+              </ul>
+              <div class="card-actions">
+                <button class="btn btn-danger" disabled data-i18n="commands.system.sysReset.action">sys reset
+                  を送信</button>
+              </div>
+            </article>
           </div>
+        </div>
 
-          <div class="tab-content" id="tab-storage" role="tabpanel">
-            <header class="tab-header">
-              <h2>ストレージコマンド</h2>
-              <p>接続されたストレージデバイスの管理と切り替えに利用します。</p>
-            </header>
+        <div class="tab-content" id="tab-storage" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.storage.title">ストレージコマンド</h2>
+            <p data-i18n="sections.storage.description">
+              接続されたストレージデバイスの管理と切り替えに利用します。
+            </p>
+          </header>
 
-            <div class="storage-layout">
-              <article class="card storage-card" id="storage-list-card">
-                <h3>ストレージ一覧</h3>
-                <p>タブを開くと自動で <code>storage list</code> を実行します。</p>
-                <div class="storage-actions">
-                  <label for="storage-select">選択可能なストレージ</label>
-                  <select id="storage-select" disabled>
-                    <option value="">マウント済みのストレージがありません</option>
-                  </select>
-                  <small>選択すると <code>storage use</code> を送信し、一覧とステータスを更新します。</small>
-                </div>
-                <div class="result-section" data-storage="list">
-                  <header class="result-header">
-                    <span class="result-title">最新結果 (自動取得)</span>
-                    <span class="result-timestamp" data-storage-list-timestamp>--:--</span>
-                  </header>
-                  <table class="data-table" data-storage-list-table>
-                    <thead>
-                      <tr>
-                        <th>名前</th>
-                        <th>種類</th>
-                        <th>状態</th>
-                      </tr>
-                    </thead>
-                    <tbody></tbody>
-                  </table>
-                  <pre class="result-raw" data-storage-list-raw>結果がここに表示されます</pre>
-                </div>
-              </article>
+          <div class="storage-layout">
+            <article class="card storage-card" id="storage-list-card">
+              <h3 data-i18n="storage.list.title">ストレージ一覧</h3>
+              <p data-i18n-html="storage.list.description">
+                タブを開くと自動で <code>storage list</code> を実行します。
+              </p>
+              <div class="storage-actions">
+                <label for="storage-select" data-i18n="storage.list.selectorLabel">選択可能なストレージ</label>
+                <select id="storage-select" disabled data-i18n-title="storage.list.selectorTitle">
+                  <option value="" data-i18n="storage.list.selectorEmpty">マウント済みのストレージがありません</option>
+                </select>
+                <small data-i18n-html="storage.list.selectorHint">
+                  選択すると <code>storage use</code> を送信し、一覧とステータスを更新します。
+                </small>
+              </div>
+              <div class="result-section" data-storage="list">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-storage-list-timestamp>--:--</span>
+                </header>
+                <table class="data-table" data-storage-list-table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="storage.list.table.name">名前</th>
+                      <th data-i18n="storage.list.table.type">種類</th>
+                      <th data-i18n="storage.list.table.state">状態</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-storage-list-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
 
-              <article class="card storage-card" id="storage-status-card">
-                <h3>ストレージステータス</h3>
-                <p><code>storage status</code> の最新結果を表示します。</p>
-                <div class="result-section" data-storage="status">
-                  <header class="result-header">
-                    <span class="result-title">最新結果 (自動取得)</span>
-                    <span class="result-timestamp" data-storage-status-timestamp>--:--</span>
-                  </header>
-                  <table class="kv-table" data-storage-status-table hidden>
-                    <tbody></tbody>
-                  </table>
-                  <pre class="result-raw" data-storage-status-raw>結果がここに表示されます</pre>
-                </div>
-              </article>
-            </div>
+            <article class="card storage-card" id="storage-status-card">
+              <h3 data-i18n="storage.status.title">ストレージステータス</h3>
+              <p data-i18n-html="storage.status.description">
+                <code>storage status</code> の最新結果を表示します。
+              </p>
+              <div class="result-section" data-storage="status">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-storage-status-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-storage-status-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-storage-status-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
           </div>
+        </div>
 
-          <div class="tab-content" id="tab-filesystem" role="tabpanel">
-            <header class="tab-header">
-              <h2>ファイル操作コマンド</h2>
-              <p><code>fs</code> 系のコマンドをカテゴリ別に整理しています。</p>
-            </header>
+        <div class="tab-content" id="tab-filesystem" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.filesystem.title">ファイル操作コマンド</h2>
+            <p data-i18n-html="sections.filesystem.description">
+              <code>fs</code> 系のコマンドをカテゴリ別に整理しています。
+            </p>
+          </header>
 
-            <div class="filesystem-layout">
+          <div class="filesystem-layout">
             <article class="card fs-card" id="fs-list-card">
               <h3>ファイル一覧</h3>
               <p>現在のストレージを対象に <code>fs ls</code> を再帰的に実行して構造を表示します。</p>
@@ -347,7 +314,7 @@
               </div>
               <div class="result-section" data-fs="list">
                 <header class="result-header">
-                  <span class="result-title">最新結果 (自動取得)</span>
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
                   <span class="result-timestamp" data-fs-list-timestamp>--:--</span>
                 </header>
                 <div class="fs-tree" data-fs-tree>
@@ -409,7 +376,8 @@
                 </div>
                 <div class="form-field">
                   <label for="fs-write-content">内容 (短いテキスト向け)</label>
-                  <textarea id="fs-write-content" rows="3" placeholder="fs write /notes.txt &quot;hello&quot;" disabled></textarea>
+                  <textarea id="fs-write-content" rows="3" placeholder="fs write /notes.txt &quot;hello&quot;"
+                    disabled></textarea>
                 </div>
                 <div class="card-actions">
                   <button class="btn btn-primary" disabled>fs write を送信</button>
@@ -428,7 +396,8 @@
                 </div>
                 <div class="form-field">
                   <label for="fs-b64write-chunk">Base64 チャンク (最大 60 バイト程度)</label>
-                  <textarea id="fs-b64write-chunk" rows="4" placeholder="fs b64write /image.bin &quot;QUJD...&quot;" disabled></textarea>
+                  <textarea id="fs-b64write-chunk" rows="4" placeholder="fs b64write /image.bin &quot;QUJD...&quot;"
+                    disabled></textarea>
                 </div>
                 <div class="card-actions">
                   <button class="btn btn-primary" disabled>1 行目 (append なし)</button>
@@ -437,348 +406,387 @@
               </div>
             </article>
           </div>
-          </div>
-          <div class="tab-content" id="tab-peripherals" role="tabpanel">
-            <header class="tab-header">
-              <h2>ペリフェラルコマンド</h2>
-              <p>I2C / GPIO / ADC / PWM / RGB LED の制御を行います。</p>
-            </header>
+        </div>
+        <div class="tab-content" id="tab-peripherals" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.peripherals.title">ペリフェラルコマンド</h2>
+            <p data-i18n="sections.peripherals.description">
+              I2C / GPIO / ADC / PWM / RGB LED の制御を行います。
+            </p>
+          </header>
 
-            <div class="command-layout">
-              <div
-                class="command-tablist"
-                role="tablist"
-                aria-label="ペリフェラルコマンド"
-              >
-                <button id="tab-peripherals-i2c-scan" class="command-tab is-active" role="tab" aria-selected="true" data-command="i2c-scan" aria-controls="command-peripherals-i2c-scan">i2c scan</button>
-                <button id="tab-peripherals-i2c-read" class="command-tab" role="tab" aria-selected="false" data-command="i2c-read" aria-controls="command-peripherals-i2c-read">i2c read</button>
-                <button id="tab-peripherals-i2c-write" class="command-tab" role="tab" aria-selected="false" data-command="i2c-write" aria-controls="command-peripherals-i2c-write">i2c write</button>
-                <button id="tab-peripherals-gpio-mode" class="command-tab" role="tab" aria-selected="false" data-command="gpio-mode" aria-controls="command-peripherals-gpio-mode">gpio mode</button>
-                <button id="tab-peripherals-gpio-read" class="command-tab" role="tab" aria-selected="false" data-command="gpio-read" aria-controls="command-peripherals-gpio-read">gpio read</button>
-                <button id="tab-peripherals-gpio-write" class="command-tab" role="tab" aria-selected="false" data-command="gpio-write" aria-controls="command-peripherals-gpio-write">gpio write</button>
-                <button id="tab-peripherals-gpio-toggle" class="command-tab" role="tab" aria-selected="false" data-command="gpio-toggle" aria-controls="command-peripherals-gpio-toggle">gpio toggle</button>
-                <button id="tab-peripherals-adc-read" class="command-tab" role="tab" aria-selected="false" data-command="adc-read" aria-controls="command-peripherals-adc-read">adc read</button>
-                <button id="tab-peripherals-pwm-set" class="command-tab" role="tab" aria-selected="false" data-command="pwm-set" aria-controls="command-peripherals-pwm-set">pwm set</button>
-                <button id="tab-peripherals-pwm-stop" class="command-tab" role="tab" aria-selected="false" data-command="pwm-stop" aria-controls="command-peripherals-pwm-stop">pwm stop</button>
-                <button id="tab-peripherals-rgb-pin" class="command-tab" role="tab" aria-selected="false" data-command="rgb-pin" aria-controls="command-peripherals-rgb-pin">rgb pin</button>
-                <button id="tab-peripherals-rgb-set" class="command-tab" role="tab" aria-selected="false" data-command="rgb-set" aria-controls="command-peripherals-rgb-set">rgb set</button>
-                <button id="tab-peripherals-rgb-stream" class="command-tab" role="tab" aria-selected="false" data-command="rgb-stream" aria-controls="command-peripherals-rgb-stream">rgb stream</button>
+          <div class="command-layout">
+            <div class="command-tablist" role="tablist" aria-label="ペリフェラルコマンド">
+              <button id="tab-peripherals-i2c-scan" class="command-tab is-active" role="tab" aria-selected="true"
+                data-command="i2c-scan" aria-controls="command-peripherals-i2c-scan">i2c scan</button>
+              <button id="tab-peripherals-i2c-read" class="command-tab" role="tab" aria-selected="false"
+                data-command="i2c-read" aria-controls="command-peripherals-i2c-read">i2c read</button>
+              <button id="tab-peripherals-i2c-write" class="command-tab" role="tab" aria-selected="false"
+                data-command="i2c-write" aria-controls="command-peripherals-i2c-write">i2c write</button>
+              <button id="tab-peripherals-gpio-mode" class="command-tab" role="tab" aria-selected="false"
+                data-command="gpio-mode" aria-controls="command-peripherals-gpio-mode">gpio mode</button>
+              <button id="tab-peripherals-gpio-read" class="command-tab" role="tab" aria-selected="false"
+                data-command="gpio-read" aria-controls="command-peripherals-gpio-read">gpio read</button>
+              <button id="tab-peripherals-gpio-write" class="command-tab" role="tab" aria-selected="false"
+                data-command="gpio-write" aria-controls="command-peripherals-gpio-write">gpio write</button>
+              <button id="tab-peripherals-gpio-toggle" class="command-tab" role="tab" aria-selected="false"
+                data-command="gpio-toggle" aria-controls="command-peripherals-gpio-toggle">gpio toggle</button>
+              <button id="tab-peripherals-adc-read" class="command-tab" role="tab" aria-selected="false"
+                data-command="adc-read" aria-controls="command-peripherals-adc-read">adc read</button>
+              <button id="tab-peripherals-pwm-set" class="command-tab" role="tab" aria-selected="false"
+                data-command="pwm-set" aria-controls="command-peripherals-pwm-set">pwm set</button>
+              <button id="tab-peripherals-pwm-stop" class="command-tab" role="tab" aria-selected="false"
+                data-command="pwm-stop" aria-controls="command-peripherals-pwm-stop">pwm stop</button>
+              <button id="tab-peripherals-rgb-pin" class="command-tab" role="tab" aria-selected="false"
+                data-command="rgb-pin" aria-controls="command-peripherals-rgb-pin">rgb pin</button>
+              <button id="tab-peripherals-rgb-set" class="command-tab" role="tab" aria-selected="false"
+                data-command="rgb-set" aria-controls="command-peripherals-rgb-set">rgb set</button>
+              <button id="tab-peripherals-rgb-stream" class="command-tab" role="tab" aria-selected="false"
+                data-command="rgb-stream" aria-controls="command-peripherals-rgb-stream">rgb stream</button>
+            </div>
+
+            <article class="card command-panel is-active" id="command-peripherals-i2c-scan" data-command="i2c-scan"
+              role="tabpanel" aria-labelledby="tab-peripherals-i2c-scan">
+              <h3>i2c scan</h3>
+              <p>指定した I2C バス上の応答アドレスをスキャンします。</p>
+              <div class="form-field">
+                <label for="i2c-scan-bus">バス</label>
+                <select id="i2c-scan-bus" disabled>
+                  <option>Wire</option>
+                  <option>Wire1</option>
+                </select>
               </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled>i2c scan を送信</button>
+              </div>
+            </article>
 
-              <article class="card command-panel is-active" id="command-peripherals-i2c-scan" data-command="i2c-scan" role="tabpanel" aria-labelledby="tab-peripherals-i2c-scan">
-                <h3>i2c scan</h3>
-                <p>指定した I2C バス上の応答アドレスをスキャンします。</p>
+            <article class="card command-panel" id="command-peripherals-i2c-read" data-command="i2c-read"
+              role="tabpanel" aria-labelledby="tab-peripherals-i2c-read">
+              <h3>i2c read &lt;addr&gt; [len]</h3>
+              <p>指定アドレスからデータを読み取ります。</p>
+              <div class="dual-field">
                 <div class="form-field">
-                  <label for="i2c-scan-bus">バス</label>
-                  <select id="i2c-scan-bus" disabled>
+                  <label for="i2c-read-bus">バス</label>
+                  <select id="i2c-read-bus" disabled>
                     <option>Wire</option>
                     <option>Wire1</option>
                   </select>
                 </div>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>i2c scan を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-i2c-read" data-command="i2c-read" role="tabpanel" aria-labelledby="tab-peripherals-i2c-read">
-                <h3>i2c read &lt;addr&gt; [len]</h3>
-                <p>指定アドレスからデータを読み取ります。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="i2c-read-bus">バス</label>
-                    <select id="i2c-read-bus" disabled>
-                      <option>Wire</option>
-                      <option>Wire1</option>
-                    </select>
-                  </div>
-                  <div class="form-field">
-                    <label for="i2c-read-address">アドレス</label>
-                    <input id="i2c-read-address" type="text" placeholder="0x3C" disabled />
-                  </div>
-                </div>
                 <div class="form-field">
-                  <label for="i2c-read-length">読み取りバイト数</label>
-                  <input id="i2c-read-length" type="number" placeholder="例: 16" disabled />
+                  <label for="i2c-read-address">アドレス</label>
+                  <input id="i2c-read-address" type="text" placeholder="0x3C" disabled />
                 </div>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>i2c read を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-i2c-write" data-command="i2c-write" role="tabpanel" aria-labelledby="tab-peripherals-i2c-write">
-                <h3>i2c write &lt;addr&gt; &lt;bytes...&gt;</h3>
-                <p>バイト列をデバイスへ送信します。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="i2c-write-bus">バス</label>
-                    <select id="i2c-write-bus" disabled>
-                      <option>Wire</option>
-                      <option>Wire1</option>
-                    </select>
-                  </div>
-                  <div class="form-field">
-                    <label for="i2c-write-address">アドレス</label>
-                    <input id="i2c-write-address" type="text" placeholder="0x3C" disabled />
-                  </div>
-                </div>
-                <div class="form-field">
-                  <label for="i2c-write-bytes">送信バイト列</label>
-                  <input id="i2c-write-bytes" type="text" placeholder="例: 0x00 0x01 0x02" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>i2c write を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-gpio-mode" data-command="gpio-mode" role="tabpanel" aria-labelledby="tab-peripherals-gpio-mode">
-                <h3>gpio mode &lt;pin&gt; &lt;mode&gt;</h3>
-                <p>GPIO の入出力設定を変更します。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="gpio-mode-pin">ピン</label>
-                    <input id="gpio-mode-pin" type="number" placeholder="例: 26" disabled />
-                  </div>
-                  <div class="form-field">
-                    <label for="gpio-mode-select">モード</label>
-                    <select id="gpio-mode-select" disabled>
-                      <option>input</option>
-                      <option>output</option>
-                      <option>input_pullup</option>
-                      <option>input_pulldown</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>gpio mode を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-gpio-read" data-command="gpio-read" role="tabpanel" aria-labelledby="tab-peripherals-gpio-read">
-                <h3>gpio read &lt;pin&gt;</h3>
-                <p>入力ピンの状態を読み取ります。</p>
-                <div class="form-field">
-                  <label for="gpio-read-pin">ピン</label>
-                  <input id="gpio-read-pin" type="number" placeholder="例: 34" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>gpio read を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-gpio-write" data-command="gpio-write" role="tabpanel" aria-labelledby="tab-peripherals-gpio-write">
-                <h3>gpio write &lt;pin&gt; &lt;value&gt;</h3>
-                <p>出力ピンを HIGH/LOW に設定します。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="gpio-write-pin">ピン</label>
-                    <input id="gpio-write-pin" type="number" placeholder="例: 25" disabled />
-                  </div>
-                  <div class="form-field">
-                    <label for="gpio-write-value">値</label>
-                    <select id="gpio-write-value" disabled>
-                      <option>HIGH</option>
-                      <option>LOW</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>gpio write を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-gpio-toggle" data-command="gpio-toggle" role="tabpanel" aria-labelledby="tab-peripherals-gpio-toggle">
-                <h3>gpio toggle &lt;pin&gt;</h3>
-                <p>出力ピンの状態をトグルします。</p>
-                <div class="form-field">
-                  <label for="gpio-toggle-pin">ピン</label>
-                  <input id="gpio-toggle-pin" type="number" placeholder="例: 2" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>gpio toggle を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-adc-read" data-command="adc-read" role="tabpanel" aria-labelledby="tab-peripherals-adc-read">
-                <h3>adc read &lt;channel&gt;</h3>
-                <p>ADC チャンネルをサンプリングします。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="adc-channel">チャネル</label>
-                    <input id="adc-channel" type="number" placeholder="例: 34" disabled />
-                  </div>
-                  <div class="form-field">
-                    <label for="adc-average">平均回数</label>
-                    <input id="adc-average" type="number" placeholder="例: 8" disabled />
-                  </div>
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>adc read を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-pwm-set" data-command="pwm-set" role="tabpanel" aria-labelledby="tab-peripherals-pwm-set">
-                <h3>pwm set &lt;pin&gt; &lt;freq&gt; &lt;duty&gt;</h3>
-                <p>LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="pwm-pin">ピン</label>
-                    <input id="pwm-pin" type="number" placeholder="例: 4" disabled />
-                  </div>
-                  <div class="form-field">
-                    <label for="pwm-freq">周波数 (Hz)</label>
-                    <input id="pwm-freq" type="number" placeholder="例: 5000" disabled />
-                  </div>
-                </div>
-                <div class="form-field">
-                  <label for="pwm-duty">デューティ (0-4095 または %)</label>
-                  <input id="pwm-duty" type="text" placeholder="例: 2048 または 50%" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>pwm set を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-pwm-stop" data-command="pwm-stop" role="tabpanel" aria-labelledby="tab-peripherals-pwm-stop">
-                <h3>pwm stop &lt;pin&gt;</h3>
-                <p>指定ピンの PWM を停止します。</p>
-                <div class="form-field">
-                  <label for="pwm-stop-pin">ピン</label>
-                  <input id="pwm-stop-pin" type="number" placeholder="例: 4" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>pwm stop を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-rgb-pin" data-command="rgb-pin" role="tabpanel" aria-labelledby="tab-peripherals-rgb-pin">
-                <h3>rgb pin &lt;pin&gt;</h3>
-                <p>デフォルトの RGB LED 出力ピンを設定します。</p>
-                <div class="form-field">
-                  <label for="rgb-pin-input">ピン</label>
-                  <input id="rgb-pin-input" type="number" placeholder="例: 16" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>rgb pin を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-rgb-set" data-command="rgb-set" role="tabpanel" aria-labelledby="tab-peripherals-rgb-set">
-                <h3>rgb set &lt;r&gt; &lt;g&gt; &lt;b&gt;</h3>
-                <p>単色で RGB LED を発光させます。</p>
-                <div class="dual-field">
-                  <div class="form-field">
-                    <label for="rgb-set-r">R (0-255)</label>
-                    <input id="rgb-set-r" type="number" placeholder="例: 255" disabled />
-                  </div>
-                  <div class="form-field">
-                    <label for="rgb-set-g">G (0-255)</label>
-                    <input id="rgb-set-g" type="number" placeholder="例: 128" disabled />
-                  </div>
-                </div>
-                <div class="form-field">
-                  <label for="rgb-set-b">B (0-255)</label>
-                  <input id="rgb-set-b" type="number" placeholder="例: 64" disabled />
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>rgb set を送信</button>
-                </div>
-              </article>
-
-              <article class="card command-panel" id="command-peripherals-rgb-stream" data-command="rgb-stream" role="tabpanel" aria-labelledby="tab-peripherals-rgb-stream">
-                <h3>rgb stream</h3>
-                <p>連続した RGB データをストリーミングし、アニメーションを表示します。</p>
-                <div class="console-area console-area--light">
-                  <span>チャンク送信の進捗やエラーを表示予定</span>
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" disabled>rgb stream を開始</button>
-                </div>
-              </article>
-            </div>
-          </div>
-          <div class="tab-content" id="tab-help" role="tabpanel">
-            <header class="tab-header">
-              <h2>ヘルプとログ</h2>
-              <p>コマンド一覧の確認や出力ログのモックです。</p>
-            </header>
-
-            <div class="command-layout">
-              <div
-                class="command-tablist"
-                role="tablist"
-                aria-label="ヘルプコマンド"
-              >
-                <button id="tab-help-help" class="command-tab is-active" role="tab" aria-selected="true" data-command="help" aria-controls="command-help-help">help</button>
-                <button id="tab-help-question" class="command-tab" role="tab" aria-selected="false" data-command="question" aria-controls="command-help-question">?</button>
-                <button id="tab-help-log" class="command-tab" role="tab" aria-selected="false" data-command="log" aria-controls="command-help-log">log</button>
-                <button id="tab-help-docs" class="command-tab" role="tab" aria-selected="false" data-command="docs" aria-controls="command-help-docs">docs</button>
               </div>
+              <div class="form-field">
+                <label for="i2c-read-length">読み取りバイト数</label>
+                <input id="i2c-read-length" type="number" placeholder="例: 16" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled>i2c read を送信</button>
+              </div>
+            </article>
 
-              <article class="card command-panel is-active" id="command-help-help" data-command="help" role="tabpanel" aria-labelledby="tab-help-help">
-                <h3>help</h3>
-                <p>登録されているコマンドと説明を表示します。</p>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>help を送信</button>
+            <article class="card command-panel" id="command-peripherals-i2c-write" data-command="i2c-write"
+              role="tabpanel" aria-labelledby="tab-peripherals-i2c-write">
+              <h3>i2c write &lt;addr&gt; &lt;bytes...&gt;</h3>
+              <p>バイト列をデバイスへ送信します。</p>
+              <div class="dual-field">
+                <div class="form-field">
+                  <label for="i2c-write-bus">バス</label>
+                  <select id="i2c-write-bus" disabled>
+                    <option>Wire</option>
+                    <option>Wire1</option>
+                  </select>
                 </div>
-                <div class="console-area console-area--light">
-                  <span>コマンド一覧がここに表示されます</span>
+                <div class="form-field">
+                  <label for="i2c-write-address">アドレス</label>
+                  <input id="i2c-write-address" type="text" placeholder="0x3C" disabled />
                 </div>
-              </article>
+              </div>
+              <div class="form-field">
+                <label for="i2c-write-bytes">送信バイト列</label>
+                <input id="i2c-write-bytes" type="text" placeholder="例: 0x00 0x01 0x02" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>i2c write を送信</button>
+              </div>
+            </article>
 
-              <article class="card command-panel" id="command-help-question" data-command="question" role="tabpanel" aria-labelledby="tab-help-question">
-                <h3>?</h3>
-                <p><code>help</code> と同一で短縮入力です。キーボード操作向け。</p>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>? を送信</button>
+            <article class="card command-panel" id="command-peripherals-gpio-mode" data-command="gpio-mode"
+              role="tabpanel" aria-labelledby="tab-peripherals-gpio-mode">
+              <h3>gpio mode &lt;pin&gt; &lt;mode&gt;</h3>
+              <p>GPIO の入出力設定を変更します。</p>
+              <div class="dual-field">
+                <div class="form-field">
+                  <label for="gpio-mode-pin">ピン</label>
+                  <input id="gpio-mode-pin" type="number" placeholder="例: 26" disabled />
                 </div>
-              </article>
+                <div class="form-field">
+                  <label for="gpio-mode-select">モード</label>
+                  <select id="gpio-mode-select" disabled>
+                    <option>input</option>
+                    <option>output</option>
+                    <option>input_pullup</option>
+                    <option>input_pulldown</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>gpio mode を送信</button>
+              </div>
+            </article>
 
-              <article class="card command-panel" id="command-help-log" data-command="log" role="tabpanel" aria-labelledby="tab-help-log">
-                <h3>ログビューア</h3>
-                <p>シリアル応答やエラーを表示するコンソール領域。</p>
-                <div class="console-area">
-                  <span>Built-in Commands の応答ログがここに表示されます</span>
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>ログをクリア</button>
-                  <button class="btn btn-outline" disabled>ログを保存</button>
-                </div>
-              </article>
+            <article class="card command-panel" id="command-peripherals-gpio-read" data-command="gpio-read"
+              role="tabpanel" aria-labelledby="tab-peripherals-gpio-read">
+              <h3>gpio read &lt;pin&gt;</h3>
+              <p>入力ピンの状態を読み取ります。</p>
+              <div class="form-field">
+                <label for="gpio-read-pin">ピン</label>
+                <input id="gpio-read-pin" type="number" placeholder="例: 34" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled>gpio read を送信</button>
+              </div>
+            </article>
 
-              <article class="card command-panel" id="command-help-docs" data-command="docs" role="tabpanel" aria-labelledby="tab-help-docs">
-                <h3>関連ドキュメント</h3>
-                <p>操作時に参照したい資料へのショートカットです。</p>
-                <div class="chip-row">
-                  <span class="chip">README.md</span>
-                  <span class="chip">examples/BasicCli</span>
-                  <span class="chip">ESP-IDF Docs</span>
+            <article class="card command-panel" id="command-peripherals-gpio-write" data-command="gpio-write"
+              role="tabpanel" aria-labelledby="tab-peripherals-gpio-write">
+              <h3>gpio write &lt;pin&gt; &lt;value&gt;</h3>
+              <p>出力ピンを HIGH/LOW に設定します。</p>
+              <div class="dual-field">
+                <div class="form-field">
+                  <label for="gpio-write-pin">ピン</label>
+                  <input id="gpio-write-pin" type="number" placeholder="例: 25" disabled />
                 </div>
-                <div class="card-actions">
-                  <button class="btn btn-outline" disabled>リンクを開く</button>
+                <div class="form-field">
+                  <label for="gpio-write-value">値</label>
+                  <select id="gpio-write-value" disabled>
+                    <option>HIGH</option>
+                    <option>LOW</option>
+                  </select>
                 </div>
-              </article>
-            </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>gpio write を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-gpio-toggle" data-command="gpio-toggle"
+              role="tabpanel" aria-labelledby="tab-peripherals-gpio-toggle">
+              <h3>gpio toggle &lt;pin&gt;</h3>
+              <p>出力ピンの状態をトグルします。</p>
+              <div class="form-field">
+                <label for="gpio-toggle-pin">ピン</label>
+                <input id="gpio-toggle-pin" type="number" placeholder="例: 2" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>gpio toggle を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-adc-read" data-command="adc-read"
+              role="tabpanel" aria-labelledby="tab-peripherals-adc-read">
+              <h3>adc read &lt;channel&gt;</h3>
+              <p>ADC チャンネルをサンプリングします。</p>
+              <div class="dual-field">
+                <div class="form-field">
+                  <label for="adc-channel">チャネル</label>
+                  <input id="adc-channel" type="number" placeholder="例: 34" disabled />
+                </div>
+                <div class="form-field">
+                  <label for="adc-average">平均回数</label>
+                  <input id="adc-average" type="number" placeholder="例: 8" disabled />
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled>adc read を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-pwm-set" data-command="pwm-set" role="tabpanel"
+              aria-labelledby="tab-peripherals-pwm-set">
+              <h3>pwm set &lt;pin&gt; &lt;freq&gt; &lt;duty&gt;</h3>
+              <p>LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。</p>
+              <div class="dual-field">
+                <div class="form-field">
+                  <label for="pwm-pin">ピン</label>
+                  <input id="pwm-pin" type="number" placeholder="例: 4" disabled />
+                </div>
+                <div class="form-field">
+                  <label for="pwm-freq">周波数 (Hz)</label>
+                  <input id="pwm-freq" type="number" placeholder="例: 5000" disabled />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="pwm-duty">デューティ (0-4095 または %)</label>
+                <input id="pwm-duty" type="text" placeholder="例: 2048 または 50%" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>pwm set を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-pwm-stop" data-command="pwm-stop"
+              role="tabpanel" aria-labelledby="tab-peripherals-pwm-stop">
+              <h3>pwm stop &lt;pin&gt;</h3>
+              <p>指定ピンの PWM を停止します。</p>
+              <div class="form-field">
+                <label for="pwm-stop-pin">ピン</label>
+                <input id="pwm-stop-pin" type="number" placeholder="例: 4" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>pwm stop を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-rgb-pin" data-command="rgb-pin" role="tabpanel"
+              aria-labelledby="tab-peripherals-rgb-pin">
+              <h3>rgb pin &lt;pin&gt;</h3>
+              <p>デフォルトの RGB LED 出力ピンを設定します。</p>
+              <div class="form-field">
+                <label for="rgb-pin-input">ピン</label>
+                <input id="rgb-pin-input" type="number" placeholder="例: 16" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>rgb pin を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-rgb-set" data-command="rgb-set" role="tabpanel"
+              aria-labelledby="tab-peripherals-rgb-set">
+              <h3>rgb set &lt;r&gt; &lt;g&gt; &lt;b&gt;</h3>
+              <p>単色で RGB LED を発光させます。</p>
+              <div class="dual-field">
+                <div class="form-field">
+                  <label for="rgb-set-r">R (0-255)</label>
+                  <input id="rgb-set-r" type="number" placeholder="例: 255" disabled />
+                </div>
+                <div class="form-field">
+                  <label for="rgb-set-g">G (0-255)</label>
+                  <input id="rgb-set-g" type="number" placeholder="例: 128" disabled />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="rgb-set-b">B (0-255)</label>
+                <input id="rgb-set-b" type="number" placeholder="例: 64" disabled />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>rgb set を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-rgb-stream" data-command="rgb-stream"
+              role="tabpanel" aria-labelledby="tab-peripherals-rgb-stream">
+              <h3>rgb stream</h3>
+              <p>連続した RGB データをストリーミングし、アニメーションを表示します。</p>
+              <div class="console-area console-area--light">
+                <span>チャンク送信の進捗やエラーを表示予定</span>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" disabled>rgb stream を開始</button>
+              </div>
+            </article>
           </div>
-        </section>
-      </main>
-
-      <footer class="footer">
-        <div>
-          <strong>ヒント:</strong>
-          WebSerial API は HTTPS または localhost 上でのみ利用できます。GitHub Pages
-          での運用を前提にしています。
         </div>
-        <div class="footer-links">
-          <a href="https://developer.mozilla.org/docs/Web/API/Web_Serial_API" target="_blank" rel="noopener noreferrer">
-            Web Serial API Docs
-          </a>
-          <a href="https://github.com/" target="_blank" rel="noopener noreferrer">
-            GitHub Pages
-          </a>
-        </div>
-      </footer>
-    </div>
+        <div class="tab-content" id="tab-help" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.help.title">ヘルプとログ</h2>
+            <p data-i18n="sections.help.description">
+              コマンド一覧の参照や応答ログの確認に利用します。
+            </p>
+          </header>
 
-    <script src="./app.js"></script>
-  </body>
+          <div class="command-layout">
+            <div class="command-tablist" role="tablist" aria-label="ヘルプコマンド">
+              <button id="tab-help-help" class="command-tab is-active" role="tab" aria-selected="true"
+                data-command="help" aria-controls="command-help-help">help</button>
+              <button id="tab-help-question" class="command-tab" role="tab" aria-selected="false"
+                data-command="question" aria-controls="command-help-question">?</button>
+              <button id="tab-help-log" class="command-tab" role="tab" aria-selected="false" data-command="log"
+                aria-controls="command-help-log">log</button>
+              <button id="tab-help-docs" class="command-tab" role="tab" aria-selected="false" data-command="docs"
+                aria-controls="command-help-docs">docs</button>
+            </div>
+
+            <article class="card command-panel is-active" id="command-help-help" data-command="help" role="tabpanel"
+              aria-labelledby="tab-help-help">
+              <h3>help</h3>
+              <p data-i18n="commands.help.help.description">
+                登録されているコマンドと説明を表示します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.help.help.action">help を送信</button>
+              </div>
+              <div class="console-area console-area--light">
+                <span data-i18n="commands.help.help.placeholder">コマンド一覧がここに表示されます</span>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-help-question" data-command="question" role="tabpanel"
+              aria-labelledby="tab-help-question">
+              <h3>?</h3>
+              <p data-i18n-html="commands.help.question.description">
+                <code>help</code> と同一で短縮入力です。キーボード操作向け。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.help.question.action">? を送信</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-help-log" data-command="log" role="tabpanel"
+              aria-labelledby="tab-help-log">
+              <h3>ログビューア</h3>
+              <p data-i18n="commands.help.log.description">
+                シリアル応答やエラーを表示するコンソール領域です。
+              </p>
+              <div class="console-area">
+                <span data-i18n="commands.help.log.placeholder">ESP32 からの応答ログがここに表示されます</span>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.help.log.clear">ログをクリア</button>
+                <button class="btn btn-outline" disabled data-i18n="commands.help.log.save">ログを保存</button>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-help-docs" data-command="docs" role="tabpanel"
+              aria-labelledby="tab-help-docs">
+              <h3 data-i18n="commands.help.docs.title">関連ドキュメント</h3>
+              <p data-i18n="commands.help.docs.description">
+                操作時に参照したい資料へのショートカットです。
+              </p>
+              <div class="chip-row">
+                <span class="chip" data-i18n="commands.help.docs.links.0">README.md</span>
+                <span class="chip" data-i18n="commands.help.docs.links.1">examples/BasicCli</span>
+                <span class="chip" data-i18n="commands.help.docs.links.2">ESP-IDF Docs</span>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" disabled data-i18n="commands.help.docs.action">リンクを開く</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div data-i18n-html="footer.hint">
+        <strong>ヒント:</strong>
+        WebSerial API は HTTPS または localhost 上でのみ利用できます。GitHub Pages
+        での運用を前提にしています。
+      </div>
+      <div class="footer-links">
+        <a href="https://developer.mozilla.org/docs/Web/API/Web_Serial_API" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="footer.links.webSerial">Web Serial API Docs</span>
+        </a>
+        <a href="https://github.com/" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="footer.links.githubPages">GitHub Pages</span>
+        </a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+
 </html>
