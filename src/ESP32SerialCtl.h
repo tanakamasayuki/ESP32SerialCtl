@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <soc/soc.h>
+#include <soc/gpio_reg.h>
 
 #if defined(ESP32SERIALCTL_ENABLE_I2C) || defined(Wire_h) || defined(_WIRE_H_) || \
     defined(_WIRE_H) || defined(_TWOWIRE_H_) || defined(TwoWire_h) ||             \
@@ -1149,6 +1151,52 @@ namespace esp32serialctl
       return true;
     }
 
+    static bool isGpioOutputEnabled(uint8_t pin)
+    {
+#if defined(SOC_GPIO_PIN_COUNT)
+      if (pin >= SOC_GPIO_PIN_COUNT)
+      {
+        return false;
+      }
+#endif
+
+      if (pin < 32)
+      {
+#if defined(GPIO_ENABLE_REG)
+        uint32_t enable = REG_READ(GPIO_ENABLE_REG);
+        return ((enable >> pin) & 0x1u) != 0;
+#else
+        return false;
+#endif
+      }
+
+#if defined(GPIO_ENABLE1_REG)
+      if (pin < 64)
+      {
+        uint32_t enable = REG_READ(GPIO_ENABLE1_REG);
+        return ((enable >> (pin - 32)) & 0x1u) != 0;
+      }
+#endif
+
+#if defined(GPIO_ENABLE2_REG)
+      if (pin < 96)
+      {
+        uint32_t enable = REG_READ(GPIO_ENABLE2_REG);
+        return ((enable >> (pin - 64)) & 0x1u) != 0;
+      }
+#endif
+
+#if defined(GPIO_ENABLE3_REG)
+      if (pin < 128)
+      {
+        uint32_t enable = REG_READ(GPIO_ENABLE3_REG);
+        return ((enable >> (pin - 96)) & 0x1u) != 0;
+      }
+#endif
+
+      return false;
+    }
+
 #if defined(ESP32SERIALCTL_HAS_WIRE)
     struct I2cBusEntry
     {
@@ -1960,6 +2008,16 @@ namespace esp32serialctl
       {
         ctx.printError(400, "Invalid value");
         return;
+      }
+
+      if (!isGpioOutputEnabled(pin))
+      {
+        pinMode(pin, OUTPUT);
+        if (!isGpioOutputEnabled(pin))
+        {
+          ctx.printError(501, "Output unsupported");
+          return;
+        }
       }
 
       digitalWrite(pin, state ? HIGH : LOW);
