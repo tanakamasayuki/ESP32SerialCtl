@@ -9,7 +9,7 @@
 static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl;
 
 #define TO_STRING(x) #x
-#define USE_FS SPIFFS // Choose one: SD, SPIFFS, LittleFS, FFat
+#define USE_FS LittleFS // Choose one: SD, SPIFFS, LittleFS, FFat
 
 void setup()
 {
