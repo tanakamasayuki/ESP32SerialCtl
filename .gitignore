@@ -8,4 +8,5 @@ tools/cache/
 .vscode/
 arduino_secrets.h
 *.bat
+*.txt
 sketch.yaml
