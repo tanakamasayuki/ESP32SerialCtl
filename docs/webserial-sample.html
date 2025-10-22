@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Web Serial Minimal Sample</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 24px;
+        display: grid;
+        gap: 16px;
+      }
+      button {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 160px;
+        font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+      .status {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <button id="connect">接続</button>
+      <button id="disconnect" disabled>切断</button>
+      <span class="status" id="status">未接続</span>
+    </div>
+
+    <div class="row">
+      <input id="outgoing" type="text" placeholder="送信するテキスト" style="flex:1" />
+      <button id="send" disabled>送信</button>
+    </div>
+
+    <label for="incoming">受信データ</label>
+    <textarea id="incoming" readonly></textarea>
+
+    <script>
+      const connectButton = document.getElementById('connect');
+      const disconnectButton = document.getElementById('disconnect');
+      const sendButton = document.getElementById('send');
+      const outgoingInput = document.getElementById('outgoing');
+      const incomingArea = document.getElementById('incoming');
+      const statusText = document.getElementById('status');
+
+      let port = null;
+      let reader = null;
+      let writer = null;
+      let readLoopAbortController = null;
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+
+      const setStatus = (text) => {
+        statusText.textContent = text;
+      };
+
+      const appendIncoming = (text) => {
+        incomingArea.value += text + '\n';
+        incomingArea.scrollTop = incomingArea.scrollHeight;
+      };
+
+      const startReadLoop = async () => {
+        if (!port?.readable) {
+          return;
+        }
+        readLoopAbortController = new AbortController();
+        const signal = readLoopAbortController.signal;
+        reader = port.readable.getReader();
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }
+            if (value) {
+              appendIncoming(decoder.decode(value));
+            }
+            if (signal.aborted) {
+              break;
+            }
+          }
+        } catch (error) {
+          appendIncoming(`[ERROR] ${error.message}`);
+        } finally {
+          if (reader) {
+            reader.releaseLock();
+            reader = null;
+          }
+        }
+      };
+
+      const stopReadLoop = async () => {
+        if (readLoopAbortController) {
+          readLoopAbortController.abort();
+        }
+        if (reader) {
+          try {
+            await reader.cancel();
+          } catch (error) {
+            /* ignore */
+          }
+          reader.releaseLock();
+          reader = null;
+        }
+      };
+
+      const closePort = async () => {
+        await stopReadLoop();
+        if (writer) {
+          try {
+            await writer.close();
+          } catch (error) {
+            /* ignore */
+          }
+          writer.releaseLock();
+          writer = null;
+        }
+        if (port) {
+          try {
+            if (typeof port.setSignals === 'function') {
+              await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+            }
+          } catch (error) {
+            /* ignore */
+          }
+          try {
+            await port.close();
+          } catch (error) {
+            /* ignore */
+          }
+          port = null;
+        }
+      };
+
+      connectButton.addEventListener('click', async () => {
+        if (!('serial' in navigator)) {
+          alert('このブラウザは Web Serial API に対応していません。');
+          return;
+        }
+        try {
+          port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 115200 });
+          if (port.writable) {
+            writer = port.writable.getWriter();
+          }
+          setStatus('接続済み');
+          connectButton.disabled = true;
+          disconnectButton.disabled = false;
+          sendButton.disabled = false;
+          startReadLoop();
+        } catch (error) {
+          setStatus(`接続失敗: ${error.message}`);
+          port = null;
+        }
+      });
+
+      disconnectButton.addEventListener('click', async () => {
+        connectButton.disabled = false;
+        disconnectButton.disabled = true;
+        sendButton.disabled = true;
+        setStatus('切断処理中');
+        await closePort();
+        setStatus('未接続');
+      });
+
+      sendButton.addEventListener('click', async () => {
+        if (!writer) {
+          alert('接続されていません。');
+          return;
+        }
+        const text = outgoingInput.value;
+        if (!text) {
+          return;
+        }
+        try {
+          await writer.write(encoder.encode(text + '\n'));
+        } catch (error) {
+          appendIncoming(`[SEND ERROR] ${error.message}`);
+        }
+      });
+
+      window.addEventListener('beforeunload', async () => {
+        await closePort();
+      });
+    </script>
+  </body>
+</html>

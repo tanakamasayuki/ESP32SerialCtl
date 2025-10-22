@@ -34,7 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       "connection": {
         "status": {
-          "disconnected": "未接続"
+          "disconnected": "未接続",
+          "connecting": "接続中…",
+          "disconnecting": "切断中…",
+          "connected": "接続済み",
+          "unsupported": "WebSerial 非対応"
         },
         "actions": {
           "connect": "デバイスに接続",
@@ -42,7 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "info": {
           "disabledTitle": "UI プレビューのため現在は操作できません",
-          "placeholderStatus": "準備完了 - 接続待機"
+          "placeholderStatus": "準備完了 - 接続待機",
+          "unsupportedHint": "対応ブラウザでアクセスしてください",
+          "connectFirst": "先にデバイスへ接続してください。",
+          "disconnectFirst": "切断してから再度接続できます。",
+          "waitDisconnect": "現在切断処理中です。完了するまでお待ちください。"
         }
       },
       "language": {
@@ -105,7 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
       "results": {
         "latest": "最新結果 (自動取得)",
         "latestManual": "最新結果",
-        "placeholder": "結果がここに表示されます"
+        "placeholder": "結果がここに表示されます",
+        "pending": "実行中…"
       },
       "storage": {
         "list": {
@@ -315,7 +324,11 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       "connection": {
         "status": {
-          "disconnected": "Disconnected"
+          "disconnected": "Disconnected",
+          "connecting": "Connecting…",
+          "disconnecting": "Disconnecting…",
+          "connected": "Connected",
+          "unsupported": "WebSerial Unsupported"
         },
         "actions": {
           "connect": "Connect Device",
@@ -323,7 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "info": {
           "disabledTitle": "Preview only – controls are disabled",
-          "placeholderStatus": "Ready – waiting for connection"
+          "placeholderStatus": "Ready – waiting for connection",
+          "unsupportedHint": "Try a browser that supports the Web Serial API.",
+          "connectFirst": "Please connect to the device before running commands.",
+          "disconnectFirst": "Disconnect first if you need to switch devices.",
+          "waitDisconnect": "Disconnect in progress. Please wait."
         }
       },
       "language": {
@@ -386,7 +403,8 @@ document.addEventListener('DOMContentLoaded', () => {
       "results": {
         "latest": "Latest Result (auto)",
         "latestManual": "Latest Result",
-        "placeholder": "Results will appear here"
+        "placeholder": "Results will appear here",
+        "pending": "Running…"
       },
       "storage": {
         "list": {
@@ -596,7 +614,11 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       "connection": {
         "status": {
-          "disconnected": "未连接"
+          "disconnected": "未连接",
+          "connecting": "连接中…",
+          "disconnecting": "断开中…",
+          "connected": "已连接",
+          "unsupported": "不支持 WebSerial"
         },
         "actions": {
           "connect": "连接设备",
@@ -604,7 +626,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "info": {
           "disabledTitle": "预览模式，控件已禁用",
-          "placeholderStatus": "已就绪 - 等待连接"
+          "placeholderStatus": "已就绪 - 等待连接",
+          "unsupportedHint": "请使用支持 Web Serial API 的浏览器。",
+          "connectFirst": "请先连接设备再执行指令。",
+          "disconnectFirst": "若要切换设备，请先断开连接。",
+          "waitDisconnect": "正在断开连接，请稍候。"
         }
       },
       "language": {
@@ -667,7 +693,8 @@ document.addEventListener('DOMContentLoaded', () => {
       "results": {
         "latest": "最新结果（自动）",
         "latestManual": "最新结果",
-        "placeholder": "结果将在此显示"
+        "placeholder": "结果将在此显示",
+        "pending": "执行中…"
       },
       "storage": {
         "list": {
@@ -1208,6 +1235,48 @@ OK fs ls
 
   let currentLanguage = LANGUAGE_FALLBACK;
   const languageSelect = document.querySelector('#language-select');
+  const connectButton = document.querySelector('#connect-button');
+  const disconnectButton = document.querySelector('#disconnect-button');
+  const statusLabel = document.querySelector('#connection-status-label');
+  const statusPill = document.querySelector('.status-pill');
+  const logOutput = document.querySelector('[data-log-output]');
+  const systemCommandButtons = Array.from(
+    document.querySelectorAll('#tab-system .command-panel .card-actions button')
+  );
+  const systemCommandPanels = new Map();
+  systemCommandButtons.forEach((button) => {
+    const panel = button.closest('.command-panel');
+    const commandId = panel?.dataset.command;
+    if (commandId && panel && !systemCommandPanels.has(commandId)) {
+      systemCommandPanels.set(commandId, { panel, button });
+    }
+    button.disabled = false;
+    button.removeAttribute('disabled');
+  });
+
+  const disabledElements = [
+    connectButton,
+    disconnectButton,
+    ...document.querySelectorAll(
+      'button[disabled], select[disabled], input[disabled], textarea[disabled]'
+    )
+  ].filter(Boolean);
+
+  const applyDisabledTitles = () => {
+    disabledElements.forEach((element) => {
+      if (!element) {
+        return;
+      }
+      if (element.disabled) {
+        element.setAttribute('title', translate('connection.info.disabledTitle'));
+      } else {
+        element.removeAttribute('title');
+      }
+    });
+  };
+
+  let connectionState = 'disconnected';
+  let refreshConnectionLabel = () => {};
 
   const setLanguage = (lang, { persist = true } = {}) => {
     const normalized = normalizeLanguage(lang);
@@ -1220,6 +1289,7 @@ OK fs ls
       }
     }
     applyTranslations();
+    refreshConnectionLabel();
     applyDisabledTitles();
     refreshLanguageSensitiveUI();
     if (languageSelect && languageSelect.value !== normalized) {
@@ -1384,6 +1454,9 @@ OK fs ls
     }).format(new Date());
 
   const updateResultSection = (panel, commandId) => {
+    if (connectionState === 'connected') {
+      return;
+    }
     const raw = systemMockRaw[commandId];
     if (!raw) {
       return;
@@ -1835,23 +1908,596 @@ OK fs ls
     }
   };
 
-  const connectButton = document.querySelector('#connect-button');
-  const disconnectButton = document.querySelector('#disconnect-button');
-  const statusLabel = document.querySelector('#connection-status-label');
+  const COMMAND_TIMEOUT_MS = 8000;
+  const statusClassMap = {
+    disconnected: 'status-pill--disconnected',
+    connecting: 'status-pill--connecting',
+    disconnecting: 'status-pill--disconnecting',
+    connected: 'status-pill--connected'
+  };
+  const connectButtonClasses = [
+    'btn-state-idle',
+    'btn-state-connecting',
+    'btn-state-disconnecting',
+    'btn-state-connected',
+    'btn-state-unsupported'
+  ];
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
+  let serialPort = null;
+  let serialWriter = null;
+  let serialReader = null;
+  let activeCommand = null;
+  let logLineBuffer = '';
+  let isDisconnecting = false;
+  let pendingCleanupPromise = null;
+  let readLoopPromise = null;
+  let pendingPortClosePromise = null;
 
-  const disabledElements = [
-    connectButton,
-    disconnectButton,
-    ...document.querySelectorAll(
-      'button[disabled], select[disabled], input[disabled], textarea[disabled]'
-    )
-  ].filter(Boolean);
+  refreshConnectionLabel = () => {
+    if (!statusLabel) {
+      return;
+    }
+    const key =
+      connectionState === 'unsupported'
+        ? 'connection.status.unsupported'
+        : `connection.status.${connectionState}`;
+    const fallbackKey = 'connection.status.disconnected';
+    statusLabel.dataset.i18n = key;
+    const message =
+      getTranslationValue(currentLanguage, key) ||
+      getTranslationValue(currentLanguage, fallbackKey) ||
+      connectionState;
+    statusLabel.textContent = message;
+    if (connectionState === 'unsupported' && connectButton) {
+      connectButton.setAttribute('title', translate('connection.info.unsupportedHint'));
+    }
+  };
 
-  const applyDisabledTitles = () => {
-    disabledElements.forEach((element) => {
-      element.setAttribute('title', translate('connection.info.disabledTitle'));
+  const updateSystemButtonsState = () => {
+    const shouldDisable = connectionState !== 'connected' || Boolean(activeCommand);
+    systemCommandButtons.forEach((button) => {
+      if (shouldDisable) {
+        button.classList.add('btn--inactive');
+        button.setAttribute('aria-disabled', 'true');
+        const titleKey =
+          connectionState === 'disconnecting'
+            ? 'connection.info.waitDisconnect'
+            : 'connection.info.connectFirst';
+        button.setAttribute('title', translate(titleKey));
+      } else {
+        button.classList.remove('btn--inactive');
+        button.removeAttribute('aria-disabled');
+        button.removeAttribute('title');
+      }
     });
   };
+
+  const setConnectionState = (state) => {
+    if (connectionState === state) {
+      refreshConnectionLabel();
+      updateSystemButtonsState();
+      applyDisabledTitles();
+      return;
+    }
+    connectionState = state;
+    if (statusPill) {
+      Object.values(statusClassMap).forEach((cls) => statusPill.classList.remove(cls));
+      const pillarClass = statusClassMap[state] || statusClassMap.disconnected;
+      statusPill.classList.add(pillarClass);
+    }
+    if (connectButton) {
+      connectButton.classList.remove(...connectButtonClasses);
+      let classToApply = 'btn-state-idle';
+      if (state === 'connecting') {
+        classToApply = 'btn-state-connecting';
+      } else if (state === 'disconnecting') {
+        classToApply = 'btn-state-disconnecting';
+      } else if (state === 'connected') {
+        classToApply = 'btn-state-connected';
+      } else if (state === 'unsupported') {
+        classToApply = 'btn-state-unsupported';
+      }
+      connectButton.classList.add(classToApply);
+
+      if (state === 'unsupported') {
+        connectButton.disabled = true;
+        connectButton.setAttribute('disabled', '');
+        connectButton.setAttribute('title', translate('connection.info.unsupportedHint'));
+      } else if (state === 'connected' || state === 'connecting' || state === 'disconnecting') {
+        connectButton.disabled = true;
+        connectButton.setAttribute('disabled', '');
+        if (state === 'connecting') {
+          connectButton.setAttribute('title', translate('connection.status.connecting'));
+        } else if (state === 'disconnecting') {
+          connectButton.setAttribute('title', translate('connection.info.waitDisconnect'));
+        } else {
+          connectButton.setAttribute('title', translate('connection.info.disconnectFirst'));
+        }
+      } else {
+        connectButton.disabled = false;
+        connectButton.removeAttribute('disabled');
+        connectButton.removeAttribute('title');
+      }
+    }
+    if (disconnectButton) {
+      if (state !== 'connected') {
+        disconnectButton.disabled = true;
+        disconnectButton.setAttribute('disabled', '');
+      } else {
+        disconnectButton.disabled = false;
+        disconnectButton.removeAttribute('disabled');
+      }
+    }
+    updateSystemButtonsState();
+    refreshConnectionLabel();
+    applyDisabledTitles();
+  };
+
+  const clearLogPlaceholder = () => {
+    if (!logOutput) {
+      return;
+    }
+    if (logOutput.dataset.hasPlaceholder === 'false') {
+      return;
+    }
+    const placeholder = logOutput.querySelector('[data-i18n="commands.help.log.placeholder"]');
+    if (placeholder) {
+      placeholder.remove();
+    }
+    logOutput.dataset.hasPlaceholder = 'false';
+  };
+
+  const appendLogEntry = (type, message) => {
+    if (!logOutput || !message) {
+      return;
+    }
+    clearLogPlaceholder();
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-entry--${type}`;
+    entry.textContent = `[${formatTimeStamp()}] ${message}`;
+    logOutput.append(entry);
+    logOutput.scrollTop = logOutput.scrollHeight;
+  };
+
+  const processLogChunk = (chunk) => {
+    if (!logOutput) {
+      return;
+    }
+    logLineBuffer += chunk;
+    let newlineIndex = logLineBuffer.indexOf('\n');
+    while (newlineIndex !== -1) {
+      let line = logLineBuffer.slice(0, newlineIndex);
+      logLineBuffer = logLineBuffer.slice(newlineIndex + 1);
+      line = line.replace(/\r$/, '');
+      if (line.trim().length) {
+        appendLogEntry('rx', `>> ${line}`);
+      }
+      newlineIndex = logLineBuffer.indexOf('\n');
+    }
+  };
+
+  const sanitizeSerialText = (value) => (value || '').replace(/\r/g, '');
+
+  const hasPromptLine = (buffer) => {
+    const sanitized = sanitizeSerialText(buffer);
+    if (!sanitized) {
+      return false;
+    }
+    const lines = sanitized.split('\n');
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      const candidate = lines[i].trim();
+      if (candidate === '') {
+        continue;
+      }
+      return candidate.startsWith('>');
+    }
+    return false;
+  };
+
+  const updateCommandPanelRaw = (command) => {
+    if (!command) {
+      return;
+    }
+    const panel = command.panel;
+    const rawEl = panel.querySelector('[data-result-raw]');
+    if (rawEl) {
+      rawEl.textContent = sanitizeSerialText(command.buffer);
+    }
+  };
+
+  const renderSystemResponse = (panel, rawText) => {
+    if (!panel) {
+      return;
+    }
+    const normalized = sanitizeSerialText(rawText || '').trim();
+    const timestampEl = panel.querySelector('[data-result-timestamp]');
+    if (timestampEl) {
+      timestampEl.textContent = formatTimeStamp();
+    }
+    const rawEl = panel.querySelector('[data-result-raw]');
+    if (rawEl) {
+      rawEl.textContent = normalized || translate('results.placeholder');
+    }
+    const tableEl = panel.querySelector('[data-result-table]');
+    const tableBody = tableEl ? tableEl.querySelector('tbody') : null;
+    if (tableEl && tableBody) {
+      tableBody.innerHTML = '';
+      const rows = parsePipeTable(normalized);
+      if (rows.length) {
+        rows.forEach(({ key, value }) => {
+          const row = document.createElement('tr');
+          const keyCell = document.createElement('th');
+          keyCell.textContent = key;
+          const valueCell = document.createElement('td');
+          valueCell.textContent = value;
+          row.append(keyCell, valueCell);
+          tableBody.append(row);
+        });
+        tableEl.hidden = false;
+      } else {
+        tableEl.hidden = true;
+      }
+    }
+  };
+
+  const finalizeActiveCommand = ({ error = false, fallbackMessage = '' } = {}) => {
+    if (!activeCommand) {
+      return;
+    }
+    const { timeoutId, panel, commandText } = activeCommand;
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    const buffer = sanitizeSerialText(activeCommand.buffer).trim();
+    const output = buffer || fallbackMessage || (error ? 'Command aborted.' : '');
+    if (error) {
+      appendLogEntry('error', `Command failed: ${commandText}`);
+    } else {
+      appendLogEntry('info', `Command completed: ${commandText}`);
+    }
+    renderSystemResponse(panel, output);
+    activeCommand = null;
+    updateSystemButtonsState();
+  };
+
+  const preparePanelForCommand = (panel) => {
+    if (!panel) {
+      return;
+    }
+    const timestampEl = panel.querySelector('[data-result-timestamp]');
+    if (timestampEl) {
+      timestampEl.textContent = formatTimeStamp();
+    }
+    const rawEl = panel.querySelector('[data-result-raw]');
+    if (rawEl) {
+      rawEl.textContent = translate('results.pending');
+    }
+    const tableEl = panel.querySelector('[data-result-table]');
+    const tableBody = tableEl ? tableEl.querySelector('tbody') : null;
+    if (tableBody) {
+      tableBody.innerHTML = '';
+    }
+    if (tableEl) {
+      tableEl.hidden = true;
+    }
+  };
+
+  const handleSerialChunk = (chunk) => {
+    if (!chunk) {
+      return;
+    }
+    processLogChunk(chunk);
+    if (activeCommand) {
+      activeCommand.buffer += chunk;
+      updateCommandPanelRaw(activeCommand);
+      if (hasPromptLine(activeCommand.buffer)) {
+        finalizeActiveCommand();
+      }
+    }
+  };
+
+  const startReadLoop = () => {
+    if (!serialPort?.readable || serialReader) {
+      return;
+    }
+    const reader = serialPort.readable.getReader();
+    serialReader = reader;
+    readLoopPromise = (async () => {
+      try {
+        appendLogEntry('debug', 'Read loop started.');
+        while (true) {
+          if (serialReader !== reader) {
+            appendLogEntry('debug', 'Read loop detected reader ownership changed; exiting.');
+            break;
+          }
+          const { value, done } = await reader.read();
+          appendLogEntry(
+            'debug',
+            `Read loop received chunk. done=${done} length=${value ? value.length : 0}`
+          );
+          if (done) {
+            const remaining = textDecoder.decode();
+            if (remaining) {
+              handleSerialChunk(remaining);
+            }
+            break;
+          }
+          if (value) {
+            const chunk = textDecoder.decode(value, { stream: true });
+            handleSerialChunk(chunk);
+          }
+        }
+      } catch (error) {
+        appendLogEntry('error', `Read error: ${error.message}`);
+      } finally {
+        appendLogEntry('debug', 'Read loop exiting. Releasing reader lock.');
+        try {
+          reader.releaseLock();
+        } catch {
+          appendLogEntry('debug', 'Reader lock release threw but ignored.');
+        }
+        if (serialReader === reader) {
+          serialReader = null;
+        }
+        readLoopPromise = null;
+        if (!isDisconnecting && connectionState === 'connected') {
+          appendLogEntry('error', 'Serial connection closed unexpectedly.');
+          disconnectSerial();
+        }
+      }
+    })();
+  };
+
+  const cleanupSerial = () => {
+    if (!pendingCleanupPromise) {
+      pendingCleanupPromise = (async () => {
+        const reader = serialReader;
+        if (reader) {
+          appendLogEntry('debug', 'Cancelling serial reader...');
+          reader
+            .cancel()
+            .then(() => appendLogEntry('debug', 'Reader cancel resolved.'))
+            .catch((error) => appendLogEntry('error', `Reader cancel error: ${error.message}`))
+            .finally(() => appendLogEntry('debug', 'Reader cancel promise settled.'));
+          try {
+            reader.releaseLock();
+            appendLogEntry('debug', 'Reader lock released (cleanup).');
+          } catch {
+            appendLogEntry('debug', 'Reader release in cleanup skipped.');
+          }
+        } else {
+          appendLogEntry('debug', 'No active reader to cancel.');
+        }
+
+        if (readLoopPromise) {
+          appendLogEntry('debug', 'Awaiting read loop termination...');
+          try {
+            await readLoopPromise;
+            appendLogEntry('debug', 'Read loop terminated.');
+          } catch (error) {
+            appendLogEntry('error', `Read loop error: ${error.message}`);
+          }
+        } else {
+          appendLogEntry('debug', 'No pending read loop promise.');
+        }
+        readLoopPromise = null;
+        serialReader = null;
+
+        const writer = serialWriter;
+        serialWriter = null;
+        if (writer) {
+          appendLogEntry('debug', 'Closing writer...');
+          try {
+            await writer.close();
+            appendLogEntry('debug', 'Writer close resolved.');
+          } catch (error) {
+            appendLogEntry('error', `Writer close error: ${error.message}`);
+          }
+          try {
+            writer.releaseLock();
+            appendLogEntry('debug', 'Writer lock released.');
+          } catch {
+            /* ignore */
+          }
+        } else {
+          appendLogEntry('debug', 'No active writer to release.');
+        }
+
+        const port = serialPort;
+        serialPort = null;
+        if (port) {
+          appendLogEntry('debug', 'Preparing to close serial port...');
+          if (typeof port.setSignals === 'function') {
+            appendLogEntry('debug', 'Lowering control signals (DTR/RTS)...');
+            try {
+              await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+              appendLogEntry('debug', 'Signals lowered.');
+            } catch (error) {
+              appendLogEntry('error', `setSignals error: ${error.message}`);
+            }
+            try {
+              await port.setSignals({ break: false });
+            } catch (error) {
+              appendLogEntry('error', `setSignals (break) error: ${error.message}`);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+
+          appendLogEntry('debug', 'Closing serial port...');
+          let closeTaskWrapper = null;
+          try {
+            const closeTask = port.close();
+            appendLogEntry('debug', 'Serial port close promise created.');
+            closeTaskWrapper = closeTask
+              .then(() => appendLogEntry('debug', 'Serial port closed.'))
+              .catch((error) => {
+                appendLogEntry('error', `Port close error: ${error.message}`);
+                throw error;
+              })
+              .finally(() => {
+                appendLogEntry('debug', 'Serial port close promise settled.');
+                if (pendingPortClosePromise === closeTaskWrapper) {
+                  pendingPortClosePromise = null;
+                }
+              });
+            pendingPortClosePromise = closeTaskWrapper;
+            appendLogEntry('debug', 'Waiting for serial port close to resolve...');
+            await closeTaskWrapper;
+            appendLogEntry('debug', 'Serial port close awaited.');
+          } catch (error) {
+            appendLogEntry('error', `Port close exception: ${error.message}`);
+            pendingPortClosePromise = null;
+          }
+        } else {
+          appendLogEntry('debug', 'No serial port instance to close.');
+        }
+      })().finally(() => {
+        appendLogEntry('debug', 'Cleanup promise resolved.');
+        pendingCleanupPromise = null;
+      });
+    }
+    return pendingCleanupPromise;
+  };
+
+  const disconnectSerial = async () => {
+    if (connectionState === 'unsupported') {
+      return;
+    }
+    if (connectionState === 'disconnected') {
+      appendLogEntry('info', 'Serial device already disconnected.');
+      return;
+    }
+    if (connectionState === 'disconnecting' && isDisconnecting) {
+      appendLogEntry('info', translate('connection.info.waitDisconnect'));
+      return;
+    }
+    isDisconnecting = true;
+    appendLogEntry('info', 'Disconnecting from serial device...');
+    setConnectionState('disconnecting');
+    try {
+      if (activeCommand) {
+        finalizeActiveCommand({ error: true, fallbackMessage: 'Connection closed.' });
+      }
+      await cleanupSerial();
+    } catch (error) {
+      appendLogEntry('error', `Disconnect error: ${error.message}`);
+    } finally {
+      setConnectionState('disconnected');
+      appendLogEntry('info', 'Serial device disconnected.');
+      isDisconnecting = false;
+    }
+  };
+
+  const connectSerial = async () => {
+    if (!('serial' in navigator)) {
+      setConnectionState('unsupported');
+      appendLogEntry('error', translate('connection.info.unsupportedHint'));
+      return;
+    }
+    if (isDisconnecting || connectionState === 'disconnecting') {
+      appendLogEntry('info', translate('connection.info.waitDisconnect'));
+      return;
+    }
+    if (pendingCleanupPromise) {
+      appendLogEntry('info', translate('connection.info.waitDisconnect'));
+      try {
+        await pendingCleanupPromise;
+      } catch (error) {
+        appendLogEntry('error', `Cleanup error: ${error.message}`);
+      }
+    }
+    if (pendingPortClosePromise) {
+      appendLogEntry('debug', 'Waiting for serial port close to finish...');
+      try {
+        await pendingPortClosePromise;
+      } catch (error) {
+        appendLogEntry('error', `Pending port close error: ${error.message}`);
+      } finally {
+        pendingPortClosePromise = null;
+      }
+    }
+    if (connectionState === 'connected' || connectionState === 'connecting') {
+      return;
+    }
+    try {
+      setConnectionState('connecting');
+      appendLogEntry('info', 'Requesting serial device...');
+      serialPort = await navigator.serial.requestPort();
+      await serialPort.open({ baudRate: 115200 });
+      if (serialPort.writable) {
+        serialWriter = serialPort.writable.getWriter();
+      }
+      setConnectionState('connected');
+      appendLogEntry('info', 'Serial device connected.');
+      updateSystemButtonsState();
+      startReadLoop();
+    } catch (error) {
+      appendLogEntry('error', `Connection failed: ${error.message}`);
+      await cleanupSerial();
+      setConnectionState('disconnected');
+    }
+  };
+
+  const sendSystemCommand = async (commandId) => {
+    if (connectionState !== 'connected' || !serialWriter) {
+      appendLogEntry('error', 'Cannot send command while disconnected.');
+      return;
+    }
+    if (activeCommand) {
+      appendLogEntry('info', 'Another command is already in progress.');
+      return;
+    }
+    const entry = systemCommandPanels.get(commandId);
+    if (!entry) {
+      return;
+    }
+    const commandText = commandId.replace(/-/g, ' ');
+    activeCommand = {
+      id: commandId,
+      commandText,
+      panel: entry.panel,
+      button: entry.button,
+      buffer: '',
+      timeoutId: null
+    };
+    preparePanelForCommand(entry.panel);
+    updateSystemButtonsState();
+    activeCommand.timeoutId = window.setTimeout(() => {
+      if (!activeCommand) {
+        return;
+      }
+      appendLogEntry('error', 'Timeout waiting for device prompt.');
+      finalizeActiveCommand({ error: true, fallbackMessage: 'Timeout waiting for device prompt.' });
+    }, COMMAND_TIMEOUT_MS);
+    try {
+      appendLogEntry('tx', `<< ${commandText}`);
+      await serialWriter.write(textEncoder.encode(`${commandText}\n`));
+    } catch (error) {
+      appendLogEntry('error', `Write failed: ${error.message}`);
+      finalizeActiveCommand({ error: true, fallbackMessage: error.message });
+    }
+  };
+
+  systemCommandPanels.forEach(({ button }, commandId) => {
+    if (!button) {
+      return;
+    }
+    button.addEventListener('click', () => {
+      if (connectionState !== 'connected') {
+        appendLogEntry('error', translate('connection.info.connectFirst'));
+        return;
+      }
+      sendSystemCommand(commandId);
+    });
+  });
+
+  if (connectButton) {
+    connectButton.addEventListener('click', connectSerial);
+  }
+  if (disconnectButton) {
+    disconnectButton.addEventListener('click', disconnectSerial);
+  }
 
   if (languageSelect) {
     languageSelect.addEventListener('change', (event) => {
@@ -1865,7 +2511,16 @@ OK fs ls
     languageSelect.value = currentLanguage;
   }
 
-  if (statusLabel) {
-    statusLabel.textContent = translate('connection.info.placeholderStatus');
+  if (!('serial' in navigator)) {
+    setConnectionState('unsupported');
+    appendLogEntry('error', translate('connection.info.unsupportedHint'));
+  } else {
+    if (connectButton) {
+      connectButton.disabled = false;
+      connectButton.removeAttribute('disabled');
+    }
+    setConnectionState('disconnected');
   }
+
+  updateSystemButtonsState();
 });
