@@ -139,11 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
         "system": {
           "sys-info": {
             "description": "チップモデル、リビジョン、クロック、SDK/IDF バージョンなどを取得します。",
-            "bullets": [
-              "チップ情報の即時確認に利用",
-              "サポート問い合わせ時の環境共有",
-              "ビルドメタデータの検証"
-            ],
             "action": "sys info を送信"
           },
           "sys-uptime": {
@@ -159,12 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "sys mem を送信"
           },
           "sys-reset": {
-            "description": "ESP32 をソフトリセットします。実行前に確認ステップを挟む想定です。",
-            "bullets": [
-              "確認ダイアログでオペレーターの意図を確認",
-              "必要であればログを保存",
-              "ESP.restart() を呼び出して再起動"
-            ],
+            "description": "ESP32 をソフトリセットします。",
             "action": "sys reset を送信"
           }
         },
@@ -179,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "? を送信"
           },
           "log": {
+            "title": "ログビューア",
             "description": "シリアル応答やエラーを表示するコンソール領域です。",
             "placeholder": "ESP32 からの応答ログがここに表示されます",
             "clear": "ログをクリア",
@@ -197,6 +188,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       },
       "filesystem": {
+        "list": {
+          "title": "ファイル一覧",
+          "description": "現在のストレージを対象に <code>fs ls</code> を再帰的に実行して構造を表示します。",
+          "stepsTitle": "手順",
+          "steps": [
+            "ストレージを選択すると自動で最新の一覧を取得します。",
+            "ディレクトリは展開して中身を確認できます。",
+            "ファイルまたはディレクトリをクリックすると右側に詳細が表示されます。"
+          ]
+        },
+        "detail": {
+          "title": "詳細と追加操作",
+          "selectedPathTitle": "選択中のパス",
+          "dirTitle": "fs ls (ディレクトリ)",
+          "catTitle": "fs cat",
+          "b64Title": "fs b64read",
+          "hashTitle": "fs hash"
+        },
         "hints": {
           "spiffs": "SPIFFS ではディレクトリが利用できないため、すべてのファイルは <code>/</code> 直下に作成されます。",
           "littlefs": "LittleFS はディレクトリ階層を利用できます。必要に応じてルート以外のパスも取得します。"
@@ -269,10 +278,64 @@ document.addEventListener('DOMContentLoaded', () => {
           "rgbSet": "rgb set を送信",
           "rgbStreamStart": "rgb stream を開始"
         },
+        "commands": {
+          "i2c-scan": {
+            "description": "指定した I2C バス上の応答アドレスをスキャンします。"
+          },
+          "i2c-read": {
+            "description": "指定アドレスからデータを読み取ります。"
+          },
+          "i2c-write": {
+            "description": "バイト列をデバイスへ送信します。"
+          },
+          "gpio-mode": {
+            "description": "GPIO の入出力設定を変更します。"
+          },
+          "gpio-read": {
+            "description": "入力ピンの状態を読み取ります。"
+          },
+          "gpio-write": {
+            "description": "出力ピンを HIGH/LOW に設定します。"
+          },
+          "gpio-toggle": {
+            "description": "出力ピンの状態をトグルします。"
+          },
+          "adc-read": {
+            "description": "ADC チャンネルをサンプリングします。"
+          },
+          "pwm-set": {
+            "description": "LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。"
+          },
+          "pwm-stop": {
+            "description": "指定ピンの PWM を停止します。"
+          },
+          "rgb-pin": {
+            "description": "デフォルトの RGB LED 出力ピンを設定します。"
+          },
+          "rgb-set": {
+            "description": "単色で RGB LED を発光させます。"
+          },
+          "rgb-stream": {
+            "description": "連続した RGB データをストリーミングし、アニメーションを表示します。"
+          }
+        },
+        "options": {
+          "gpioMode": {
+            "input": "input",
+            "output": "output",
+            "input_pullup": "input_pullup",
+            "input_pulldown": "input_pulldown"
+          },
+          "gpioValue": {
+            "HIGH": "HIGH",
+            "LOW": "LOW"
+          }
+        },
         "labels": {
           "address": "アドレス (0x--)",
           "length": "読み取りバイト数 (省略可)",
           "payload": "送信データ (スペース区切り 0x)",
+          "pin": "ピン",
           "mode": "モード",
           "value": "値",
           "duty": "デューティ (0-4095 または %)",
@@ -280,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "channel": "チャネル",
           "atten": "減衰モード",
           "sampleRate": "サンプル (ms/BPS)",
+          "average": "平均回数",
           "red": "R (0-255)",
           "green": "G (0-255)",
           "blue": "B (0-255)"
@@ -295,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "channel": "例: 0",
           "atten": "例: 11db",
           "sampleRate": "例: 100ms",
+          "average": "例: 8",
           "red": "例: 255",
           "green": "例: 128",
           "blue": "例: 64"
@@ -429,11 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
         "system": {
           "sys-info": {
             "description": "Retrieve chip model, revision, clocks, and SDK/IDF versions.",
-            "bullets": [
-              "Quickly confirm chip information",
-              "Share environment details for support requests",
-              "Validate build metadata"
-            ],
             "action": "Send sys info"
           },
           "sys-uptime": {
@@ -449,12 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "Send sys mem"
           },
           "sys-reset": {
-            "description": "Soft reset the ESP32. Add a confirmation step before executing.",
-            "bullets": [
-              "Confirm operator intent with a dialog",
-              "Save logs if necessary",
-              "Call ESP.restart() to reboot"
-            ],
+            "description": "Soft reset the ESP32.",
             "action": "Send sys reset"
           }
         },
@@ -469,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "Send ?"
           },
           "log": {
+            "title": "Log Viewer",
             "description": "Console area for serial responses and errors.",
             "placeholder": "Responses from the ESP32 will appear here.",
             "clear": "Clear Log",
@@ -487,6 +543,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       },
       "filesystem": {
+        "list": {
+          "title": "File List",
+          "description": "Run <code>fs ls</code> recursively on the active storage to display its structure.",
+          "stepsTitle": "Steps",
+          "steps": [
+            "Selecting a storage automatically fetches the latest listing.",
+            "Expand directories to inspect their contents.",
+            "Click a file or directory to show details on the right."
+          ]
+        },
+        "detail": {
+          "title": "Details & Additional Actions",
+          "selectedPathTitle": "Selected Path",
+          "dirTitle": "fs ls (Directory)",
+          "catTitle": "fs cat",
+          "b64Title": "fs b64read",
+          "hashTitle": "fs hash"
+        },
         "hints": {
           "spiffs": "SPIFFS does not support directories; all files are created under <code>/</code>.",
           "littlefs": "LittleFS supports directory hierarchies and can fetch non-root paths when needed."
@@ -559,10 +633,64 @@ document.addEventListener('DOMContentLoaded', () => {
           "rgbSet": "Send rgb set",
           "rgbStreamStart": "Start rgb stream"
         },
+        "commands": {
+          "i2c-scan": {
+            "description": "Scan for responsive addresses on the selected I2C bus."
+          },
+          "i2c-read": {
+            "description": "Read data from the specified address."
+          },
+          "i2c-write": {
+            "description": "Send bytes to the device."
+          },
+          "gpio-mode": {
+            "description": "Change the GPIO direction or mode."
+          },
+          "gpio-read": {
+            "description": "Read the state of an input pin."
+          },
+          "gpio-write": {
+            "description": "Set an output pin to HIGH or LOW."
+          },
+          "gpio-toggle": {
+            "description": "Toggle the state of an output pin."
+          },
+          "adc-read": {
+            "description": "Sample an ADC channel."
+          },
+          "pwm-set": {
+            "description": "Configure the LEDC PWM signal (12-bit; duty accepts 0-4095 or %)."
+          },
+          "pwm-stop": {
+            "description": "Stop PWM output on the specified pin."
+          },
+          "rgb-pin": {
+            "description": "Set the default RGB LED output pin."
+          },
+          "rgb-set": {
+            "description": "Drive the RGB LED with a solid color."
+          },
+          "rgb-stream": {
+            "description": "Stream continuous RGB data to play animations."
+          }
+        },
+        "options": {
+          "gpioMode": {
+            "input": "input",
+            "output": "output",
+            "input_pullup": "input_pullup",
+            "input_pulldown": "input_pulldown"
+          },
+          "gpioValue": {
+            "HIGH": "HIGH",
+            "LOW": "LOW"
+          }
+        },
         "labels": {
           "address": "Address (0x--)",
           "length": "Read length (optional)",
           "payload": "Payload (space-separated 0x)",
+          "pin": "Pin",
           "mode": "Mode",
           "value": "Value",
           "duty": "Duty (0-4095 or %)",
@@ -570,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "channel": "Channel",
           "atten": "Attenuation",
           "sampleRate": "Sample interval (ms/BPS)",
+          "average": "Average count",
           "red": "R (0-255)",
           "green": "G (0-255)",
           "blue": "B (0-255)"
@@ -585,6 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "channel": "e.g. 0",
           "atten": "e.g. 11db",
           "sampleRate": "e.g. 100ms",
+          "average": "e.g. 8",
           "red": "e.g. 255",
           "green": "e.g. 128",
           "blue": "e.g. 64"
@@ -719,11 +849,6 @@ document.addEventListener('DOMContentLoaded', () => {
         "system": {
           "sys-info": {
             "description": "获取芯片型号、修订版本、时钟以及 SDK/IDF 版本等信息。",
-            "bullets": [
-              "快速确认芯片信息",
-              "在支持请求时共享环境信息",
-              "校验构建元数据"
-            ],
             "action": "发送 sys info"
           },
           "sys-uptime": {
@@ -739,12 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "发送 sys mem"
           },
           "sys-reset": {
-            "description": "对 ESP32 执行软重启，执行前请添加确认步骤。",
-            "bullets": [
-              "通过确认对话框核对操作意图",
-              "必要时保存日志",
-              "调用 ESP.restart() 重启"
-            ],
+            "description": "对 ESP32 执行软重启。",
             "action": "发送 sys reset"
           }
         },
@@ -759,6 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "发送 ?"
           },
           "log": {
+            "title": "日志查看器",
             "description": "显示串口响应与错误的控制台区域。",
             "placeholder": "来自 ESP32 的响应将显示在此。",
             "clear": "清除日志",
@@ -777,6 +898,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       },
       "filesystem": {
+        "list": {
+          "title": "文件列表",
+          "description": "针对当前存储递归执行 <code>fs ls</code> 并显示结构。",
+          "stepsTitle": "步骤",
+          "steps": [
+            "选择存储后会自动获取最新列表。",
+            "可展开目录查看其中内容。",
+            "点击文件或目录可在右侧显示详细信息。"
+          ]
+        },
+        "detail": {
+          "title": "详细信息与附加操作",
+          "selectedPathTitle": "当前路径",
+          "dirTitle": "fs ls（目录）",
+          "catTitle": "fs cat",
+          "b64Title": "fs b64read",
+          "hashTitle": "fs hash"
+        },
         "hints": {
           "spiffs": "SPIFFS 不支持目录，所有文件都会创建在 <code>/</code> 根目录下。",
           "littlefs": "LittleFS 支持目录层级，可根据需要获取非根路径。"
@@ -849,10 +988,64 @@ document.addEventListener('DOMContentLoaded', () => {
           "rgbSet": "发送 rgb set",
           "rgbStreamStart": "启动 rgb stream"
         },
+        "commands": {
+          "i2c-scan": {
+            "description": "在所选 I2C 总线上扫描响应地址。"
+          },
+          "i2c-read": {
+            "description": "从指定地址读取数据。"
+          },
+          "i2c-write": {
+            "description": "向设备发送字节序列。"
+          },
+          "gpio-mode": {
+            "description": "修改 GPIO 的输入输出模式。"
+          },
+          "gpio-read": {
+            "description": "读取输入引脚状态。"
+          },
+          "gpio-write": {
+            "description": "将输出引脚设为 HIGH/LOW。"
+          },
+          "gpio-toggle": {
+            "description": "切换输出引脚的状态。"
+          },
+          "adc-read": {
+            "description": "采样指定 ADC 通道。"
+          },
+          "pwm-set": {
+            "description": "配置 LEDC PWM 信号（12 位，占空比支持 0-4095 或 %）。"
+          },
+          "pwm-stop": {
+            "description": "停止指定引脚的 PWM 输出。"
+          },
+          "rgb-pin": {
+            "description": "设置默认的 RGB LED 输出引脚。"
+          },
+          "rgb-set": {
+            "description": "以单色点亮 RGB LED。"
+          },
+          "rgb-stream": {
+            "description": "持续发送 RGB 数据以显示动画。"
+          }
+        },
+        "options": {
+          "gpioMode": {
+            "input": "input",
+            "output": "output",
+            "input_pullup": "input_pullup",
+            "input_pulldown": "input_pulldown"
+          },
+          "gpioValue": {
+            "HIGH": "HIGH",
+            "LOW": "LOW"
+          }
+        },
         "labels": {
           "address": "地址 (0x--)",
           "length": "读取字节数（可选）",
           "payload": "发送数据（空格分隔 0x）",
+          "pin": "引脚",
           "mode": "模式",
           "value": "值",
           "duty": "占空比 (0-4095 或 %)",
@@ -860,6 +1053,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "channel": "通道",
           "atten": "衰减模式",
           "sampleRate": "采样间隔 (ms/BPS)",
+          "average": "平均次数",
           "red": "R (0-255)",
           "green": "G (0-255)",
           "blue": "B (0-255)"
@@ -875,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "channel": "例如: 0",
           "atten": "例如: 11db",
           "sampleRate": "例如: 100ms",
+          "average": "例如: 8",
           "red": "例如: 255",
           "green": "例如: 128",
           "blue": "例如: 64"
@@ -1276,7 +1471,7 @@ OK fs ls
   };
 
   let connectionState = 'disconnected';
-  let refreshConnectionLabel = () => {};
+  let refreshConnectionLabel = () => { };
 
   const setLanguage = (lang, { persist = true } = {}) => {
     const normalized = normalizeLanguage(lang);
