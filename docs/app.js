@@ -1473,6 +1473,56 @@ OK fs ls
   let connectionState = 'disconnected';
   let refreshConnectionLabel = () => { };
 
+  const systemAutoCommandIds = new Set(['sys-info', 'sys-uptime', 'sys-time', 'sys-mem']);
+  let systemAutoQueue = [];
+
+  const resetSystemAutoQueue = () => {
+    systemAutoQueue = [];
+  };
+
+  const processSystemAutoQueue = () => {
+    if (activeCommand) {
+      return;
+    }
+    if (connectionState !== 'connected') {
+      resetSystemAutoQueue();
+      return;
+    }
+    const nextCommand = systemAutoQueue.shift();
+    if (!nextCommand) {
+      return;
+    }
+    sendSystemCommand(nextCommand);
+  };
+
+  const enqueueSystemAutoCommand = (commandId) => {
+    if (!systemAutoCommandIds.has(commandId)) {
+      return;
+    }
+    if (connectionState !== 'connected') {
+      return;
+    }
+    if (!systemCommandPanels.has(commandId)) {
+      return;
+    }
+    if (activeCommand && activeCommand.id === commandId) {
+      return;
+    }
+    if (systemAutoQueue.includes(commandId)) {
+      return;
+    }
+    systemAutoQueue.push(commandId);
+    processSystemAutoQueue();
+  };
+
+  const triggerActiveSystemCommandAutoRun = () => {
+    const activeSystemTab = document.querySelector('#tab-system .command-tab.is-active');
+    const commandId = activeSystemTab?.dataset.command;
+    if (commandId) {
+      enqueueSystemAutoCommand(commandId);
+    }
+  };
+
   const setLanguage = (lang, { persist = true } = {}) => {
     const normalized = normalizeLanguage(lang);
     currentLanguage = normalized;
@@ -1590,7 +1640,11 @@ OK fs ls
 
   tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      activateTab(button.dataset.tab);
+      const targetTab = button.dataset.tab;
+      activateTab(targetTab);
+      if (targetTab === 'system') {
+        triggerActiveSystemCommandAutoRun();
+      }
     });
   });
 
@@ -1710,6 +1764,9 @@ OK fs ls
 
       if (activePanel && activePanel.dataset.autoFetch === 'true') {
         updateResultSection(activePanel, commandId);
+        if (layout.closest('#tab-system')) {
+          enqueueSystemAutoCommand(commandId);
+        }
       }
     };
 
@@ -2227,6 +2284,13 @@ OK fs ls
     updateSystemButtonsState();
     refreshConnectionLabel();
     applyDisabledTitles();
+    if (state === 'connected') {
+      if (currentTab === 'system') {
+        triggerActiveSystemCommandAutoRun();
+      }
+    } else {
+      resetSystemAutoQueue();
+    }
   };
 
   const clearLogPlaceholder = () => {
@@ -2354,6 +2418,11 @@ OK fs ls
     renderSystemResponse(panel, output);
     activeCommand = null;
     updateSystemButtonsState();
+    if (error) {
+      resetSystemAutoQueue();
+    } else {
+      processSystemAutoQueue();
+    }
   };
 
   const preparePanelForCommand = (panel) => {
