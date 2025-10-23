@@ -19,6 +19,11 @@ void setup()
     Wire1.begin();
     delay(500);
 
+    // --- SD (SDSPI) ---
+    SPI.begin();
+    bool ok_sd = SD.begin(PIN_SD_CS, SPI, 40000000 /*max SPI clock*/);
+    Serial.printf("SD mount      : %s\n", ok_sd ? "OK" : "FAIL");
+
     // --- SPIFFS ---
     bool ok_spiffs = SPIFFS.begin(/*formatOnFail=*/true, /*basePath=*/"/spiffs",
                                   /*maxOpenFiles=*/10, /*partitionLabel=*/"spiffs");
@@ -33,11 +38,6 @@ void setup()
     bool ok_ffat = FFat.begin(/*formatOnFail=*/true, /*basePath=*/"/ffat",
                               /*maxOpenFiles=*/10, /*partitionLabel=*/"ffat");
     Serial.printf("FFat mount    : %s\n", ok_ffat ? "OK" : "FAIL");
-
-    // --- SD (SDSPI) ---
-    SPI.begin();
-    bool ok_sd = SD.begin(PIN_SD_CS, SPI, 40000000 /*max SPI clock*/);
-    Serial.printf("SD mount      : %s\n", ok_sd ? "OK" : "FAIL");
 }
 
 void loop()

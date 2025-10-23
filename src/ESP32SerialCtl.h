@@ -3358,7 +3358,7 @@ namespace esp32serialctl
     {
       if (ctx.argc() < 3)
       {
-        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty> ");
+        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty> [bits]");
         return;
       }
       uint8_t pin;
@@ -3371,11 +3371,11 @@ namespace esp32serialctl
       {
         return;
       }
-      const uint8_t bits = kPwmResolutionBits;
-      if (ctx.argc() >= 4)
+      uint8_t bits;
+      if (!parseUint8Component(ctx, ctx.arg(3), bits, "Invalid bits"))
       {
-        ctx.printError(400, "Usage: pwm set <pin> <freq> <duty>");
-        return;
+        // Use default bits if not provided
+        bits = kPwmResolutionBits;
       }
       uint32_t dutyValue = 0;
       if (!parseDutyArgument(ctx, ctx.arg(2), bits, dutyValue))
@@ -3383,6 +3383,10 @@ namespace esp32serialctl
         return;
       }
 
+      if (ledcReadFreq(pin) != 0)
+      {
+        ledcDetach(pin);
+      }
       ledcAttach(pin, freqHz, bits);
       if (!ledcWrite(pin, dutyValue))
       {
@@ -3396,7 +3400,7 @@ namespace esp32serialctl
       ctx.printBody(line);
       snprintf(line, sizeof(line), "freq: %lu Hz", freqHz);
       ctx.printBody(line);
-      snprintf(line, sizeof(line), "bits: %u", kPwmResolutionBits);
+      snprintf(line, sizeof(line), "bits: %u", bits);
       ctx.printBody(line);
       snprintf(line, sizeof(line), "duty: %lu / %lu",
                static_cast<unsigned long>(dutyValue),
@@ -3619,7 +3623,7 @@ namespace esp32serialctl
           {"adc", "read", &ESP32SerialCtl::handleAdcRead,
            "<pin> [samples N] : Read ADC value (average)"},
           {"pwm", "set", &ESP32SerialCtl::handlePwmSet,
-           "<pin> <freq> <duty> : Start PWM output (12-bit fixed)"},
+           "<pin> <freq> <duty> [bits]: Start PWM output"},
           {"pwm", "stop", &ESP32SerialCtl::handlePwmStop,
            "<pin> : Stop PWM output"},
           {"rgb", "pin", &ESP32SerialCtl::handleRgbPin,
