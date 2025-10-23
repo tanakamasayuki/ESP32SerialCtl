@@ -1529,17 +1529,14 @@ namespace esp32serialctl
         const StorageEntry &entry = kStorageEntries[i];
         fs::FS *fs = entry.fs;
         const bool mounted = fs && checkStorageMounted(*fs);
-        const char indicator = (currentStorageIndex_ == static_cast<int>(i)) ? '*' : ' ';
         char line[128];
         if (entry.description && *entry.description)
         {
-          snprintf(line, sizeof(line), "%c %s (%s) [%s]", indicator, entry.name,
-                   entry.description, mounted ? "mounted" : "not mounted");
+          snprintf(line, sizeof(line), "%s (%s) [%s]", entry.name, entry.description, mounted ? "mounted" : "not mounted");
         }
         else
         {
-          snprintf(line, sizeof(line), "%c %s [%s]", indicator, entry.name,
-                   mounted ? "mounted" : "not mounted");
+          snprintf(line, sizeof(line), "%s [%s]", entry.name, mounted ? "mounted" : "not mounted");
         }
         ctx.printBody(line);
       }
