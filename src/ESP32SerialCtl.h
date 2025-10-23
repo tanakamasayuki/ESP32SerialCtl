@@ -2929,6 +2929,21 @@ namespace esp32serialctl
 #endif
       ctx.printBody(buffer);
 
+      snprintf(buffer, sizeof(buffer), "GPIO Count: %d",
+               static_cast<uint8_t>(GPIO_PIN_COUNT));
+      ctx.printBody(buffer);
+
+#ifdef LED_BUILTIN
+      snprintf(buffer, sizeof(buffer), "LED BUILTIN: %d",
+               static_cast<uint8_t>(LED_BUILTIN));
+      ctx.printBody(buffer);
+#endif
+#ifdef RGB_BUILTIN
+      snprintf(buffer, sizeof(buffer), "RGB BUILTIN: %d",
+               static_cast<uint8_t>(RGB_BUILTIN));
+      ctx.printBody(buffer);
+#endif
+
       snprintf(buffer, sizeof(buffer), "Flash: %lu bytes @ %lu Hz",
                static_cast<unsigned long>(ESP.getFlashChipSize()),
                static_cast<unsigned long>(ESP.getFlashChipSpeed()));
