@@ -1449,6 +1449,101 @@ OK fs ls
     button.removeAttribute('disabled');
   });
 
+  const helpElements = {
+    helpButton: document.querySelector('#command-help-help .card-actions button'),
+    questionButton: document.querySelector('#command-help-question .card-actions button'),
+    output: document.querySelector('[data-help-output]')
+  };
+  let helpOutputState = 'placeholder';
+  let lastHelpOutputRaw = '';
+  let helpOutputErrorKey = null;
+
+  const applyHelpOutput = (text) => {
+    if (!helpElements.output) {
+      return;
+    }
+    helpElements.output.textContent = text;
+  };
+
+  const updateHelpOutput = (text) => {
+    const rawText = text || '';
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+      helpOutputState = 'placeholder';
+      lastHelpOutputRaw = '';
+      applyHelpOutput(translate('commands.help.help.placeholder'));
+      helpOutputErrorKey = null;
+      return;
+    }
+    helpOutputState = 'content';
+    lastHelpOutputRaw = rawText;
+    helpOutputErrorKey = null;
+    applyHelpOutput(rawText);
+  };
+
+  const setHelpOutputPending = () => {
+    if (!helpElements.output) {
+      return;
+    }
+    helpOutputState = 'pending';
+    lastHelpOutputRaw = '';
+    helpOutputErrorKey = null;
+    applyHelpOutput(translate('results.pending'));
+  };
+
+  const setHelpOutputError = (message, { i18nKey = null } = {}) => {
+    if (!helpElements.output) {
+      return;
+    }
+    const text = i18nKey ? translate(i18nKey) : message || translate('results.placeholder');
+    helpOutputState = 'error';
+    lastHelpOutputRaw = text;
+    helpOutputErrorKey = i18nKey;
+    applyHelpOutput(text);
+  };
+
+  const runHelpCommand = (commandText) => {
+    if (!helpElements.output) {
+      return;
+    }
+    const id = commandText === '?' ? 'help-alias' : 'help';
+    runSerialCommand(commandText, {
+      id,
+      onStart: () => {
+        setHelpOutputPending();
+      },
+      onUpdate: (buffer) => {
+        if (buffer) {
+          updateHelpOutput(buffer);
+        }
+      },
+      onFinalize: ({ output }) => {
+        updateHelpOutput(output);
+      }
+    }).catch((error) => {
+      if (connectionState === 'connected') {
+        setHelpOutputError(error?.message || translate('results.placeholder'));
+      } else {
+        setHelpOutputError(null, { i18nKey: 'connection.info.connectFirst' });
+      }
+    });
+  };
+
+  if (helpElements.helpButton) {
+    helpElements.helpButton.disabled = false;
+    helpElements.helpButton.removeAttribute('disabled');
+    helpElements.helpButton.addEventListener('click', () => {
+      runHelpCommand('help');
+    });
+  }
+  if (helpElements.questionButton) {
+    helpElements.questionButton.disabled = false;
+    helpElements.questionButton.removeAttribute('disabled');
+    helpElements.questionButton.addEventListener('click', () => {
+      runHelpCommand('?');
+    });
+  }
+
   const disabledElements = [
     connectButton,
     disconnectButton,
@@ -1580,6 +1675,7 @@ OK fs ls
   let currentTab = 'system';
   let currentFsSelection = null;
   let fsPathMap = new Map();
+  let lastStorageListRaw = storageSamples.list;
   let lastStorageStatusRaw = storageSamples.statusNone;
 
   if (fsElements.tree && !fsElements.tree.dataset.bound) {
@@ -1631,7 +1727,9 @@ OK fs ls
     });
 
     if (targetId === 'storage') {
-      runStorageAutoFetch();
+      runStorageAutoFetch().catch(() => {
+        /* handled via log */
+      });
     }
     if (targetId === 'filesystem') {
       runFsAutoFetch();
@@ -1660,10 +1758,10 @@ OK fs ls
 | CPU Frequency: 240 MHz
 | Chip Features: WiFi/BT/BLE
 | Flash: 4194304 bytes @ 80000000 Hz
-| MAC: 88:AE:6F:34:E3:EC
+| MAC: 88:88:88:88:88:88
 | IDF: v5.5.1-255-g07e9bf4970
 | Arduino Core: 3_3_2
-| Build: Oct 21 2025 15:43:05`,
+| Build: Oct 21 2025 00:00:00`,
     'sys-uptime': `OK sys uptime
 | Uptime: 0:23:28 (1408444 ms)`,
     'sys-time': `OK sys time
@@ -1878,34 +1976,145 @@ OK fs ls
     storageElements.select.value = selectedId;
   };
 
-  const runStorageAutoFetch = () => {
-    renderStorageList(getStorageListRaw(currentStorageId), currentStorageId || '');
-    renderStorageStatus(lastStorageStatusRaw);
+  const setStorageListPending = () => {
+    if (storageElements.listTimestamp) {
+      storageElements.listTimestamp.textContent = '--:--';
+    }
+    if (storageElements.listRaw) {
+      storageElements.listRaw.textContent = translate('results.pending');
+    }
+    if (storageElements.listTableBody) {
+      storageElements.listTableBody.innerHTML = '';
+    }
+  };
 
+  const setStorageStatusPending = () => {
+    if (storageElements.statusTimestamp) {
+      storageElements.statusTimestamp.textContent = '--:--';
+    }
+    if (storageElements.statusRaw) {
+      storageElements.statusRaw.textContent = translate('results.pending');
+    }
+    if (storageElements.statusTableBody) {
+      storageElements.statusTableBody.innerHTML = '';
+    }
+    if (storageElements.statusTable) {
+      storageElements.statusTable.hidden = true;
+    }
+  };
+
+  const executeStorageList = async () => {
+    const raw = await runSerialCommand('storage list', {
+      id: 'storage-list',
+      onStart: () => {
+        setStorageListPending();
+      }
+    });
+    lastStorageListRaw = raw;
+    return raw;
+  };
+
+  const executeStorageStatus = async (storageId) => {
+    const commandText = storageId ? `storage status ${storageId}` : 'storage status';
+    const raw = await runSerialCommand(commandText, {
+      id: storageId ? `storage-status-${storageId}` : 'storage-status',
+      onStart: () => {
+        setStorageStatusPending();
+      }
+    });
+    lastStorageStatusRaw = raw;
+    return raw;
+  };
+
+  const runStorageAutoFetch = async () => {
     if (!storageInitialized && storageElements.select) {
       storageElements.select.addEventListener('change', (event) => {
         if (!event.target.value) {
           return;
         }
-        handleStorageSelection(event.target.value);
+        handleStorageSelection(event.target.value).catch(() => {
+          /* handled via log */
+        });
       });
       storageInitialized = true;
     }
+
+    if (!isSerialReady()) {
+      const fallbackRaw = lastStorageListRaw || getStorageListRaw(currentStorageId || '');
+      renderStorageList(fallbackRaw, currentStorageId || '');
+      renderStorageStatus(lastStorageStatusRaw);
+      return;
+    }
+
+    try {
+      const listRaw = await executeStorageList();
+      const entries = renderStorageList(listRaw, currentStorageId || '');
+      if (!currentStorageId) {
+        const mounted = entries.find((entry) => entry.mounted) || entries[0];
+        if (mounted) {
+          currentStorageId = mounted.id;
+        }
+      }
+      const statusRaw = await executeStorageStatus(currentStorageId);
+      renderStorageStatus(statusRaw);
+    } catch (error) {
+      renderStorageList(lastStorageListRaw, currentStorageId || '');
+      renderStorageStatus(lastStorageStatusRaw);
+    }
   };
 
-  const handleStorageSelection = (storageId) => {
+  const handleStorageSelection = async (storageId) => {
     if (!storageId) {
       return;
     }
-    currentStorageId = storageId;
+    const previousStorageId = currentStorageId;
     currentFsSelection = null;
-    renderStorageList(getStorageListRaw(storageId), storageId);
-    const useRaw = `OK storage use\n| current: ${storageId}`;
-    const statusRaw = storageSamples.statusById[storageId] || storageSamples.statusNone;
-    const combinedStatusRaw = `${useRaw}\n${statusRaw}`;
-    lastStorageStatusRaw = combinedStatusRaw;
-    renderStorageStatus(combinedStatusRaw);
-    runFsAutoFetch();
+    setStorageListPending();
+    setStorageStatusPending();
+    if (storageElements.select) {
+      storageElements.select.disabled = true;
+    }
+    try {
+      const useRaw = await runSerialCommand(`storage use ${storageId}`, {
+        id: `storage-use-${storageId}`
+      });
+
+      let listRaw = lastStorageListRaw;
+      try {
+        listRaw = await executeStorageList();
+      } catch (error) {
+        appendLogEntry('error', `storage list refresh failed: ${error?.message || 'unknown error'}`);
+      }
+      renderStorageList(listRaw, storageId);
+
+      let statusRaw = '';
+      try {
+        statusRaw = await executeStorageStatus(storageId);
+      } catch (error) {
+        appendLogEntry('error', `storage status refresh failed: ${error?.message || 'unknown error'}`);
+      }
+
+      const mergedRaw = [useRaw, statusRaw].filter(Boolean).join('\n').trim();
+      if (mergedRaw) {
+        lastStorageStatusRaw = mergedRaw;
+        renderStorageStatus(mergedRaw);
+      } else {
+        renderStorageStatus(useRaw);
+      }
+
+      currentStorageId = storageId;
+      await runFsAutoFetch();
+    } catch (error) {
+      currentStorageId = previousStorageId;
+      renderStorageList(lastStorageListRaw, previousStorageId || '');
+      renderStorageStatus(lastStorageStatusRaw);
+      throw error;
+    } finally {
+      if (storageElements.select) {
+        storageElements.select.disabled = false;
+        storageElements.select.value = currentStorageId || '';
+      }
+    }
   };
 
   const resetFsDetails = () => {
@@ -2138,7 +2347,7 @@ OK fs ls
   };
 
   const refreshLanguageSensitiveUI = () => {
-    renderStorageList(getStorageListRaw(currentStorageId || ''), currentStorageId || '');
+    renderStorageList(lastStorageListRaw || getStorageListRaw(currentStorageId || ''), currentStorageId || '');
     renderStorageStatus(lastStorageStatusRaw);
     if (currentStorageId && fsSamples[currentStorageId]) {
       const fsData = fsSamples[currentStorageId];
@@ -2157,6 +2366,22 @@ OK fs ls
       }
     } else {
       clearFsView(translate('filesystem.messages.selectStorage'));
+    }
+
+    if (helpElements.output) {
+      if (helpOutputState === 'content') {
+        applyHelpOutput(lastHelpOutputRaw);
+      } else if (helpOutputState === 'pending') {
+        applyHelpOutput(translate('results.pending'));
+      } else if (helpOutputState === 'error') {
+        if (helpOutputErrorKey) {
+          applyHelpOutput(translate(helpOutputErrorKey));
+        } else {
+          applyHelpOutput(lastHelpOutputRaw || translate('results.placeholder'));
+        }
+      } else {
+        applyHelpOutput(translate('commands.help.help.placeholder'));
+      }
     }
   };
 
@@ -2185,6 +2410,8 @@ OK fs ls
   let pendingCleanupPromise = null;
   let readLoopPromise = null;
   let pendingPortClosePromise = null;
+
+  const isSerialReady = () => connectionState === 'connected' && Boolean(serialWriter);
 
   refreshConnectionLabel = () => {
     if (!statusLabel) {
@@ -2288,6 +2515,11 @@ OK fs ls
       if (currentTab === 'system') {
         triggerActiveSystemCommandAutoRun();
       }
+      if (currentTab === 'storage') {
+        runStorageAutoFetch().catch(() => {
+          /* handled via log */
+        });
+      }
     } else {
       resetSystemAutoQueue();
     }
@@ -2358,10 +2590,15 @@ OK fs ls
     if (!command) {
       return;
     }
-    const panel = command.panel;
-    const rawEl = panel.querySelector('[data-result-raw]');
-    if (rawEl) {
-      rawEl.textContent = sanitizeSerialText(command.buffer);
+    const sanitized = sanitizeSerialText(command.buffer);
+    if (command.panel) {
+      const rawEl = command.panel.querySelector('[data-result-raw]');
+      if (rawEl) {
+        rawEl.textContent = sanitized;
+      }
+    }
+    if (typeof command.onUpdate === 'function') {
+      command.onUpdate(sanitized);
     }
   };
 
@@ -2404,7 +2641,14 @@ OK fs ls
     if (!activeCommand) {
       return;
     }
-    const { timeoutId, panel, commandText } = activeCommand;
+    const {
+      timeoutId,
+      panel,
+      commandText,
+      resolve: resolveCommand,
+      reject: rejectCommand,
+      onFinalize
+    } = activeCommand;
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
@@ -2415,13 +2659,28 @@ OK fs ls
     } else {
       appendLogEntry('info', `Command completed: ${commandText}`);
     }
-    renderSystemResponse(panel, output);
+    if (panel) {
+      renderSystemResponse(panel, output);
+    }
+    if (typeof onFinalize === 'function') {
+      try {
+        onFinalize({ output, error, command: activeCommand });
+      } catch (callbackError) {
+        appendLogEntry('error', `Finalize handler error: ${callbackError.message}`);
+      }
+    }
     activeCommand = null;
     updateSystemButtonsState();
     if (error) {
       resetSystemAutoQueue();
+      if (typeof rejectCommand === 'function') {
+        rejectCommand(new Error(output));
+      }
     } else {
       processSystemAutoQueue();
+      if (typeof resolveCommand === 'function') {
+        resolveCommand(output);
+      }
     }
   };
 
@@ -2703,44 +2962,89 @@ OK fs ls
     }
   };
 
-  const sendSystemCommand = async (commandId) => {
-    if (connectionState !== 'connected' || !serialWriter) {
-      appendLogEntry('error', 'Cannot send command while disconnected.');
-      return;
+  const runSerialCommand = (commandText, options = {}) => {
+    if (!isSerialReady()) {
+      const message =
+        connectionState === 'connected'
+          ? translate('connection.info.connectFirst')
+          : translate('connection.info.connectFirst');
+      appendLogEntry('error', message);
+      return Promise.reject(new Error(message));
     }
     if (activeCommand) {
-      appendLogEntry('info', 'Another command is already in progress.');
-      return;
+      const error = new Error('Another command is already in progress.');
+      appendLogEntry('info', error.message);
+      return Promise.reject(error);
     }
+
+    const {
+      id = commandText,
+      panel = null,
+      button = null,
+      onUpdate = null,
+      onFinalize = null,
+      onStart = null,
+      timeoutMs = COMMAND_TIMEOUT_MS
+    } = options;
+
+    if (panel) {
+      preparePanelForCommand(panel);
+    }
+    if (typeof onStart === 'function') {
+      try {
+        onStart();
+      } catch (error) {
+        appendLogEntry('error', `Command setup error: ${error.message}`);
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      activeCommand = {
+        id,
+        commandText,
+        panel,
+        button,
+        buffer: '',
+        timeoutId: null,
+        onUpdate,
+        onFinalize,
+        resolve,
+        reject
+      };
+      updateSystemButtonsState();
+      activeCommand.timeoutId = window.setTimeout(() => {
+        if (!activeCommand) {
+          return;
+        }
+        appendLogEntry('error', 'Timeout waiting for device prompt.');
+        finalizeActiveCommand({
+          error: true,
+          fallbackMessage: 'Timeout waiting for device prompt.'
+        });
+      }, timeoutMs);
+      appendLogEntry('tx', `<< ${commandText}`);
+      serialWriter
+        .write(textEncoder.encode(`${commandText}\n`))
+        .catch((error) => {
+          appendLogEntry('error', `Write failed: ${error.message}`);
+          finalizeActiveCommand({ error: true, fallbackMessage: error.message });
+        });
+    });
+  };
+
+  const sendSystemCommand = (commandId) => {
     const entry = systemCommandPanels.get(commandId);
     if (!entry) {
       return;
     }
     const commandText = commandId.replace(/-/g, ' ');
-    activeCommand = {
+    runSerialCommand(commandText, {
       id: commandId,
-      commandText,
       panel: entry.panel,
-      button: entry.button,
-      buffer: '',
-      timeoutId: null
-    };
-    preparePanelForCommand(entry.panel);
-    updateSystemButtonsState();
-    activeCommand.timeoutId = window.setTimeout(() => {
-      if (!activeCommand) {
-        return;
-      }
-      appendLogEntry('error', 'Timeout waiting for device prompt.');
-      finalizeActiveCommand({ error: true, fallbackMessage: 'Timeout waiting for device prompt.' });
-    }, COMMAND_TIMEOUT_MS);
-    try {
-      appendLogEntry('tx', `<< ${commandText}`);
-      await serialWriter.write(textEncoder.encode(`${commandText}\n`));
-    } catch (error) {
-      appendLogEntry('error', `Write failed: ${error.message}`);
-      finalizeActiveCommand({ error: true, fallbackMessage: error.message });
-    }
+      button: entry.button
+    }).catch(() => {
+      /* handled via log */
+    });
   };
 
   systemCommandPanels.forEach(({ button }, commandId) => {

@@ -696,6 +696,15 @@ p {
   text-align: center;
 }
 
+.console-area .console-output {
+  width: 100%;
+  text-align: left;
+  white-space: pre-wrap;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+}
+
 .console-area--light {
   background: #f1f5f9;
   color: var(--color-muted);
