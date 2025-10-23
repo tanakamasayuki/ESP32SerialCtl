@@ -3383,6 +3383,24 @@ namespace esp32serialctl
         return;
       }
 
+      uint32_t apb_hz = APB_CLK_FREQ;
+#if __has_include("esp_clk.h")
+      extern "C" uint32_t esp_clk_apb_freq(void);
+      apb_hz = esp_clk_apb_freq();
+#endif
+      uint32_t max_freq = apb_hz / (1u << bits);
+      uint32_t min_freq = ceil(apb_hz / ((1u << bits) * 1024.0));
+      if (freqHz < min_freq || freqHz > max_freq)
+      {
+        ctx.printError(400, "Frequency out of range");
+        char line[80];
+        snprintf(line, sizeof(line), "Valid range: %lu Hz - %lu Hz",
+                 static_cast<unsigned long>(min_freq),
+                 static_cast<unsigned long>(max_freq));
+        ctx.printBody(line);
+        return;
+      }
+
       if (ledcReadFreq(pin) != 0)
       {
         ledcDetach(pin);
