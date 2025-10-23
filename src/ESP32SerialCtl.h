@@ -41,9 +41,25 @@
 #include <soc/soc.h>
 #include <soc/gpio_reg.h>
 
+#if defined(ESP32SERIALCTL_ENABLE_WIFI) || defined(WiFi_h) || defined(_WIFI_H_) || \
+    defined(_WIFI_H) || defined(WiFiClient_h) || defined(_WIFICLIENT_H_) ||        \
+    defined(WiFiServer_h) || defined(_WIFISERVER_H_) || defined(WIFI_STA)
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <Preferences.h>
+#define ESP32SERIALCTL_HAS_WIFI 1
+#endif
+
+#if defined(ESP32SERIALCTL_ENABLE_PREFERENCES) || defined(Preferences_h) || defined(_PREFERENCES_H_) || \
+    defined(_PREFERENCES_H)
+#include <Preferences.h>
+#define ESP32SERIALCTL_HAS_PREFERENCES 1
+#endif
+
 #if defined(ESP32SERIALCTL_ENABLE_I2C) || defined(Wire_h) || defined(_WIRE_H_) || \
     defined(_WIRE_H) || defined(_TWOWIRE_H_) || defined(TwoWire_h) ||             \
     defined(_WIRELIB_H_)
+#include <Wire.h>
 #define ESP32SERIALCTL_HAS_WIRE 1
 #endif
 
@@ -281,6 +297,42 @@ namespace esp32serialctl
       }
       flushPromptIfNeeded();
     }
+
+#if defined(ESP32SERIALCTL_HAS_WIFI)
+    WiFiMulti wifiMulti;
+    void wifi_begin(uint16_t timeout_ms, wifi_mode_t mode, bool autoReconnect)
+    {
+      Preferences prefs;
+
+      WiFi.mode(mode);
+      WiFi.setAutoReconnect(autoReconnect);
+
+      prefs.begin("wifi", true);
+      for (int i = 0; i < 8; i++)
+      {
+        String ssid = prefs.getString(("ap" + String(i) + "_ssid").c_str(), "");
+        String pass = prefs.getString(("ap" + String(i) + "_pass").c_str(), "");
+        if (ssid.length() > 0)
+        {
+          wifiMulti.addAP(ssid.c_str(), pass.c_str());
+        }
+      }
+      prefs.end();
+
+      unsigned long start = millis();
+      while (WiFi.status() != WL_CONNECTED)
+      {
+        wifiMulti.run();
+        delay(1);
+        if (millis() - start > timeout_ms)
+        {
+          break;
+        }
+      }
+
+      flushPromptIfNeeded();
+    }
+#endif
 
     void feed(char c)
     {
@@ -1036,6 +1088,9 @@ namespace esp32serialctl
     const Base &raw() const { return cli_; }
 
     void service() { cli_.service(); }
+#if defined(ESP32SERIALCTL_HAS_WIFI)
+    void wifi_begin(uint16_t timeout_ms = 10000, wifi_mode_t mode = WIFI_STA, bool autoReconnect = true) { cli_.wifi_begin(timeout_ms, mode, autoReconnect); }
+#endif
     void feed(char c) { cli_.feed(c); }
     void execute(const char *line) { cli_.execute(line); }
 
