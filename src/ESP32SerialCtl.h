@@ -1913,7 +1913,7 @@ namespace esp32serialctl
       }
 
       ctx.printOK("fs b64read");
-      char info[160];
+      char info[280];
       snprintf(info, sizeof(info), "storage: %s path: %s", entry->name, path);
       ctx.printBody(info);
       if (hasOffset)
