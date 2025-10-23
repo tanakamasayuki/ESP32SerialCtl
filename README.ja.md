@@ -106,16 +106,15 @@ void loop() {
 - `fs ls/cat/write/rm/stat/mkdir/mv` : `storage use` で選択したストレージ（または `--storage <name>` 指定）に対して、ファイル一覧・内容表示・テキスト書き込み・削除・情報表示・ディレクトリ作成・移動/リネームを行う
 - `fs b64read/b64write` : Base64 でエンコードしたチャンクを送受信し、バイナリデータも転送可能。複数チャンクは `--append` で追記。
 - `fs hash` : `sha256`（既定）や `md5` のハッシュとファイルサイズを表示し、転送後の整合性を確認
-- `i2c scan/read/write` : `Wire` をインクルードしている場合に自動提供され、複数 I2C コントローラでは `--bus` で `Wire` / `Wire1` などを指定可能
 - `gpio mode/read/write/toggle` : GPIO のモード設定・入出力・トグルを制御
 - `adc read` : ADC をサンプリングし、`samples` オプションで平均化
 - `pwm set/stop` : LEDC PWM を自動割り当てで開始/停止（`pwm set <pin> <freq> <duty>`、解像度 12bit 固定・duty は 0..4095 または % 指定）
 - `rgb pin/set/stream` : `rgbLedWrite` で RGB LED を制御（デフォルト pin 対応）
+- `i2c scan/read/write` : `Wire` をインクルードしている場合に自動提供され、複数 I2C コントローラでは `--bus` で `Wire` / `Wire1` などを指定可能
 - `help` / `?` : 登録済みコマンドと説明を一覧表示
 
 スケッチから RGB のデフォルト pin を設定する場合は `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);` を呼び出してください。
 `RGB_BUILTIN` が定義されているプラットフォームでは、その値が自動的に既定 pin として利用されます。
-
 
 ## サンプル
 

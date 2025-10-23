@@ -108,11 +108,11 @@ These are emitted automatically before the command handler is called.
 - `fs ls/cat/write/rm/stat/mkdir/mv` manipulate the filesystem on the active storage (or one specified via `--storage <name>`), covering directory listings, file inspection, text writes, deletions, and renames.
 - `fs b64read/b64write` move arbitrary binary blobs by streaming Base64-encoded chunks; pair with `--append` for multi-chunk uploads.
 - `fs hash` computes file digests (`sha256` default, `md5` optional) and reports byte size to confirm transfers.
-- `i2c scan/read/write` becomes available automatically when `Wire` is included; use `--bus` to target `Wire`, `Wire1`, etc. on multi-controller boards.
 - `gpio mode/read/write/toggle` manipulate pins with familiar semantics.
 - `adc read` samples an ADC channel with optional averaging.
 - `pwm set/stop` manage LEDC PWM (`pwm set <pin> <freq> <duty>`, 12-bit resolution; duty accepts raw 0..4095 or percent).
 - `rgb pin/set/stream` control addressable RGB LEDs via `rgbLedWrite`, with configurable defaults and streaming support.
+- `i2c scan/read/write` becomes available automatically when `Wire` is included; use `--bus` to target `Wire`, `Wire1`, etc. on multi-controller boards.
 - `help` / `?` enumerates registered commands with their descriptions.
 
 Library users can also configure the default RGB pin from code via

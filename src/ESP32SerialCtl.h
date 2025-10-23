@@ -73,7 +73,7 @@
 #define ESP32SERIALCTL_HAS_SPIFFS 1
 #endif
 #if !defined(ESP32SERIALCTL_HAS_SPIFFS)
-#if defined(SPIFFS_H) || defined(SPIFFS_h) || defined(_SPIFFS_H_) ||           \
+#if defined(SPIFFS_H) || defined(SPIFFS_h) || defined(_SPIFFS_H_) || \
     defined(_SPIFFS_H)
 #define ESP32SERIALCTL_HAS_SPIFFS 1
 #endif
@@ -84,7 +84,7 @@
 #define ESP32SERIALCTL_HAS_LITTLEFS 1
 #endif
 #if !defined(ESP32SERIALCTL_HAS_LITTLEFS)
-#if defined(LITTLEFS_H) || defined(LITTLEFS_h) || defined(_LITTLEFS_H_) ||      \
+#if defined(LITTLEFS_H) || defined(LITTLEFS_h) || defined(_LITTLEFS_H_) || \
     defined(_LITTLEFS_H)
 #define ESP32SERIALCTL_HAS_LITTLEFS 1
 #endif
@@ -95,14 +95,14 @@
 #define ESP32SERIALCTL_HAS_FFAT 1
 #endif
 #if !defined(ESP32SERIALCTL_HAS_FFAT)
-#if defined(FFATFS_H) || defined(_FFATFS_H_) || defined(FFatFS_H) ||            \
-    defined(FFatFS_h) || defined(FFAT_H) || defined(_FFAT_H_) ||                \
+#if defined(FFATFS_H) || defined(_FFATFS_H_) || defined(FFatFS_H) || \
+    defined(FFatFS_h) || defined(FFAT_H) || defined(_FFAT_H_) ||     \
     defined(FFat_h)
 #define ESP32SERIALCTL_HAS_FFAT 1
 #endif
 #endif
 
-#if defined(ESP32SERIALCTL_HAS_SD) || defined(ESP32SERIALCTL_HAS_SPIFFS) ||  \
+#if defined(ESP32SERIALCTL_HAS_SD) || defined(ESP32SERIALCTL_HAS_SPIFFS) || \
     defined(ESP32SERIALCTL_HAS_LITTLEFS) || defined(ESP32SERIALCTL_HAS_FFAT)
 #define ESP32SERIALCTL_HAS_STORAGE 1
 #endif
@@ -3608,14 +3608,6 @@ namespace esp32serialctl
           {"fs", "hash", &ESP32SerialCtl::handleFsHash,
            "<path> [--algo sha256|md5] [--storage name] : Show file hash"},
 #endif
-#if defined(ESP32SERIALCTL_HAS_WIRE)
-          {"i2c", "scan", &ESP32SerialCtl::handleI2cScan,
-           "[--bus name|index] : Scan for I2C devices"},
-          {"i2c", "read", &ESP32SerialCtl::handleI2cRead,
-           "[--bus name|index] <addr> <reg> [len] : Read bytes from device"},
-          {"i2c", "write", &ESP32SerialCtl::handleI2cWrite,
-           "[--bus name|index] <addr> <reg> <bytes...> : Write bytes to device"},
-#endif
           {"gpio", "mode", &ESP32SerialCtl::handleGpioMode,
            "<pin> <in|out|pullup|pulldown|opendrain> : Set pin mode"},
           {"gpio", "read", &ESP32SerialCtl::handleGpioRead,
@@ -3636,6 +3628,14 @@ namespace esp32serialctl
            "[--pin pin] [--count N] [--wait us] <r> <g> <b> : Set RGB LED color"},
           {"rgb", "stream", &ESP32SerialCtl::handleRgbStream,
            "[--pin pin] [--wait us] <r> <g> <b> [...] : Stream RGB colors sequentially"},
+#if defined(ESP32SERIALCTL_HAS_WIRE)
+          {"i2c", "scan", &ESP32SerialCtl::handleI2cScan,
+           "[--bus name|index] : Scan for I2C devices"},
+          {"i2c", "read", &ESP32SerialCtl::handleI2cRead,
+           "[--bus name|index] <addr> <reg> [len] : Read bytes from device"},
+          {"i2c", "write", &ESP32SerialCtl::handleI2cWrite,
+           "[--bus name|index] <addr> <reg> <bytes...> : Write bytes to device"},
+#endif
           {nullptr, "help", &ESP32SerialCtl::handleHelp,
            ": Show help for commands"},
           {nullptr, "?", &ESP32SerialCtl::handleHelp,
@@ -3643,54 +3643,54 @@ namespace esp32serialctl
   };
 
 #if defined(ESP32SERIALCTL_HAS_STORAGE)
-template <size_t MaxLineLength, size_t MaxTokens>
-const typename ESP32SerialCtl<MaxLineLength, MaxTokens>::StorageEntry
-    ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries[] = {
+  template <size_t MaxLineLength, size_t MaxTokens>
+  const typename ESP32SerialCtl<MaxLineLength, MaxTokens>::StorageEntry
+      ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries[] = {
 #if defined(ESP32SERIALCTL_HAS_SD)
-        {"sd", "SD card", &SD,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSdHasTotalBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSdTotalBytes
-             : nullptr,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSdHasUsedBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSdUsedBytes
-             : nullptr},
+          {"sd", "SD card", &SD,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kSdHasTotalBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSdTotalBytes
+               : nullptr,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kSdHasUsedBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSdUsedBytes
+               : nullptr},
 #endif
 #if defined(ESP32SERIALCTL_HAS_SPIFFS)
-        {"spiffs", "SPIFFS", &SPIFFS,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSpiffsHasTotalBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSpiffsTotalBytes
-             : nullptr,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kSpiffsHasUsedBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSpiffsUsedBytes
-             : nullptr},
+          {"spiffs", "SPIFFS", &SPIFFS,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kSpiffsHasTotalBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSpiffsTotalBytes
+               : nullptr,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kSpiffsHasUsedBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageSpiffsUsedBytes
+               : nullptr},
 #endif
 #if defined(ESP32SERIALCTL_HAS_LITTLEFS)
-        {"littlefs", "LittleFS", &LittleFS,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kLittleFsHasTotalBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageLittleFsTotalBytes
-             : nullptr,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kLittleFsHasUsedBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageLittleFsUsedBytes
-             : nullptr},
+          {"littlefs", "LittleFS", &LittleFS,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kLittleFsHasTotalBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageLittleFsTotalBytes
+               : nullptr,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kLittleFsHasUsedBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageLittleFsUsedBytes
+               : nullptr},
 #endif
 #if defined(ESP32SERIALCTL_HAS_FFAT)
-        {"fatfs", "FAT FS", &FFat,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kFatFsHasTotalBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageFatFsTotalBytes
-             : nullptr,
-         ESP32SerialCtl<MaxLineLength, MaxTokens>::kFatFsHasUsedBytes
-             ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageFatFsUsedBytes
-             : nullptr},
+          {"fatfs", "FAT FS", &FFat,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kFatFsHasTotalBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageFatFsTotalBytes
+               : nullptr,
+           ESP32SerialCtl<MaxLineLength, MaxTokens>::kFatFsHasUsedBytes
+               ? &ESP32SerialCtl<MaxLineLength, MaxTokens>::storageFatFsUsedBytes
+               : nullptr},
 #endif
-};
+  };
 
-template <size_t MaxLineLength, size_t MaxTokens>
-const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageCount =
-    sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries) /
-    sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries[0]);
+  template <size_t MaxLineLength, size_t MaxTokens>
+  const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageCount =
+      sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries) /
+      sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kStorageEntries[0]);
 
-template <size_t MaxLineLength, size_t MaxTokens>
-int ESP32SerialCtl<MaxLineLength, MaxTokens>::currentStorageIndex_ = -1;
+  template <size_t MaxLineLength, size_t MaxTokens>
+  int ESP32SerialCtl<MaxLineLength, MaxTokens>::currentStorageIndex_ = -1;
 #endif
 
   template <size_t MaxLineLength, size_t MaxTokens>
