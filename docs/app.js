@@ -69,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "label": "システム",
             "desc": "sys info / uptime / time / timezone / reset"
           },
+          "wifi": {
+            "label": "Wi-Fi",
+            "desc": "wifi status / connect"
+          },
           "storage": {
             "label": "ストレージ",
             "desc": "storage list / use / status"
@@ -92,6 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
           "title": "システムコマンド",
           "description": "ESP32 の動作状態の確認やシステム制御に関する標準コマンドとユーザー定義コマンドをまとめています。",
           "ariaTablist": "システムコマンド"
+        },
+        "wifi": {
+          "title": "Wi-Fi コマンド",
+          "description": "Wi-Fi 接続の状態確認や登録済みアクセスポイントの管理、自動接続設定を行います。",
+          "ariaTablist": "Wi-Fiコマンド"
         },
         "storage": {
           "title": "ストレージコマンド",
@@ -149,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "現在時刻を ISO 8601 形式で取得・設定します。RTC やタイムゾーンの確認にも利用できます。",
             "field": {
               "label": "日時 (YYYY-MM-DDTHH:MM:SS)",
-              "placeholder": ""
+              "placeholder": "2024-01-01T12:34:56"
             },
             "actions": {
               "get": "現在時刻を取得",
@@ -165,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "永続化されるタイムゾーンを照会・設定します。起動時の RTC 初期化で利用されます。",
             "field": {
               "label": "タイムゾーン (例: JST-9/CST-8/UTC+0)",
-              "placeholder": ""
+              "placeholder": "JST-9"
             },
             "actions": {
               "get": "タイムゾーンを取得",
@@ -183,6 +192,92 @@ document.addEventListener('DOMContentLoaded', () => {
           "sys-reset": {
             "description": "ESP32 をソフトリセットします。",
             "action": "sys reset を送信"
+          }
+        },
+        "wifi": {
+          "status": {
+            "description": "現在の Wi-Fi 接続状態や MAC/IP アドレス、RSSI などを表示します。",
+            "actions": {
+              "run": "wifi status を送信"
+            }
+          },
+          "list": {
+            "description": "NVS に保存されているアクセスポイントの一覧を表示します。",
+            "actions": {
+              "run": "wifi list を送信"
+            }
+          },
+          "add": {
+            "description": "新しいアクセスポイントの SSID とパスワードを NVS に登録します (最大 8 件)。",
+            "fields": {
+              "ssid": {
+                "label": "SSID",
+                "placeholder": "MyWiFi"
+              },
+              "key": {
+                "label": "パスワード",
+                "placeholder": "(空欄可)"
+              }
+            },
+            "actions": {
+              "run": "wifi add を送信"
+            },
+            "errors": {
+              "ssidRequired": "SSID を入力してください。"
+            }
+          },
+          "del": {
+            "description": "wifi list で表示されたインデックスの登録情報を削除します。",
+            "fields": {
+              "index": {
+                "label": "インデックス",
+                "placeholder": "0"
+              }
+            },
+            "actions": {
+              "run": "wifi del を送信"
+            },
+            "errors": {
+              "indexRequired": "インデックスを入力してください。"
+            }
+          },
+          "auto": {
+            "description": "起動時に登録済みネットワークへ自動接続するかを切り替えます。",
+            "fields": {
+              "mode": {
+                "label": "自動接続設定",
+                "optionOn": "on",
+                "optionOff": "off"
+              }
+            },
+            "actions": {
+              "run": "wifi auto を送信"
+            }
+          },
+          "connect": {
+            "description": "登録済みネットワーク、または指定した SSID/鍵で Wi-Fi に接続します。",
+            "fields": {
+              "ssid": {
+                "label": "SSID (任意)",
+                "placeholder": ""
+              },
+              "key": {
+                "label": "パスワード (任意)",
+                "placeholder": ""
+              }
+            },
+            "actions": {
+              "run": "wifi connect を送信"
+            },
+            "errors": {
+              "keyWithoutSsid": "SSID を指定せずにパスワードは使用できません。"
+            }
+          },
+          "disconnect": {
+            "description": "現在の Wi-Fi 接続を切断します。",
+            "actions": {
+              "run": "wifi disconnect を送信"
+            }
           }
         },
         "help": {
@@ -451,6 +546,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "label": "System",
             "desc": "sys info / uptime / time / timezone / reset"
           },
+          "wifi": {
+            "label": "Wi-Fi",
+            "desc": "wifi status / connect"
+          },
           "storage": {
             "label": "Storage",
             "desc": "storage list / use / status"
@@ -474,6 +573,11 @@ document.addEventListener('DOMContentLoaded', () => {
           "title": "System Commands",
           "description": "Collection of standard and user-defined commands for monitoring and controlling ESP32 system state.",
           "ariaTablist": "System Commands"
+        },
+        "wifi": {
+          "title": "Wi-Fi Commands",
+          "description": "Check connection status, manage stored access points, and control auto-connect behavior.",
+          "ariaTablist": "Wi-Fi Commands"
         },
         "storage": {
           "title": "Storage Commands",
@@ -531,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "Fetch or set the current time in ISO 8601 format for RTC and timezone validation.",
             "field": {
               "label": "Datetime (YYYY-MM-DDTHH:MM:SS)",
-              "placeholder": ""
+              "placeholder": "2024-01-01T12:34:56"
             },
             "actions": {
               "get": "Fetch current time",
@@ -547,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "Inspect or update the persisted timezone used during startup initialization.",
             "field": {
               "label": "Timezone (e.g. JST-9/CST-8/UTC+0)",
-              "placeholder": ""
+              "placeholder": "JST-9"
             },
             "actions": {
               "get": "Fetch timezone",
@@ -565,6 +669,92 @@ document.addEventListener('DOMContentLoaded', () => {
           "sys-reset": {
             "description": "Soft reset the ESP32.",
             "action": "Send sys reset"
+          }
+        },
+        "wifi": {
+          "status": {
+            "description": "Show current Wi-Fi status, MAC/IP information, and RSSI.",
+            "actions": {
+              "run": "Send wifi status"
+            }
+          },
+          "list": {
+            "description": "List access points stored in NVS.",
+            "actions": {
+              "run": "Send wifi list"
+            }
+          },
+          "add": {
+            "description": "Store a new SSID and password in NVS (up to 8 networks).",
+            "fields": {
+              "ssid": {
+                "label": "SSID",
+                "placeholder": "MyWiFi"
+              },
+              "key": {
+                "label": "Password",
+                "placeholder": "(optional)"
+              }
+            },
+            "actions": {
+              "run": "Send wifi add"
+            },
+            "errors": {
+              "ssidRequired": "Enter an SSID."
+            }
+          },
+          "del": {
+            "description": "Remove a stored network by the index shown in wifi list.",
+            "fields": {
+              "index": {
+                "label": "Index",
+                "placeholder": "0"
+              }
+            },
+            "actions": {
+              "run": "Send wifi del"
+            },
+            "errors": {
+              "indexRequired": "Enter an index value."
+            }
+          },
+          "auto": {
+            "description": "Toggle automatic connection to stored networks on startup.",
+            "fields": {
+              "mode": {
+                "label": "Auto-connect setting",
+                "optionOn": "on",
+                "optionOff": "off"
+              }
+            },
+            "actions": {
+              "run": "Send wifi auto"
+            }
+          },
+          "connect": {
+            "description": "Connect using stored credentials or explicit SSID/password overrides.",
+            "fields": {
+              "ssid": {
+                "label": "SSID (optional)",
+                "placeholder": ""
+              },
+              "key": {
+                "label": "Password (optional)",
+                "placeholder": ""
+              }
+            },
+            "actions": {
+              "run": "Send wifi connect"
+            },
+            "errors": {
+              "keyWithoutSsid": "Provide an SSID when supplying a password."
+            }
+          },
+          "disconnect": {
+            "description": "Disconnect from the current Wi-Fi network.",
+            "actions": {
+              "run": "Send wifi disconnect"
+            }
           }
         },
         "help": {
@@ -833,6 +1023,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "label": "系统",
             "desc": "sys info / uptime / time / timezone / reset"
           },
+          "wifi": {
+            "label": "Wi-Fi",
+            "desc": "wifi status / connect"
+          },
           "storage": {
             "label": "存储",
             "desc": "storage list / use / status"
@@ -856,6 +1050,11 @@ document.addEventListener('DOMContentLoaded', () => {
           "title": "系统指令",
           "description": "汇集用于监控 ESP32 状态与执行系统控制的标准指令和用户自定义指令。",
           "ariaTablist": "系统指令"
+        },
+        "wifi": {
+          "title": "Wi-Fi 指令",
+          "description": "查看连接状态、管理已保存的接入点，并控制开机自动连接。",
+          "ariaTablist": "Wi-Fi 指令"
         },
         "storage": {
           "title": "存储指令",
@@ -913,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "以 ISO 8601 格式获取或设置当前时间，可用于校验时区与 RTC。",
             "field": {
               "label": "日期时间 (YYYY-MM-DDTHH:MM:SS)",
-              "placeholder": ""
+              "placeholder": "2024-01-01T12:34:56"
             },
             "actions": {
               "get": "获取当前时间",
@@ -929,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "查询或更新启动时复用的持久化时区。",
             "field": {
               "label": "时区 (例如: JST-9/CST-8/UTC+0)",
-              "placeholder": ""
+              "placeholder": "JST-9"
             },
             "actions": {
               "get": "获取时区",
@@ -947,6 +1146,92 @@ document.addEventListener('DOMContentLoaded', () => {
           "sys-reset": {
             "description": "对 ESP32 执行软重启。",
             "action": "发送 sys reset"
+          }
+        },
+        "wifi": {
+          "status": {
+            "description": "显示当前 Wi-Fi 状态、MAC/IP 信息以及 RSSI。",
+            "actions": {
+              "run": "发送 wifi status"
+            }
+          },
+          "list": {
+            "description": "列出存储在 NVS 中的接入点。",
+            "actions": {
+              "run": "发送 wifi list"
+            }
+          },
+          "add": {
+            "description": "向 NVS 注册新的 SSID 与密码（最多 8 个）。",
+            "fields": {
+              "ssid": {
+                "label": "SSID",
+                "placeholder": "MyWiFi"
+              },
+              "key": {
+                "label": "密码",
+                "placeholder": "（可留空）"
+              }
+            },
+            "actions": {
+              "run": "发送 wifi add"
+            },
+            "errors": {
+              "ssidRequired": "请输入 SSID。"
+            }
+          },
+          "del": {
+            "description": "根据 wifi list 显示的索引删除存储的网络。",
+            "fields": {
+              "index": {
+                "label": "索引",
+                "placeholder": "0"
+              }
+            },
+            "actions": {
+              "run": "发送 wifi del"
+            },
+            "errors": {
+              "indexRequired": "请输入索引值。"
+            }
+          },
+          "auto": {
+            "description": "切换启动时是否自动连接已保存的网络。",
+            "fields": {
+              "mode": {
+                "label": "自动连接设置",
+                "optionOn": "on",
+                "optionOff": "off"
+              }
+            },
+            "actions": {
+              "run": "发送 wifi auto"
+            }
+          },
+          "connect": {
+            "description": "使用已保存的凭据或指定的 SSID/密码进行连接。",
+            "fields": {
+              "ssid": {
+                "label": "SSID（可选）",
+                "placeholder": ""
+              },
+              "key": {
+                "label": "密码（可选）",
+                "placeholder": ""
+              }
+            },
+            "actions": {
+              "run": "发送 wifi connect"
+            },
+            "errors": {
+              "keyWithoutSsid": "仅输入密码时必须指定 SSID。"
+            }
+          },
+          "disconnect": {
+            "description": "断开当前的 Wi-Fi 连接。",
+            "actions": {
+              "run": "发送 wifi disconnect"
+            }
           }
         },
         "help": {
@@ -1516,21 +1801,35 @@ OK fs ls
   const statusLabel = document.querySelector('#connection-status-label');
   const statusPill = document.querySelector('.status-pill');
   const logOutput = document.querySelector('[data-log-output]');
-  const systemCommandButtons = Array.from(
+  const commandButtons = Array.from(
     document.querySelectorAll(
-      '#tab-system .command-panel .card-actions button:not([data-system-utility="true"])'
+      '#tab-system .command-panel .card-actions button:not([data-system-utility="true"]), ' +
+      '#tab-wifi .command-panel .card-actions button:not([data-system-utility="true"])'
     )
   );
-  const systemCommandPanels = new Map();
-  systemCommandButtons.forEach((button) => {
+  const commandPanels = new Map();
+  commandButtons.forEach((button) => {
     const panel = button.closest('.command-panel');
     const commandId = panel?.dataset.command;
-    if (commandId && panel && !systemCommandPanels.has(commandId)) {
-      systemCommandPanels.set(commandId, { panel, button });
+    if (commandId && panel && !commandPanels.has(commandId)) {
+      commandPanels.set(commandId, { panel, button });
     }
     button.disabled = false;
     button.removeAttribute('disabled');
   });
+
+  document
+    .querySelectorAll('#tab-system .command-panel, #tab-wifi .command-panel')
+    .forEach((panel) => {
+      const commandId = panel?.dataset.command;
+      if (!commandId || commandPanels.has(commandId)) {
+        return;
+      }
+      const defaultButton = panel.querySelector(
+        '.card-actions button:not([data-system-utility="true"])'
+      );
+      commandPanels.set(commandId, { panel, button: defaultButton || null });
+    });
 
   const sysTimeInput = document.querySelector('#sys-time-input');
   const sysTimeSetButton = document.querySelector('#sys-time-set');
@@ -1538,6 +1837,16 @@ OK fs ls
   const sysTimezoneInput = document.querySelector('#sys-timezone-input');
   const sysTimezoneSetButton = document.querySelector('#sys-timezone-set');
   const sysTimezoneUseBrowserButton = document.querySelector('#sys-timezone-use-browser');
+  const wifiAutoSelect = document.querySelector('#wifi-auto-select');
+  const wifiAutoRunButton = document.querySelector('#wifi-auto-run');
+  const wifiAddSsidInput = document.querySelector('#wifi-add-ssid');
+  const wifiAddKeyInput = document.querySelector('#wifi-add-key');
+  const wifiAddRunButton = document.querySelector('#wifi-add-run');
+  const wifiDelIndexInput = document.querySelector('#wifi-del-index');
+  const wifiDelRunButton = document.querySelector('#wifi-del-run');
+  const wifiConnectSsidInput = document.querySelector('#wifi-connect-ssid');
+  const wifiConnectKeyInput = document.querySelector('#wifi-connect-key');
+  const wifiConnectRunButton = document.querySelector('#wifi-connect-run');
 
   const helpElements = {
     helpButton: document.querySelector('#command-help-help .card-actions button'),
@@ -1658,53 +1967,65 @@ OK fs ls
   let connectionState = 'disconnected';
   let refreshConnectionLabel = () => { };
 
-  const systemAutoCommandIds = new Set(['sys-info', 'sys-uptime', 'sys-time', 'sys-timezone', 'sys-mem']);
-  let systemAutoQueue = [];
+  const autoCommandIds = new Set([
+    'sys-info',
+    'sys-uptime',
+    'sys-time',
+    'sys-timezone',
+    'sys-mem',
+    'wifi-status',
+    'wifi-list'
+  ]);
+  let autoCommandQueue = [];
 
-  const resetSystemAutoQueue = () => {
-    systemAutoQueue = [];
+  const resetAutoCommandQueue = () => {
+    autoCommandQueue = [];
   };
 
-  const processSystemAutoQueue = () => {
+  const processAutoCommandQueue = () => {
     if (activeCommand) {
       return;
     }
     if (connectionState !== 'connected') {
-      resetSystemAutoQueue();
+      resetAutoCommandQueue();
       return;
     }
-    const nextCommand = systemAutoQueue.shift();
+    const nextCommand = autoCommandQueue.shift();
     if (!nextCommand) {
       return;
     }
     sendSystemCommand(nextCommand);
   };
 
-  const enqueueSystemAutoCommand = (commandId) => {
-    if (!systemAutoCommandIds.has(commandId)) {
+  const enqueueAutoCommand = (commandId) => {
+    if (!autoCommandIds.has(commandId)) {
       return;
     }
     if (connectionState !== 'connected') {
       return;
     }
-    if (!systemCommandPanels.has(commandId)) {
+    if (!commandPanels.has(commandId)) {
       return;
     }
     if (activeCommand && activeCommand.id === commandId) {
       return;
     }
-    if (systemAutoQueue.includes(commandId)) {
+    if (autoCommandQueue.includes(commandId)) {
       return;
     }
-    systemAutoQueue.push(commandId);
-    processSystemAutoQueue();
+    autoCommandQueue.push(commandId);
+    processAutoCommandQueue();
   };
 
-  const triggerActiveSystemCommandAutoRun = () => {
-    const activeSystemTab = document.querySelector('#tab-system .command-tab.is-active');
-    const commandId = activeSystemTab?.dataset.command;
+  const triggerActiveAutoCommand = (tabId) => {
+    const container = document.querySelector(`#tab-${tabId}`);
+    if (!container) {
+      return;
+    }
+    const activeTab = container.querySelector('.command-tab.is-active');
+    const commandId = activeTab?.dataset.command;
     if (commandId) {
-      enqueueSystemAutoCommand(commandId);
+      enqueueAutoCommand(commandId);
     }
   };
 
@@ -1816,6 +2137,9 @@ OK fs ls
       panel.classList.toggle('is-active', isActive);
     });
 
+    if (targetId === 'system' || targetId === 'wifi') {
+      triggerActiveAutoCommand(targetId);
+    }
     if (targetId === 'storage') {
       runStorageAutoFetch().catch(() => {
         /* handled via log */
@@ -1830,9 +2154,6 @@ OK fs ls
     button.addEventListener('click', () => {
       const targetTab = button.dataset.tab;
       activateTab(targetTab);
-      if (targetTab === 'system') {
-        triggerActiveSystemCommandAutoRun();
-      }
     });
   });
 
@@ -1869,7 +2190,20 @@ OK fs ls
 | Internal Largest Block: 110580 bytes
 | RTOS Heap Free: 256336 bytes
 | RTOS Heap Min Free: 245608 bytes
-| Task Stack High Water: 3952 words`
+| Task Stack High Water: 3952 words`,
+    'wifi-status': `OK wifi status
+| status: connected
+| auto: on
+| ssid: DemoNet
+| ip: 192.168.0.10
+| mac: AA:BB:CC:DD:EE:FF
+| bssid: 11:22:33:44:55:66
+| channel: 6
+| rssi: -42 dBm`,
+    'wifi-list': `OK wifi list
+| entries: 2
+| #0 slot:0 ssid:DemoNet
+| #1 slot:1 ssid:Guest`
   };
 
   const extractPipeValue = (raw, key) => {
@@ -2058,8 +2392,8 @@ OK fs ls
 
       if (activePanel && activePanel.dataset.autoFetch === 'true') {
         updateResultSection(activePanel, commandId);
-        if (layout.closest('#tab-system')) {
-          enqueueSystemAutoCommand(commandId);
+        if (layout.closest('#tab-system') || layout.closest('#tab-wifi')) {
+          enqueueAutoCommand(commandId);
         }
       }
     };
@@ -2629,9 +2963,9 @@ OK fs ls
     }
   };
 
-  const updateSystemButtonsState = () => {
+  const updateCommandButtonsState = () => {
     const shouldDisable = connectionState !== 'connected' || Boolean(activeCommand);
-    systemCommandButtons.forEach((button) => {
+    commandButtons.forEach((button) => {
       if (shouldDisable) {
         button.classList.add('btn--inactive');
         button.setAttribute('aria-disabled', 'true');
@@ -2651,7 +2985,7 @@ OK fs ls
   const setConnectionState = (state) => {
     if (connectionState === state) {
       refreshConnectionLabel();
-      updateSystemButtonsState();
+      updateCommandButtonsState();
       applyDisabledTitles();
       return;
     }
@@ -2704,12 +3038,12 @@ OK fs ls
         disconnectButton.removeAttribute('disabled');
       }
     }
-    updateSystemButtonsState();
+    updateCommandButtonsState();
     refreshConnectionLabel();
     applyDisabledTitles();
     if (state === 'connected') {
-      if (currentTab === 'system') {
-        triggerActiveSystemCommandAutoRun();
+      if (currentTab === 'system' || currentTab === 'wifi') {
+        triggerActiveAutoCommand(currentTab);
       }
       if (currentTab === 'storage') {
         runStorageAutoFetch().catch(() => {
@@ -2717,7 +3051,7 @@ OK fs ls
         });
       }
     } else {
-      resetSystemAutoQueue();
+      resetAutoCommandQueue();
     }
   };
 
@@ -2866,14 +3200,14 @@ OK fs ls
       }
     }
     activeCommand = null;
-    updateSystemButtonsState();
+    updateCommandButtonsState();
     if (error) {
-      resetSystemAutoQueue();
+      resetAutoCommandQueue();
       if (typeof rejectCommand === 'function') {
         rejectCommand(new Error(output));
       }
     } else {
-      processSystemAutoQueue();
+      processAutoCommandQueue();
       if (typeof resolveCommand === 'function') {
         resolveCommand(output);
       }
@@ -3149,7 +3483,7 @@ OK fs ls
       }
       setConnectionState('connected');
       appendLogEntry('info', 'Serial device connected.');
-      updateSystemButtonsState();
+      updateCommandButtonsState();
       startReadLoop();
     } catch (error) {
       appendLogEntry('error', `Connection failed: ${error.message}`);
@@ -3207,7 +3541,7 @@ OK fs ls
         resolve,
         reject
       };
-      updateSystemButtonsState();
+      updateCommandButtonsState();
       activeCommand.timeoutId = window.setTimeout(() => {
         if (!activeCommand) {
           return;
@@ -3229,7 +3563,7 @@ OK fs ls
   };
 
   const sendSystemCommand = (commandId, options = {}) => {
-    const entry = systemCommandPanels.get(commandId);
+    const entry = commandPanels.get(commandId);
     if (!entry) {
       return;
     }
@@ -3255,6 +3589,17 @@ OK fs ls
     }).catch(() => {
       /* handled via log */
     });
+  };
+
+  const quoteArgument = (value) => {
+    if (value == null || value === '') {
+      return '""';
+    }
+    const needsQuotes = /[\s"\\]/.test(value);
+    if (!needsQuotes) {
+      return value;
+    }
+    return `"${value.replace(/(["\\])/g, '\\$1')}"`;
   };
 
   const fillSysTimeWithBrowserNow = () => {
@@ -3311,7 +3656,83 @@ OK fs ls
     });
   };
 
-  const attachSystemButtonHandler = (button, handler) => {
+  const handleWifiAutoRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const mode = wifiAutoSelect?.value === 'off' ? 'off' : 'on';
+    appendLogEntry('debug', `UI: wifi auto -> ${mode}`);
+    sendSystemCommand('wifi-auto', {
+      commandText: `wifi auto ${mode}`,
+      button: wifiAutoRunButton
+    });
+  };
+
+  const handleWifiAddRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const ssid = (wifiAddSsidInput?.value || '').trim();
+    if (!ssid) {
+      appendLogEntry('error', translate('commands.wifi.add.errors.ssidRequired'));
+      return;
+    }
+    const keyRaw = wifiAddKeyInput ? wifiAddKeyInput.value : '';
+    appendLogEntry('debug', `UI: wifi add -> ${ssid}`);
+    sendSystemCommand('wifi-add', {
+      commandText: `wifi add ${quoteArgument(ssid)} ${quoteArgument(keyRaw)}`,
+      button: wifiAddRunButton
+    });
+  };
+
+  const handleWifiDelRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const raw = wifiDelIndexInput ? wifiDelIndexInput.value : '';
+    if (!raw || Number.isNaN(Number(raw))) {
+      appendLogEntry('error', translate('commands.wifi.del.errors.indexRequired'));
+      return;
+    }
+    const index = Number(raw);
+    if (!Number.isInteger(index) || index < 0) {
+      appendLogEntry('error', translate('commands.wifi.del.errors.indexRequired'));
+      return;
+    }
+    appendLogEntry('debug', `UI: wifi del -> ${index}`);
+    sendSystemCommand('wifi-del', {
+      commandText: `wifi del ${index}`,
+      button: wifiDelRunButton
+    });
+  };
+
+  const handleWifiConnectRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const ssid = (wifiConnectSsidInput?.value || '').trim();
+    const keyRaw = wifiConnectKeyInput ? wifiConnectKeyInput.value : '';
+    if (!ssid && keyRaw) {
+      appendLogEntry('error', translate('commands.wifi.connect.errors.keyWithoutSsid'));
+      return;
+    }
+    let commandText = 'wifi connect';
+    if (ssid) {
+      const keyArg = keyRaw ? quoteArgument(keyRaw) : '""';
+      commandText += ` ${quoteArgument(ssid)} ${keyArg}`;
+    }
+    appendLogEntry('debug', `UI: wifi connect -> ${ssid || '(stored list)'}`);
+    sendSystemCommand('wifi-connect', {
+      commandText,
+      button: wifiConnectRunButton
+    });
+  };
+
+  const attachCommandButtonHandler = (button, handler) => {
     if (!button || typeof handler !== 'function') {
       return;
     }
@@ -3327,12 +3748,16 @@ OK fs ls
     );
   };
 
-  attachSystemButtonHandler(sysTimeUseBrowserButton, fillSysTimeWithBrowserNow);
-  attachSystemButtonHandler(sysTimeSetButton, handleSysTimeSet);
-  attachSystemButtonHandler(sysTimezoneUseBrowserButton, fillSysTimezoneWithBrowser);
-  attachSystemButtonHandler(sysTimezoneSetButton, handleSysTimezoneSet);
+  attachCommandButtonHandler(sysTimeUseBrowserButton, fillSysTimeWithBrowserNow);
+  attachCommandButtonHandler(sysTimeSetButton, handleSysTimeSet);
+  attachCommandButtonHandler(sysTimezoneUseBrowserButton, fillSysTimezoneWithBrowser);
+  attachCommandButtonHandler(sysTimezoneSetButton, handleSysTimezoneSet);
+  attachCommandButtonHandler(wifiAutoRunButton, handleWifiAutoRun);
+  attachCommandButtonHandler(wifiAddRunButton, handleWifiAddRun);
+  attachCommandButtonHandler(wifiDelRunButton, handleWifiDelRun);
+  attachCommandButtonHandler(wifiConnectRunButton, handleWifiConnectRun);
 
-  systemCommandPanels.forEach(({ button }, commandId) => {
+  commandPanels.forEach(({ button }, commandId) => {
     if (!button) {
       return;
     }
@@ -3375,5 +3800,5 @@ OK fs ls
     setConnectionState('disconnected');
   }
 
-  updateSystemButtonsState();
+  updateCommandButtonsState();
 });

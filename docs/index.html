@@ -55,6 +55,12 @@
             </button>
           </li>
           <li>
+            <button class="tab-button" role="tab" data-tab="wifi">
+              <span class="tab-label" data-i18n="nav.tabs.wifi.label">Wi-Fi</span>
+              <span class="tab-desc" data-i18n="nav.tabs.wifi.desc">wifi status / connect</span>
+            </button>
+          </li>
+          <li>
             <button class="tab-button" role="tab" data-tab="storage">
               <span class="tab-label" data-i18n="nav.tabs.storage.label">ストレージ</span>
               <span class="tab-desc" data-i18n="nav.tabs.storage.desc">storage list / use / status</span>
@@ -175,7 +181,7 @@
               <div class="form-field">
                 <label for="sys-timezone-input" data-i18n="commands.system.sys-timezone.field.label">タイムゾーン (例:
                   JST-9)</label>
-                <input id="sys-timezone-input" type="text" placeholder=""
+                <input id="sys-timezone-input" type="text" placeholder="JST-9"
                   data-i18n-placeholder="commands.system.sys-timezone.field.placeholder" />
               </div>
               <div class="card-actions">
@@ -213,7 +219,7 @@
               <div class="form-field">
                 <label for="sys-time-input" data-i18n="commands.system.sys-time.field.label">日時
                   (YYYY-MM-DDTHH:MM:SS)</label>
-                <input id="sys-time-input" type="text" placeholder=""
+                <input id="sys-time-input" type="text" placeholder="2024-01-01T12:34:56"
                   data-i18n-placeholder="commands.system.sys-time.field.placeholder" />
               </div>
               <div class="card-actions">
@@ -272,6 +278,246 @@
               <div class="card-actions">
                 <button class="btn btn-danger" disabled data-i18n="commands.system.sys-reset.action">sys reset
                   を送信</button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-wifi" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.wifi.title">Wi-Fi コマンド</h2>
+            <p data-i18n="sections.wifi.description">
+              Wi-Fi 接続の状態確認や登録済みアクセスポイントの管理、自動接続設定を行います。
+            </p>
+          </header>
+
+          <div class="command-layout">
+            <div class="command-tablist" role="tablist" aria-label="Wi-Fiコマンド"
+              data-i18n-aria-label="sections.wifi.ariaTablist">
+              <button id="tab-wifi-status" class="command-tab is-active" role="tab" aria-selected="true"
+                data-command="wifi-status" aria-controls="command-wifi-status">
+                wifi status
+              </button>
+              <button id="tab-wifi-list" class="command-tab" role="tab" aria-selected="false" data-command="wifi-list"
+                aria-controls="command-wifi-list">
+                wifi list
+              </button>
+              <button id="tab-wifi-add" class="command-tab" role="tab" aria-selected="false" data-command="wifi-add"
+                aria-controls="command-wifi-add">
+                wifi add
+              </button>
+              <button id="tab-wifi-del" class="command-tab" role="tab" aria-selected="false" data-command="wifi-del"
+                aria-controls="command-wifi-del">
+                wifi del
+              </button>
+              <button id="tab-wifi-auto" class="command-tab" role="tab" aria-selected="false" data-command="wifi-auto"
+                aria-controls="command-wifi-auto">
+                wifi auto
+              </button>
+              <button id="tab-wifi-connect" class="command-tab" role="tab" aria-selected="false"
+                data-command="wifi-connect" aria-controls="command-wifi-connect">
+                wifi connect
+              </button>
+              <button id="tab-wifi-disconnect" class="command-tab" role="tab" aria-selected="false"
+                data-command="wifi-disconnect" aria-controls="command-wifi-disconnect">
+                wifi disconnect
+              </button>
+            </div>
+
+            <article class="card command-panel is-active" id="command-wifi-status" data-command="wifi-status"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-wifi-status">
+              <h3>wifi status</h3>
+              <p data-i18n="commands.wifi.status.description">
+                現在の Wi-Fi 接続状態や MAC/IP アドレス、RSSI などを表示します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" data-i18n="commands.wifi.status.actions.run">
+                  wifi status を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-status">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-list" data-command="wifi-list" data-auto-fetch="true"
+              role="tabpanel" aria-labelledby="tab-wifi-list">
+              <h3>wifi list</h3>
+              <p data-i18n="commands.wifi.list.description">
+                NVS に保存されているアクセスポイントの一覧を表示します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" data-i18n="commands.wifi.list.actions.run">
+                  wifi list を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-list">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-add" data-command="wifi-add" role="tabpanel"
+              aria-labelledby="tab-wifi-add">
+              <h3>wifi add &lt;ssid&gt; &lt;key&gt;</h3>
+              <p data-i18n="commands.wifi.add.description">
+                新しいアクセスポイントの SSID とパスワードを NVS に登録します (最大 8 件)。
+              </p>
+              <div class="form-field">
+                <label for="wifi-add-ssid" data-i18n="commands.wifi.add.fields.ssid.label">SSID</label>
+                <input id="wifi-add-ssid" type="text" placeholder="MyWiFi"
+                  data-i18n-placeholder="commands.wifi.add.fields.ssid.placeholder" />
+              </div>
+              <div class="form-field">
+                <label for="wifi-add-key" data-i18n="commands.wifi.add.fields.key.label">パスワード</label>
+                <input id="wifi-add-key" type="text" placeholder=""
+                  data-i18n-placeholder="commands.wifi.add.fields.key.placeholder" />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="wifi-add-run" data-system-utility="true"
+                  data-i18n="commands.wifi.add.actions.run">
+                  wifi add を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-add">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-del" data-command="wifi-del" role="tabpanel"
+              aria-labelledby="tab-wifi-del">
+              <h3>wifi del &lt;index&gt;</h3>
+              <p data-i18n="commands.wifi.del.description">
+                wifi list で表示されたインデックスの登録情報を削除します。
+              </p>
+              <div class="form-field">
+                <label for="wifi-del-index" data-i18n="commands.wifi.del.fields.index.label">インデックス</label>
+                <input id="wifi-del-index" type="number" min="0" placeholder="0"
+                  data-i18n-placeholder="commands.wifi.del.fields.index.placeholder" />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="wifi-del-run" data-system-utility="true"
+                  data-i18n="commands.wifi.del.actions.run">
+                  wifi del を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-del">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-auto" data-command="wifi-auto" role="tabpanel"
+              aria-labelledby="tab-wifi-auto">
+              <h3>wifi auto &lt;on|off&gt;</h3>
+              <p data-i18n="commands.wifi.auto.description">
+                起動時に登録済みネットワークへ自動接続するかを切り替えます。
+              </p>
+              <div class="form-field">
+                <label for="wifi-auto-select" data-i18n="commands.wifi.auto.fields.mode.label">自動接続設定</label>
+                <select id="wifi-auto-select">
+                  <option value="on" data-i18n="commands.wifi.auto.fields.mode.optionOn">on</option>
+                  <option value="off" data-i18n="commands.wifi.auto.fields.mode.optionOff">off</option>
+                </select>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="wifi-auto-run" data-system-utility="true"
+                  data-i18n="commands.wifi.auto.actions.run">
+                  wifi auto を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-auto">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-connect" data-command="wifi-connect" role="tabpanel"
+              aria-labelledby="tab-wifi-connect">
+              <h3>wifi connect [ssid] [key]</h3>
+              <p data-i18n="commands.wifi.connect.description">
+                登録済みネットワーク、または指定した SSID/鍵で Wi-Fi に接続します。
+              </p>
+              <div class="form-field">
+                <label for="wifi-connect-ssid" data-i18n="commands.wifi.connect.fields.ssid.label">SSID (任意)</label>
+                <input id="wifi-connect-ssid" type="text" placeholder=""
+                  data-i18n-placeholder="commands.wifi.connect.fields.ssid.placeholder" />
+              </div>
+              <div class="form-field">
+                <label for="wifi-connect-key" data-i18n="commands.wifi.connect.fields.key.label">パスワード (任意)</label>
+                <input id="wifi-connect-key" type="text" placeholder=""
+                  data-i18n-placeholder="commands.wifi.connect.fields.key.placeholder" />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="wifi-connect-run" data-system-utility="true"
+                  data-i18n="commands.wifi.connect.actions.run">
+                  wifi connect を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-connect">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-disconnect" data-command="wifi-disconnect"
+              role="tabpanel" aria-labelledby="tab-wifi-disconnect">
+              <h3>wifi disconnect</h3>
+              <p data-i18n="commands.wifi.disconnect.description">
+                現在の Wi-Fi 接続を切断します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" data-i18n="commands.wifi.disconnect.actions.run">
+                  wifi disconnect を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="wifi-disconnect">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
               </div>
             </article>
           </div>
