@@ -126,6 +126,8 @@
 namespace esp32serialctl
 {
 
+  inline constexpr const char kPrefsNamespace[] = "serial_ctl";
+
   enum class NumberUnit : uint8_t
   {
     None = 0,
@@ -307,7 +309,7 @@ namespace esp32serialctl
       WiFi.mode(mode);
       WiFi.setAutoReconnect(autoReconnect);
 
-      prefs.begin("wifi", true);
+      prefs.begin(kPrefsNamespace, true);
       for (int i = 0; i < 8; i++)
       {
         String ssid = prefs.getString(("ap" + String(i) + "_ssid").c_str(), "");
