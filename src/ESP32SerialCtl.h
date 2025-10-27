@@ -528,11 +528,13 @@ namespace esp32serialctl
       }
       char keyBuffer[16];
       wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiSsidFmt);
-      bool ok = prefs.putString(keyBuffer, ssid) >= 0;
+      const size_t ssidLen = strlen(ssid);
+      bool ok = prefs.putString(keyBuffer, ssid) == ssidLen;
       if (ok)
       {
         wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiKeyFmt);
-        ok = prefs.putString(keyBuffer, key ? key : "") >= 0;
+        const size_t keyLen = key ? strlen(key) : 0;
+        ok = prefs.putString(keyBuffer, key ? key : "") == keyLen;
       }
       if (ok)
       {
@@ -554,9 +556,9 @@ namespace esp32serialctl
       }
       char keyBuffer[16];
       wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiSsidFmt);
-      bool ok = prefs.putString(keyBuffer, "") >= 0;
+      bool ok = prefs.putString(keyBuffer, "") == 0;
       wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiKeyFmt);
-      ok = ok && prefs.putString(keyBuffer, "") >= 0;
+      ok = ok && prefs.putString(keyBuffer, "") == 0;
       wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacySsidFmt);
       prefs.putString(keyBuffer, "");
       wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacyKeyFmt);
@@ -3635,16 +3637,20 @@ namespace esp32serialctl
         ctx.printBody("note: no networks stored");
         return;
       }
-      char line[128];
+      char line[64];
       snprintf(line, sizeof(line), "entries: %u", static_cast<unsigned>(count));
       ctx.printBody(line);
       for (size_t i = 0; i < count; ++i)
       {
-        snprintf(line, sizeof(line), "#%u slot:%u ssid:%s",
-                 static_cast<unsigned>(i),
-                 static_cast<unsigned>(networks[i].slot),
-                 networks[i].ssid.c_str());
-        ctx.printBody(line);
+        String entry;
+        entry.reserve(32 + networks[i].ssid.length());
+        entry += '#';
+        entry += static_cast<unsigned>(i);
+        entry += " slot:";
+        entry += static_cast<unsigned>(networks[i].slot);
+        entry += " ssid:";
+        entry += networks[i].ssid;
+        ctx.printBody(entry.c_str());
       }
     }
 
@@ -3688,7 +3694,7 @@ namespace esp32serialctl
       }
 
       ctx.printOK("wifi add");
-      char line[96];
+      char line[64];
       snprintf(line, sizeof(line), "index: %u slot: %u",
                static_cast<unsigned>(listIndex),
                static_cast<unsigned>(slot));
@@ -3831,7 +3837,8 @@ namespace esp32serialctl
       ctx.printBody(line);
       snprintf(line, sizeof(line), "bssid: %s", WiFi.BSSIDstr().c_str());
       ctx.printBody(line);
-      snprintf(line, sizeof(line), "channel: %d", WiFi.channel());
+      const long channel = static_cast<long>(WiFi.channel());
+      snprintf(line, sizeof(line), "channel: %ld", channel);
       ctx.printBody(line);
       snprintf(line, sizeof(line), "rssi: %d dBm", WiFi.RSSI());
       ctx.printBody(line);
