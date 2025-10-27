@@ -17,6 +17,7 @@ ESP32SerialCtl は Arduino 互換 ESP32 プロジェクト向けのヘッダー�
 - 真偽値（`on/off/true/false/1/0`）や数値＋単位（`ms`, `s`, `Hz`, `kHz`, `%`）
   のパーサを標準提供
 - `OK` / `ERR` / ` - ` / `| ` など規約に沿ったレスポンス出力ヘルパー
+- Wi-Fi と Preferences を併用できる環境では、`wifi` / `ntp` コマンドで NVS へ設定を保存し、自動接続や NTP 同期を制御可能
 
 ## はじめよう
 
@@ -100,6 +101,7 @@ void loop() {
 - `sys info` : チップモデル、リビジョン、CPU クロック、フラッシュサイズ、SDK を表示
 - `sys uptime` : 稼働時間を `hh:mm:ss` とミリ秒で表示
 - `sys time` : 現在時刻を ISO 8601 形式で表示
+- `sys timezone` : 永続化されるタイムゾーン文字列を取得・設定（NTP 同期でも利用）
 - `sys mem` : ヒープ/PSRAM の合計・空き・最小・最大ブロックとスタック余裕を表示
 - `sys reset` : リクエストを確認後に `ESP.restart()` を実行
 - `storage list/use/status` : `SD` / `SPIFFS` / `LittleFS` / `FFat` などインクルード済みのストレージを列挙・選択し、容量や使用量を確認
@@ -111,10 +113,34 @@ void loop() {
 - `pwm set/stop` : LEDC PWM を自動割り当てで開始/停止（`pwm set <pin> <freq> <duty>`、解像度 12bit 固定・duty は 0..4095 または % 指定）
 - `rgb pin/set/stream` : `rgbLedWrite` で RGB LED を制御（デフォルト pin 対応）
 - `i2c scan/read/write` : `Wire` をインクルードしている場合に自動提供され、複数 I2C コントローラでは `--bus` で `Wire` / `Wire1` などを指定可能
+- `wifi auto/list/add/del/connect/disconnect/status` : NVS に保存された Wi-Fi アクセスポイントを管理し、自動接続や現在のリンク状態を制御
+- `ntp status/set/enable/disable/auto` : NTP サーバー設定と同期状態、起動時自動実行の切り替えを行う（利用前に `sys timezone` でタイムゾーンを設定してください）
 - `help` / `?` : 登録済みコマンドと説明を一覧表示
 
 スケッチから RGB のデフォルト pin を設定する場合は `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);` を呼び出してください。
 `RGB_BUILTIN` が定義されているプラットフォームでは、その値が自動的に既定 pin として利用されます。
+
+## 時刻とネットワークのヘルパー
+
+### 時刻関連 (`sys`)
+- `sys time [datetime]` : 引数なしで現在のローカル時刻を表示します。`2024-04-05T12:34:56` のような ISO 8601 文字列を渡すと、その場で時刻を設定します。
+- `sys timezone [tz]` : TZ 文字列を NVS（名前空間 `serial_ctl`）に保存/取得します。保存した値は起動時および NTP 再設定の前に適用されます。既定値を変更したい場合は `ESP32SERIALCTL_DEFAULT_TIMEZONE` をコンパイル時に定義してください（初期値は空文字）。
+- タイムゾーンを更新すると、手動の `sys time` 設定や `ntp` コマンドによる SNTP セッションにも反映されます。
+
+### Wi-Fi コマンド群
+- `wifi auto <on/off>` : 初回の `service()` 呼び出し時に自動接続を行うかどうかを NVS に保存します。既定では自動接続が有効で、`wifi_auto` プレファレンスで管理されています。
+- `wifi list` : 保存済み AP をスロット番号付きで列挙します。
+- `wifi add <ssid> <key>` : 最初に空いたスロットへ資格情報を保存します（キーは `wifi{N}_ssid` / `wifi{N}_key`）。登録上限は `ESP32SERIALCTL_WIFI_MAX_NETWORKS`（デフォルト 8）で、返されるリストインデックスは `wifi del` に利用できます。
+- `wifi del <index>` : `wifi list` が示すインデックスを削除します。
+- `wifi connect [ssid] [key]` : 保存済みリストを `WiFiMulti` で試行します。任意で一時的な SSID/パスワードを追加可能です。タイムアウトは `ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS`（初期値 10 秒）で、接続成功後に NTP 設定を再適用します。
+- `wifi disconnect` / `wifi status` : 現在のリンクを切断するか、接続状態・MAC・IP・RSSI・チャネル・自動接続設定を表示します。
+
+### NTP コマンド群
+- `ntp status` : 自動/有効フラグ、現在のタイムゾーン、登録済みサーバー、同期状況を表示します。
+- `ntp set <server> [server2] [server3]` : 最大 `ESP32SERIALCTL_NTP_MAX_SERVERS`（標準 3）件のサーバーを保存します。既定サーバーを変更したい場合は `ESP32SERIALCTL_DEFAULT_NTP_SERVER` を上書きしてください（初期値 `pool.ntp.org`）。
+- `ntp enable` : タイムゾーンが設定済みであることを確認したうえで SNTP を開始し、初回同期を最大 30 秒待機します。成功時は同期時刻を表示します。
+- `ntp disable` : SNTP を停止し、有効フラグをオフにします。
+- `ntp auto <on/off>` : Wi-Fi 接続とタイムゾーンが揃った時点で SNTP を自動開始するかどうかを切り替えます。
 
 ## サンプル
 

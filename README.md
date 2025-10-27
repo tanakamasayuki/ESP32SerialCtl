@@ -18,6 +18,7 @@ project can be dropped straight into your `libraries` folder.
 - Helpers for boolean (`on/off/true/false/1/0`) and numeric arguments
   (decimal, hex, units `ms`, `s`, `Hz`, `kHz`, `%`)
 - Output helpers for the strict response format (`OK`, `ERR`, body/list rows)
+- Optional Wi-Fi credential manager and NTP auto-sync commands when both Wi-Fi and Preferences are available (stored in NVS)
 
 ## Getting Started
 
@@ -102,6 +103,7 @@ These are emitted automatically before the command handler is called.
 - `sys info` prints chip model, revision, clock, flash, SDK/IDF, build info.
 - `sys uptime` reports uptime in `hh:mm:ss` and raw milliseconds.
 - `sys time` returns the current local time in ISO 8601 format.
+- `sys timezone` gets/sets the persisted TZ string (also used by NTP).
 - `sys mem` lists heap/PSRAM totals, free, minimum, and largest blocks plus stack watermarks.
 - `sys reset` confirms the request, flushes output, then calls `ESP.restart()`.
 - `storage list/use/status` exposes whichever storage backends have been linked in (`SD`, `SPIFFS`, `LittleFS`, `FFat`). Use `storage use <name>` to select the active target and `storage status [name]` to inspect capacity and usage.
@@ -113,11 +115,35 @@ These are emitted automatically before the command handler is called.
 - `pwm set/stop` manage LEDC PWM (`pwm set <pin> <freq> <duty>`, 12-bit resolution; duty accepts raw 0..4095 or percent).
 - `rgb pin/set/stream` control addressable RGB LEDs via `rgbLedWrite`, with configurable defaults and streaming support.
 - `i2c scan/read/write` becomes available automatically when `Wire` is included; use `--bus` to target `Wire`, `Wire1`, etc. on multi-controller boards.
+- `wifi auto/list/add/del/connect/disconnect/status` manage Wi-Fi credentials stored in NVS, control automatic connection on boot, and inspect the current link.
+- `ntp status/set/enable/disable/auto` configure SNTP servers, enable/disable synchronization, and toggle automatic start (set `sys timezone` before enabling).
 - `help` / `?` enumerates registered commands with their descriptions.
 
 Library users can also configure the default RGB pin from code via
 `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);`. When the platform
 defines `RGB_BUILTIN`, that pin is picked up automatically.
+
+## Time and Network Helpers
+
+### Timekeeping (`sys`)
+- `sys time [datetime]` prints the current local time when called without arguments. Passing an ISO 8601 timestamp such as `2024-04-05T12:34:56` updates the device clock immediately.
+- `sys timezone [tz]` reads or writes the TZ environment string stored in NVS (namespace `serial_ctl`). The saved value is applied on startup and before any NTP reconfiguration. Define `ESP32SERIALCTL_DEFAULT_TIMEZONE` at compile time to change the fallback (defaults to an empty string).
+- Timezone changes propagate to both manual `sys time` adjustments and SNTP sessions triggered through the `ntp` helpers.
+
+### Wi-Fi command group
+- `wifi auto <on/off>` stores whether the library should connect automatically during the first `service()` call. Automatic connection is enabled by default and governed by the `wifi_auto` preference.
+- `wifi list` enumerates stored access points, including the backing slot index inside NVS.
+- `wifi add <ssid> <key>` persists credentials in the first free slot (keys `wifi{N}_ssid`, `wifi{N}_key`) up to `ESP32SERIALCTL_WIFI_MAX_NETWORKS` entries (default 8). The command returns the logical list index so it can be paired with `wifi del`.
+- `wifi del <index>` removes an entry by the list index printed by `wifi list`.
+- `wifi connect [ssid] [key]` connects using the stored list through `WiFiMulti`. Optional arguments add a temporary network without storing it. The operation uses the timeout defined by `ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS` (default 10 s) and refreshes NTP once the link comes up.
+- `wifi disconnect` and `wifi status` disconnect from the current network or show the link state, MAC, IP, RSSI, channel, and auto-connect preference.
+
+### NTP command group
+- `ntp status` reports auto/enable flags, the active timezone, configured servers, and the latest synchronization status.
+- `ntp set <server> [server2] [server3]` replaces the stored server list (up to `ESP32SERIALCTL_NTP_MAX_SERVERS`, default 3). `ESP32SERIALCTL_DEFAULT_NTP_SERVER` overrides the factory default `pool.ntp.org`.
+- `ntp enable` starts SNTP after validating that a timezone has been set. The command waits up to 30 s for an initial sync and records the timestamp when it completes.
+- `ntp disable` stops SNTP and clears the enabled preference.
+- `ntp auto <on/off>` toggles whether SNTP should start automatically once Wi-Fi is connected and a timezone is present.
 
 ## Examples
 

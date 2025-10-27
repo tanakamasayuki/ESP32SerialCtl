@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "peripherals": {
             "label": "ペリフェラル",
-            "desc": "i2c / gpio / adc / pwm / rgb"
+            "desc": "gpio / adc / pwm / rgb / i2c"
           },
           "help": {
             "label": "ヘルプ",
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "peripherals": {
           "title": "ペリフェラルコマンド",
-          "description": "I2C / GPIO / ADC / PWM / RGB LED の制御を行います。"
+          "description": "GPIO / ADC / PWM / RGB LED / I2C の制御を行います。"
         },
         "help": {
           "title": "ヘルプとログ",
@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "peripherals": {
             "label": "Peripherals",
-            "desc": "i2c / gpio / adc / pwm / rgb"
+            "desc": "gpio / adc / pwm / rgb / i2c"
           },
           "help": {
             "label": "Help",
@@ -645,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "peripherals": {
           "title": "Peripheral Commands",
-          "description": "Control I2C, GPIO, ADC, PWM, and RGB LED peripherals."
+          "description": "Control GPIO, ADC, PWM, RGB LED, and I2C peripherals."
         },
         "help": {
           "title": "Help & Logs",
@@ -1149,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "peripherals": {
             "label": "外设",
-            "desc": "i2c / gpio / adc / pwm / rgb"
+            "desc": "gpio / adc / pwm / rgb / i2c"
           },
           "help": {
             "label": "帮助",
@@ -1178,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "peripherals": {
           "title": "外设指令",
-          "description": "控制 I2C、GPIO、ADC、PWM 与 RGB LED 等外设。"
+          "description": "控制 GPIO、ADC、PWM、RGB LED 与 I2C 等外设。"
         },
         "help": {
           "title": "帮助与日志",
