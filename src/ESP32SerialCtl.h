@@ -49,8 +49,15 @@
     defined(WiFiServer_h) || defined(_WIFISERVER_H_) || defined(WIFI_STA)
 #include <WiFi.h>
 #include <WiFiMulti.h>
-#include <Preferences.h>
 #define ESP32SERIALCTL_HAS_WIFI 1
+#endif
+
+#if !defined(ESP32SERIALCTL_WIFI_MAX_NETWORKS)
+#define ESP32SERIALCTL_WIFI_MAX_NETWORKS 8
+#endif
+
+#if !defined(ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS)
+#define ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS 10000UL
 #endif
 
 #if !defined(ESP32SERIALCTL_DEFAULT_TIMEZONE)
@@ -135,6 +142,13 @@ namespace esp32serialctl
   inline constexpr const char kPrefsNamespace[] = "serial_ctl";
   inline constexpr const char kPrefsTimezoneKey[] = "tz";
   inline constexpr const char kPrefsDefaultTimezone[] = ESP32SERIALCTL_DEFAULT_TIMEZONE;
+#if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
+  inline constexpr const char kPrefsWifiAutoKey[] = "wifi_auto";
+  inline constexpr const char kPrefsWifiSsidFmt[] = "wifi%u_ssid";
+  inline constexpr const char kPrefsWifiKeyFmt[] = "wifi%u_key";
+  inline constexpr const char kPrefsWifiLegacySsidFmt[] = "ap%u_ssid";
+  inline constexpr const char kPrefsWifiLegacyKeyFmt[] = "ap%u_pass";
+#endif
 
   enum class NumberUnit : uint8_t
   {
@@ -324,6 +338,9 @@ namespace esp32serialctl
 #if defined(ESP32SERIALCTL_HAS_PREFERENCES)
       applyStoredTimezone();
 #endif
+#if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      wifiMaybeAutoConnect();
+#endif
     }
 
 #if defined(ESP32SERIALCTL_HAS_PREFERENCES)
@@ -374,6 +391,247 @@ namespace esp32serialctl
     }
 #endif
 
+#if defined(ESP32SERIALCTL_HAS_WIFI)
+    struct WifiStoredNetwork
+    {
+      String ssid;
+      String key;
+      size_t slot;
+    };
+
+    WiFiMulti wifiMulti;
+
+    static const char *wifiStatusToString(wl_status_t status)
+    {
+      switch (status)
+      {
+      case WL_NO_SHIELD:
+        return "no_shield";
+      case WL_IDLE_STATUS:
+        return "idle";
+      case WL_NO_SSID_AVAIL:
+        return "no_ssid";
+      case WL_SCAN_COMPLETED:
+        return "scan_completed";
+      case WL_CONNECTED:
+        return "connected";
+      case WL_CONNECT_FAILED:
+        return "connect_failed";
+      case WL_CONNECTION_LOST:
+        return "connection_lost";
+      case WL_DISCONNECTED:
+        return "disconnected";
+#if defined(WL_CONNECTION_LOST_SILENT)
+      case WL_CONNECTION_LOST_SILENT:
+        return "connection_lost_silent";
+#endif
+      default:
+        return "unknown";
+      }
+    }
+
+    void wifiConfigureStationMode(bool autoReconnect = true)
+    {
+      WiFi.mode(WIFI_STA);
+      WiFi.setAutoReconnect(autoReconnect);
+    }
+
+    void wifiResetMulti()
+    {
+      wifiMulti = WiFiMulti();
+    }
+
+    bool wifiAttemptConnection(uint32_t timeoutMs)
+    {
+      const unsigned long deadline = millis() + timeoutMs;
+      wl_status_t status = WiFi.status();
+      while (status != WL_CONNECTED && (timeoutMs == 0UL || (long)(deadline - millis()) > 0))
+      {
+        wifiMulti.run();
+        delay(100);
+        status = WiFi.status();
+      }
+      return status == WL_CONNECTED;
+    }
+
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+    static void wifiFormatKey(char *buffer, size_t size, size_t slot, const char *fmt)
+    {
+      if (!buffer || size == 0 || !fmt)
+      {
+        return;
+      }
+      snprintf(buffer, size, fmt, static_cast<unsigned>(slot));
+    }
+
+    bool wifiReadNetworkSlot(size_t slot, String &ssid, String &key) const
+    {
+      ssid = "";
+      key = "";
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, true))
+      {
+        return false;
+      }
+      char keyBuffer[16];
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiSsidFmt);
+      ssid = prefs.getString(keyBuffer, "");
+      if (ssid.length() == 0)
+      {
+        wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacySsidFmt);
+        ssid = prefs.getString(keyBuffer, "");
+      }
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiKeyFmt);
+      key = prefs.getString(keyBuffer, "");
+      if (key.length() == 0)
+      {
+        wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacyKeyFmt);
+        key = prefs.getString(keyBuffer, "");
+      }
+      prefs.end();
+      return ssid.length() > 0;
+    }
+
+    size_t wifiLoadStoredNetworks(WifiStoredNetwork (&out)[ESP32SERIALCTL_WIFI_MAX_NETWORKS]) const
+    {
+      size_t count = 0;
+      for (size_t slot = 0; slot < ESP32SERIALCTL_WIFI_MAX_NETWORKS; ++slot)
+      {
+        if (count >= ESP32SERIALCTL_WIFI_MAX_NETWORKS)
+        {
+          break;
+        }
+        String ssid;
+        String key;
+        if (!wifiReadNetworkSlot(slot, ssid, key))
+        {
+          continue;
+        }
+        out[count].ssid = ssid;
+        out[count].key = key;
+        out[count].slot = slot;
+        ++count;
+      }
+      return count;
+    }
+
+    bool wifiStoreNetwork(size_t slot, const char *ssid, const char *key)
+    {
+      if (!ssid)
+      {
+        return false;
+      }
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      char keyBuffer[16];
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiSsidFmt);
+      bool ok = prefs.putString(keyBuffer, ssid) >= 0;
+      if (ok)
+      {
+        wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiKeyFmt);
+        ok = prefs.putString(keyBuffer, key ? key : "") >= 0;
+      }
+      if (ok)
+      {
+        wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacySsidFmt);
+        prefs.putString(keyBuffer, "");
+        wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacyKeyFmt);
+        prefs.putString(keyBuffer, "");
+      }
+      prefs.end();
+      return ok;
+    }
+
+    bool wifiClearNetwork(size_t slot)
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      char keyBuffer[16];
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiSsidFmt);
+      bool ok = prefs.putString(keyBuffer, "") >= 0;
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiKeyFmt);
+      ok = ok && prefs.putString(keyBuffer, "") >= 0;
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacySsidFmt);
+      prefs.putString(keyBuffer, "");
+      wifiFormatKey(keyBuffer, sizeof(keyBuffer), slot, kPrefsWifiLegacyKeyFmt);
+      prefs.putString(keyBuffer, "");
+      prefs.end();
+      return ok;
+    }
+
+    bool wifiFindFreeSlot(size_t &slot) const
+    {
+      for (size_t i = 0; i < ESP32SERIALCTL_WIFI_MAX_NETWORKS; ++i)
+      {
+        String ssid;
+        String key;
+        if (!wifiReadNetworkSlot(i, ssid, key))
+        {
+          slot = i;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    bool wifiAutoPreference() const
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, true))
+      {
+        return true;
+      }
+      const uint8_t value = prefs.getUChar(kPrefsWifiAutoKey, 1U);
+      prefs.end();
+      return value != 0U;
+    }
+
+    bool wifiSetAutoPreference(bool enabled)
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      const bool ok = prefs.putUChar(kPrefsWifiAutoKey, enabled ? 1U : 0U) == 1;
+      prefs.end();
+      return ok;
+    }
+
+    void wifiPopulateFromStored(const WifiStoredNetwork *networks, size_t count)
+    {
+      for (size_t i = 0; i < count; ++i)
+      {
+        const WifiStoredNetwork &entry = networks[i];
+        if (entry.ssid.length() == 0)
+        {
+          continue;
+        }
+        wifiMulti.addAP(entry.ssid.c_str(), entry.key.c_str());
+      }
+    }
+
+    void wifiMaybeAutoConnect()
+    {
+      WifiStoredNetwork networks[ESP32SERIALCTL_WIFI_MAX_NETWORKS];
+      const size_t count = wifiLoadStoredNetworks(networks);
+      if (count == 0 || !wifiAutoPreference())
+      {
+        return;
+      }
+      wifiConfigureStationMode(true);
+      wifiResetMulti();
+      wifiPopulateFromStored(networks, count);
+      wifiAttemptConnection(static_cast<uint32_t>(ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS));
+    }
+#endif
+#endif
     void feed(char c)
     {
       if (c == '\r' || c == '\n')
@@ -3317,6 +3575,269 @@ namespace esp32serialctl
     }
 #endif
 
+#if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
+    static bool parseWifiIndex(Context &ctx, const typename Base::Argument &arg, size_t &indexOut)
+    {
+      ParsedNumber number;
+      if (!arg.toNumber(number) || number.unit != NumberUnit::None || number.value < 0 ||
+          number.value > static_cast<int64_t>(ESP32SERIALCTL_WIFI_MAX_NETWORKS))
+      {
+        ctx.printError(400, "Invalid index");
+        return false;
+      }
+      indexOut = static_cast<size_t>(number.value);
+      return true;
+    }
+
+    static void handleWifiAuto(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: wifi auto <on|off>");
+        return;
+      }
+      bool enable;
+      const auto &arg = ctx.arg(0);
+      if (arg.equals("on"))
+      {
+        enable = true;
+      }
+      else if (arg.equals("off"))
+      {
+        enable = false;
+      }
+      else if (!arg.toBool(enable))
+      {
+        ctx.printError(400, "Expected on/off");
+        return;
+      }
+
+      if (!ctx.controller().wifiSetAutoPreference(enable))
+      {
+        ctx.printError(507, "Failed to update preference");
+        return;
+      }
+
+      ctx.printOK("wifi auto");
+      char line[48];
+      snprintf(line, sizeof(line), "auto: %s", enable ? "on" : "off");
+      ctx.printBody(line);
+    }
+
+    static void handleWifiList(Context &ctx)
+    {
+      typename Base::WifiStoredNetwork networks[ESP32SERIALCTL_WIFI_MAX_NETWORKS];
+      const size_t count = ctx.controller().wifiLoadStoredNetworks(networks);
+      ctx.printOK("wifi list");
+      if (count == 0)
+      {
+        ctx.printBody("entries: 0");
+        ctx.printBody("note: no networks stored");
+        return;
+      }
+      char line[128];
+      snprintf(line, sizeof(line), "entries: %u", static_cast<unsigned>(count));
+      ctx.printBody(line);
+      for (size_t i = 0; i < count; ++i)
+      {
+        snprintf(line, sizeof(line), "#%u slot:%u ssid:%s",
+                 static_cast<unsigned>(i),
+                 static_cast<unsigned>(networks[i].slot),
+                 networks[i].ssid.c_str());
+        ctx.printBody(line);
+      }
+    }
+
+    static void handleWifiAdd(Context &ctx)
+    {
+      if (ctx.argc() < 2)
+      {
+        ctx.printError(400, "Usage: wifi add <ssid> <key>");
+        return;
+      }
+      const char *ssid = ctx.arg(0).c_str();
+      const char *key = ctx.arg(1).c_str();
+      if (!ssid || !*ssid)
+      {
+        ctx.printError(400, "SSID required");
+        return;
+      }
+
+      size_t slot = 0;
+      if (!ctx.controller().wifiFindFreeSlot(slot))
+      {
+        ctx.printError(409, "Storage full");
+        return;
+      }
+      if (!ctx.controller().wifiStoreNetwork(slot, ssid, key))
+      {
+        ctx.printError(507, "Failed to store network");
+        return;
+      }
+
+      typename Base::WifiStoredNetwork networks[ESP32SERIALCTL_WIFI_MAX_NETWORKS];
+      const size_t count = ctx.controller().wifiLoadStoredNetworks(networks);
+      size_t listIndex = count > 0 ? count - 1 : 0;
+      for (size_t i = 0; i < count; ++i)
+      {
+        if (networks[i].slot == slot)
+        {
+          listIndex = i;
+          break;
+        }
+      }
+
+      ctx.printOK("wifi add");
+      char line[96];
+      snprintf(line, sizeof(line), "index: %u slot: %u",
+               static_cast<unsigned>(listIndex),
+               static_cast<unsigned>(slot));
+      ctx.printBody(line);
+    }
+
+    static void handleWifiDel(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: wifi del <index>");
+        return;
+      }
+      typename Base::WifiStoredNetwork networks[ESP32SERIALCTL_WIFI_MAX_NETWORKS];
+      size_t count = ctx.controller().wifiLoadStoredNetworks(networks);
+      if (count == 0)
+      {
+        ctx.printError(404, "No networks stored");
+        return;
+      }
+      size_t index = 0;
+      if (!parseWifiIndex(ctx, ctx.arg(0), index) || index >= count)
+      {
+        ctx.printError(404, "Index not found");
+        return;
+      }
+      const size_t slot = networks[index].slot;
+      if (!ctx.controller().wifiClearNetwork(slot))
+      {
+        ctx.printError(507, "Failed to delete entry");
+        return;
+      }
+
+      ctx.printOK("wifi del");
+      char line[64];
+      snprintf(line, sizeof(line), "removed: %u", static_cast<unsigned>(index));
+      ctx.printBody(line);
+    }
+
+    static void handleWifiConnect(Context &ctx)
+    {
+      if (ctx.argc() > 2)
+      {
+        ctx.printError(400, "Usage: wifi connect [ssid] [key]");
+        return;
+      }
+
+      typename Base::WifiStoredNetwork networks[ESP32SERIALCTL_WIFI_MAX_NETWORKS];
+      const size_t storedCount = ctx.controller().wifiLoadStoredNetworks(networks);
+
+      String tempSsid;
+      String tempKey;
+      if (ctx.argc() >= 1)
+      {
+        tempSsid = ctx.arg(0).c_str();
+        if (tempSsid.length() == 0)
+        {
+          ctx.printError(400, "SSID required");
+          return;
+        }
+        tempKey = ctx.argc() == 2 ? ctx.arg(1).c_str() : "";
+      }
+      else if (storedCount == 0)
+      {
+        ctx.printError(404, "No networks stored");
+        return;
+      }
+
+      ctx.controller().wifiConfigureStationMode(true);
+      WiFi.disconnect(true);
+      delay(20);
+      ctx.controller().wifiResetMulti();
+
+      if (tempSsid.length() > 0)
+      {
+        ctx.controller().wifiMulti.addAP(tempSsid.c_str(), tempKey.c_str());
+      }
+      ctx.controller().wifiPopulateFromStored(networks, storedCount);
+
+      const bool connected =
+          ctx.controller().wifiAttemptConnection(static_cast<uint32_t>(ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS));
+      wl_status_t status = WiFi.status();
+      if (!connected)
+      {
+        ctx.printError(504, "Connect timeout");
+        char line[96];
+        snprintf(line, sizeof(line), "status: %s", Base::wifiStatusToString(status));
+        ctx.printBody(line);
+        return;
+      }
+
+      ctx.printOK("wifi connect");
+      char line[96];
+      snprintf(line, sizeof(line), "status: %s", Base::wifiStatusToString(status));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "ssid: %s", WiFi.SSID().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "ip: %s", WiFi.localIP().toString().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "bssid: %s", WiFi.BSSIDstr().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "rssi: %d dBm", WiFi.RSSI());
+      ctx.printBody(line);
+    }
+
+    static void handleWifiDisconnect(Context &ctx)
+    {
+      if (ctx.argc() != 0)
+      {
+        ctx.printError(400, "Usage: wifi disconnect");
+        return;
+      }
+      WiFi.disconnect(true);
+      ctx.controller().wifiResetMulti();
+      ctx.printOK("wifi disconnect");
+      ctx.printBody("status: disconnected");
+    }
+
+    static void handleWifiStatus(Context &ctx)
+    {
+      if (ctx.argc() != 0)
+      {
+        ctx.printError(400, "Usage: wifi status");
+        return;
+      }
+
+      wl_status_t status = WiFi.status();
+
+      ctx.printOK("wifi status");
+      char line[96];
+      snprintf(line, sizeof(line), "status: %s", Base::wifiStatusToString(status));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "auto: %s", ctx.controller().wifiAutoPreference() ? "on" : "off");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "ssid: %s", WiFi.SSID().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "ip: %s", WiFi.localIP().toString().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "mac: %s", WiFi.macAddress().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "bssid: %s", WiFi.BSSIDstr().c_str());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "channel: %d", WiFi.channel());
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "rssi: %d dBm", WiFi.RSSI());
+      ctx.printBody(line);
+    }
+#endif
+
     static void handleSysMem(Context &ctx)
     {
       char lines[24][96];
@@ -3887,6 +4408,22 @@ namespace esp32serialctl
 #endif
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},
+#if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
+          {"wifi", "auto", &ESP32SerialCtl::handleWifiAuto,
+           "<on|off> : Enable or disable automatic Wi-Fi connect"},
+          {"wifi", "list", &ESP32SerialCtl::handleWifiList,
+           ": List stored Wi-Fi networks"},
+          {"wifi", "add", &ESP32SerialCtl::handleWifiAdd,
+           "<ssid> <key> : Store Wi-Fi credentials"},
+          {"wifi", "del", &ESP32SerialCtl::handleWifiDel,
+           "<index> : Remove stored Wi-Fi credentials"},
+          {"wifi", "connect", &ESP32SerialCtl::handleWifiConnect,
+           "[ssid] [key] : Connect using stored credentials or overrides"},
+          {"wifi", "disconnect", &ESP32SerialCtl::handleWifiDisconnect,
+           ": Disconnect from Wi-Fi"},
+          {"wifi", "status", &ESP32SerialCtl::handleWifiStatus,
+           ": Show Wi-Fi connection status"},
+#endif
 #if defined(ESP32SERIALCTL_HAS_STORAGE)
           {"storage", "list", &ESP32SerialCtl::handleStorageList,
            ": List available storage devices"},

@@ -19,3 +19,5 @@
 - (JA) `fs hash` が `sha256` / `md5` のダイジェストに加えてファイルサイズも表示するよう改善。
 - (EN) Added `sys timezone [tz]` with persisted NVS storage, startup restore, and configurable default via `ESP32SERIALCTL_DEFAULT_TIMEZONE`.
 - (JA) `sys timezone [tz]` コマンドを追加し、NVS への保存・起動時の復元に対応、デフォルトは `ESP32SERIALCTL_DEFAULT_TIMEZONE` で設定可能。
+- (EN) Added `wifi` command suite (`auto/list/add/del/connect/disconnect/status`) with NVS-backed credentials and optional auto-connect on boot.
+- (JA) `wifi` コマンド群（`auto/list/add/del/connect/disconnect/status`）を追加し、NVS による認証情報管理と起動時の自動接続に対応。
