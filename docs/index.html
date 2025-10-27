@@ -176,7 +176,7 @@
               data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-timezone">
               <h3>sys timezone [tz]</h3>
               <p data-i18n="commands.system.sys-timezone.description">
-                永続化されたタイムゾーンを取得・設定します。RTC 初期化時にも利用されます。
+                永続化されたタイムゾーンを取得・設定します。NTP 同期でも利用されるため、先に設定してください。
               </p>
               <div class="form-field">
                 <label for="sys-timezone-input" data-i18n="commands.system.sys-timezone.field.label">タイムゾーン (例:
@@ -321,6 +321,26 @@
               <button id="tab-wifi-disconnect" class="command-tab" role="tab" aria-selected="false"
                 data-command="wifi-disconnect" aria-controls="command-wifi-disconnect">
                 wifi disconnect
+              </button>
+              <button id="tab-wifi-ntp-status" class="command-tab" role="tab" aria-selected="false"
+                data-command="ntp-status" aria-controls="command-wifi-ntp-status">
+                ntp status
+              </button>
+              <button id="tab-wifi-ntp-set" class="command-tab" role="tab" aria-selected="false"
+                data-command="ntp-set" aria-controls="command-wifi-ntp-set">
+                ntp set
+              </button>
+              <button id="tab-wifi-ntp-enable" class="command-tab" role="tab" aria-selected="false"
+                data-command="ntp-enable" aria-controls="command-wifi-ntp-enable">
+                ntp enable
+              </button>
+              <button id="tab-wifi-ntp-disable" class="command-tab" role="tab" aria-selected="false"
+                data-command="ntp-disable" aria-controls="command-wifi-ntp-disable">
+                ntp disable
+              </button>
+              <button id="tab-wifi-ntp-auto" class="command-tab" role="tab" aria-selected="false"
+                data-command="ntp-auto" aria-controls="command-wifi-ntp-auto">
+                ntp auto
               </button>
             </div>
 
@@ -510,6 +530,149 @@
                 </button>
               </div>
               <div class="result-section" data-result="wifi-disconnect">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-ntp-status" data-command="ntp-status"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-wifi-ntp-status">
+              <h3>ntp status</h3>
+              <p data-i18n="commands.wifi.ntp.status.description">
+                NTP の自動設定や同期状態、利用中のサーバーを表示します。利用前に sys timezone を先に設定してください。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" data-i18n="commands.wifi.ntp.status.actions.run">
+                  ntp status を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="ntp-status">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-ntp-set" data-command="ntp-set" role="tabpanel"
+              aria-labelledby="tab-wifi-ntp-set">
+              <h3>ntp set &lt;server&gt; [server2] [server3]</h3>
+              <p data-i18n="commands.wifi.ntp.set.description">
+                NTP サーバーを最大 3 台まで登録します。sys timezone を先に設定してください。
+              </p>
+              <div class="form-field">
+                <label for="ntp-set-server1" data-i18n="commands.wifi.ntp.set.fields.server1.label">サーバー 1</label>
+                <input id="ntp-set-server1" type="text" placeholder="pool.ntp.org"
+                  data-i18n-placeholder="commands.wifi.ntp.set.fields.server1.placeholder" />
+              </div>
+              <div class="form-field">
+                <label for="ntp-set-server2" data-i18n="commands.wifi.ntp.set.fields.server2.label">サーバー 2
+                  (任意)</label>
+                <input id="ntp-set-server2" type="text" placeholder=""
+                  data-i18n-placeholder="commands.wifi.ntp.set.fields.server2.placeholder" />
+              </div>
+              <div class="form-field">
+                <label for="ntp-set-server3" data-i18n="commands.wifi.ntp.set.fields.server3.label">サーバー 3
+                  (任意)</label>
+                <input id="ntp-set-server3" type="text" placeholder=""
+                  data-i18n-placeholder="commands.wifi.ntp.set.fields.server3.placeholder" />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="ntp-set-run" data-system-utility="true"
+                  data-i18n="commands.wifi.ntp.set.actions.run">
+                  ntp set を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="ntp-set">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-ntp-enable" data-command="ntp-enable" role="tabpanel"
+              aria-labelledby="tab-wifi-ntp-enable">
+              <h3>ntp enable</h3>
+              <p data-i18n="commands.wifi.ntp.enable.description">
+                NTP 同期を開始します。事前に sys timezone でタイムゾーンを設定し、Wi-Fi に接続してください。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="ntp-enable-run" data-system-utility="true"
+                  data-i18n="commands.wifi.ntp.enable.actions.run">
+                  ntp enable を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="ntp-enable">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-ntp-disable" data-command="ntp-disable" role="tabpanel"
+              aria-labelledby="tab-wifi-ntp-disable">
+              <h3>ntp disable</h3>
+              <p data-i18n="commands.wifi.ntp.disable.description">
+                NTP 同期を停止します。
+              </p>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" id="ntp-disable-run" data-system-utility="true"
+                  data-i18n="commands.wifi.ntp.disable.actions.run">
+                  ntp disable を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="ntp-disable">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latestManual">最新結果</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
+            <article class="card command-panel" id="command-wifi-ntp-auto" data-command="ntp-auto" role="tabpanel"
+              aria-labelledby="tab-wifi-ntp-auto">
+              <h3>ntp auto &lt;on|off&gt;</h3>
+              <p data-i18n="commands.wifi.ntp.auto.description">
+                起動時に NTP を自動設定するかを切り替えます。sys timezone を設定済みであることを確認してください。
+              </p>
+              <div class="form-field">
+                <label for="ntp-auto-select" data-i18n="commands.wifi.ntp.auto.fields.mode.label">自動設定</label>
+                <select id="ntp-auto-select">
+                  <option value="on" data-i18n="commands.wifi.ntp.auto.fields.mode.optionOn">on</option>
+                  <option value="off" data-i18n="commands.wifi.ntp.auto.fields.mode.optionOff">off</option>
+                </select>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" type="button" id="ntp-auto-run" data-system-utility="true"
+                  data-i18n="commands.wifi.ntp.auto.actions.run">
+                  ntp auto を送信
+                </button>
+              </div>
+              <div class="result-section" data-result="ntp-auto">
                 <header class="result-header">
                   <span class="result-title" data-i18n="results.latestManual">最新結果</span>
                   <span class="result-timestamp" data-result-timestamp>--:--</span>

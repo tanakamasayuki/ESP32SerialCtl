@@ -49,6 +49,7 @@
     defined(WiFiServer_h) || defined(_WIFISERVER_H_) || defined(WIFI_STA)
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <esp_sntp.h>
 #define ESP32SERIALCTL_HAS_WIFI 1
 #endif
 
@@ -58,6 +59,14 @@
 
 #if !defined(ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS)
 #define ESP32SERIALCTL_WIFI_CONNECT_TIMEOUT_MS 10000UL
+#endif
+
+#if !defined(ESP32SERIALCTL_NTP_MAX_SERVERS)
+#define ESP32SERIALCTL_NTP_MAX_SERVERS 3
+#endif
+
+#if !defined(ESP32SERIALCTL_DEFAULT_NTP_SERVER)
+#define ESP32SERIALCTL_DEFAULT_NTP_SERVER "pool.ntp.org"
 #endif
 
 #if !defined(ESP32SERIALCTL_DEFAULT_TIMEZONE)
@@ -148,6 +157,9 @@ namespace esp32serialctl
   inline constexpr const char kPrefsWifiKeyFmt[] = "wifi%u_key";
   inline constexpr const char kPrefsWifiLegacySsidFmt[] = "ap%u_ssid";
   inline constexpr const char kPrefsWifiLegacyKeyFmt[] = "ap%u_pass";
+  inline constexpr const char kPrefsNtpAutoKey[] = "ntp_auto";
+  inline constexpr const char kPrefsNtpEnabledKey[] = "ntp_enabled";
+  inline constexpr const char kPrefsNtpServerFmt[] = "ntp%u_srv";
 #endif
 
   enum class NumberUnit : uint8_t
@@ -340,6 +352,7 @@ namespace esp32serialctl
 #endif
 #if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
       wifiMaybeAutoConnect();
+      ntpMaybeAutoStart();
 #endif
     }
 
@@ -353,9 +366,14 @@ namespace esp32serialctl
       }
       String timezone = prefs.getString(kPrefsTimezoneKey, kPrefsDefaultTimezone);
       prefs.end();
-      if (timezone.length() > 0)
+      timezoneCache_ = timezone;
+      if (timezoneCache_.length() == 0 && strlen(kPrefsDefaultTimezone) > 0)
       {
-        applyTimezoneEnv(timezone.c_str());
+        timezoneCache_ = kPrefsDefaultTimezone;
+      }
+      if (timezoneCache_.length() > 0)
+      {
+        applyTimezoneEnv(timezoneCache_.c_str());
       }
     }
 
@@ -373,7 +391,15 @@ namespace esp32serialctl
       const size_t expected = strlen(tz);
       const size_t written = prefs.putString(kPrefsTimezoneKey, tz);
       prefs.end();
-      return written == expected;
+      const bool ok = written == expected;
+      if (ok)
+      {
+        timezoneCache_ = tz;
+#if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
+        ntpReconfigureIfNeeded();
+#endif
+      }
+      return ok;
     }
 
     static bool applyTimezoneEnv(const char *tz)
@@ -604,6 +630,237 @@ namespace esp32serialctl
       const bool ok = prefs.putUChar(kPrefsWifiAutoKey, enabled ? 1U : 0U) == 1;
       prefs.end();
       return ok;
+    }
+
+    const String &currentTimezone() const { return timezoneCache_; }
+
+    static void ntpFormatKey(char *buffer, size_t size, size_t index)
+    {
+      if (!buffer || size == 0)
+      {
+        return;
+      }
+      snprintf(buffer, size, kPrefsNtpServerFmt, static_cast<unsigned>(index));
+    }
+
+    size_t ntpLoadServers(String (&out)[ESP32SERIALCTL_NTP_MAX_SERVERS], bool ensureDefault = false)
+    {
+      Preferences prefs;
+      bool opened = prefs.begin(kPrefsNamespace, !ensureDefault);
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        out[i] = "";
+      }
+      if (opened)
+      {
+        char keyBuffer[16];
+        for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+        {
+          ntpFormatKey(keyBuffer, sizeof(keyBuffer), i);
+          if (prefs.isKey(keyBuffer))
+          {
+            out[i] = prefs.getString(keyBuffer, "");
+          }
+        }
+        if (ensureDefault && out[0].length() == 0)
+        {
+          ntpFormatKey(keyBuffer, sizeof(keyBuffer), 0);
+          out[0] = ESP32SERIALCTL_DEFAULT_NTP_SERVER;
+          prefs.putString(keyBuffer, out[0].c_str());
+        }
+        prefs.end();
+      }
+      else if (ensureDefault)
+      {
+        out[0] = ESP32SERIALCTL_DEFAULT_NTP_SERVER;
+      }
+      else if (out[0].length() == 0)
+      {
+        out[0] = ESP32SERIALCTL_DEFAULT_NTP_SERVER;
+      }
+      size_t count = 0;
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        if (out[i].length() > 0)
+        {
+          ++count;
+        }
+      }
+      return count;
+    }
+
+    bool ntpStoreServers(const String (&servers)[ESP32SERIALCTL_NTP_MAX_SERVERS])
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      char keyBuffer[16];
+      bool ok = true;
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        ntpFormatKey(keyBuffer, sizeof(keyBuffer), i);
+        const size_t len = servers[i].length();
+        ok = ok && (prefs.putString(keyBuffer, servers[i].c_str()) == len);
+      }
+      prefs.end();
+      return ok;
+    }
+
+    bool ntpAutoPreference()
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, true))
+      {
+        return ntpAutoCache_;
+      }
+      const uint8_t value = prefs.getUChar(kPrefsNtpAutoKey, 1U);
+      prefs.end();
+      ntpAutoCache_ = value != 0U;
+      return ntpAutoCache_;
+    }
+
+    bool ntpSetAutoPreference(bool enabled)
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      const bool ok = prefs.putUChar(kPrefsNtpAutoKey, enabled ? 1U : 0U) == 1;
+      prefs.end();
+      if (ok)
+      {
+        ntpAutoCache_ = enabled;
+      }
+      return ok;
+    }
+
+    bool ntpEnabledPreference()
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, true))
+      {
+        return ntpEnabledCache_;
+      }
+      const uint8_t value = prefs.getUChar(kPrefsNtpEnabledKey, 0U);
+      prefs.end();
+      ntpEnabledCache_ = value != 0U;
+      return ntpEnabledCache_;
+    }
+
+    bool ntpSetEnabledPreference(bool enabled)
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      const bool ok = prefs.putUChar(kPrefsNtpEnabledKey, enabled ? 1U : 0U) == 1;
+      prefs.end();
+      if (ok)
+      {
+        ntpEnabledCache_ = enabled;
+      }
+      return ok;
+    }
+
+    bool ntpConfigure(bool start)
+    {
+      if (timezoneCache_.length() == 0)
+      {
+        return false;
+      }
+      String servers[ESP32SERIALCTL_NTP_MAX_SERVERS];
+      ntpLoadServers(servers, true);
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        const char *source = nullptr;
+        if (servers[i].length() > 0)
+        {
+          source = servers[i].c_str();
+        }
+        else if (i == 0)
+        {
+          source = ESP32SERIALCTL_DEFAULT_NTP_SERVER;
+        }
+        else
+        {
+          source = "";
+        }
+        strncpy(ntpServerBuffer_[i], source, sizeof(ntpServerBuffer_[i]) - 1);
+        ntpServerBuffer_[i][sizeof(ntpServerBuffer_[i]) - 1] = '\0';
+      }
+      const char *server1 = ntpServerBuffer_[0];
+      const char *server2 = ntpServerBuffer_[1];
+      const char *server3 = ntpServerBuffer_[2];
+      if (!server1 || strlen(server1) == 0)
+      {
+        server1 = ESP32SERIALCTL_DEFAULT_NTP_SERVER;
+      }
+      if (start)
+      {
+        esp_sntp_stop();
+        esp_sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
+        configTzTime(timezoneCache_.c_str(), server1, server2, server3);
+        return true;
+      }
+      esp_sntp_stop();
+      return true;
+    }
+
+    bool ntpWaitForSync(uint32_t timeoutMs)
+    {
+      const uint32_t start = millis();
+      while (true)
+      {
+        if (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED)
+        {
+          return true;
+        }
+        struct tm nowLocal;
+        if (getLocalTime(&nowLocal, 500))
+        {
+          return true;
+        }
+        if (timeoutMs > 0 && millis() - start >= timeoutMs)
+        {
+          return false;
+        }
+        delay(200);
+      }
+    }
+
+    void ntpReconfigureIfNeeded()
+    {
+      if (!ntpEnabledPreference())
+      {
+        return;
+      }
+      if (timezoneCache_.length() == 0)
+      {
+        return;
+      }
+      ntpConfigure(true);
+    }
+
+    void ntpMaybeAutoStart()
+    {
+      const bool autoMode = ntpAutoPreference();
+      if (!autoMode)
+      {
+        return;
+      }
+      if (!ntpEnabledPreference())
+      {
+        return;
+      }
+      if (timezoneCache_.length() == 0)
+      {
+        return;
+      }
+      ntpConfigure(true);
     }
 
     void wifiPopulateFromStored(const WifiStoredNetwork *networks, size_t count)
@@ -1367,6 +1624,14 @@ namespace esp32serialctl
     size_t optionCount_ = 0;
     bool promptPending_ = true;
     bool initialized_ = false;
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+    String timezoneCache_;
+#endif
+#if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
+    bool ntpAutoCache_ = true;
+    bool ntpEnabledCache_ = false;
+    char ntpServerBuffer_[ESP32SERIALCTL_NTP_MAX_SERVERS][64] = {{0}};
+#endif
   };
 
   template <size_t MaxLineLength = 128, size_t MaxTokens = 16>
@@ -3798,6 +4063,7 @@ namespace esp32serialctl
       ctx.printBody(line);
       snprintf(line, sizeof(line), "rssi: %d dBm", WiFi.RSSI());
       ctx.printBody(line);
+      ctx.controller().ntpReconfigureIfNeeded();
     }
 
     static void handleWifiDisconnect(Context &ctx)
@@ -3841,6 +4107,226 @@ namespace esp32serialctl
       snprintf(line, sizeof(line), "channel: %ld", channel);
       ctx.printBody(line);
       snprintf(line, sizeof(line), "rssi: %d dBm", WiFi.RSSI());
+      ctx.printBody(line);
+    }
+
+    static const char *ntpSyncStatusToString(sntp_sync_status_t status)
+    {
+      switch (status)
+      {
+      case SNTP_SYNC_STATUS_RESET:
+        return "reset";
+      case SNTP_SYNC_STATUS_COMPLETED:
+        return "completed";
+      case SNTP_SYNC_STATUS_IN_PROGRESS:
+        return "in_progress";
+      default:
+        return "unknown";
+      }
+    }
+
+    static void handleNtpStatus(Context &ctx)
+    {
+      if (ctx.argc() != 0)
+      {
+        ctx.printError(400, "Usage: ntp status");
+        return;
+      }
+
+      bool autoMode = ctx.controller().ntpAutoPreference();
+      bool enabled = ctx.controller().ntpEnabledPreference();
+      String servers[ESP32SERIALCTL_NTP_MAX_SERVERS];
+      size_t serverCount = ctx.controller().ntpLoadServers(servers);
+
+      ctx.printOK("ntp status");
+      char line[128];
+      snprintf(line, sizeof(line), "auto: %s", autoMode ? "on" : "off");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "enabled: %s", enabled ? "on" : "off");
+      ctx.printBody(line);
+      const String &tz = ctx.controller().currentTimezone();
+      snprintf(line, sizeof(line), "timezone: %s",
+               tz.length() > 0 ? tz.c_str() : "(unset - use sys timezone)");
+      ctx.printBody(line);
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        if (servers[i].length() == 0)
+        {
+          continue;
+        }
+        snprintf(line, sizeof(line), "server%u: %s",
+                 static_cast<unsigned>(i), servers[i].c_str());
+        ctx.printBody(line);
+      }
+      if (serverCount == 0)
+      {
+        snprintf(line, sizeof(line), "server0: %s", ESP32SERIALCTL_DEFAULT_NTP_SERVER);
+        ctx.printBody(line);
+      }
+      const bool running = esp_sntp_enabled();
+      snprintf(line, sizeof(line), "running: %s", running ? "yes" : "no");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "sync: %s",
+               ntpSyncStatusToString(sntp_get_sync_status()));
+      ctx.printBody(line);
+      struct tm nowLocal = {};
+      if (getLocalTime(&nowLocal, 1000))
+      {
+        time_t nowEpoch = mktime(&nowLocal);
+        char iso[48];
+        if (formatLocalTimeIso(nowEpoch, iso, sizeof(iso)))
+        {
+          char syncLine[64];
+          snprintf(syncLine, sizeof(syncLine), "last_sync: %s", iso);
+          ctx.printBody(syncLine);
+        }
+      }
+    }
+
+    static void handleNtpSet(Context &ctx)
+    {
+      if (ctx.argc() < 1 || ctx.argc() > static_cast<int>(ESP32SERIALCTL_NTP_MAX_SERVERS))
+      {
+        ctx.printError(400, "Usage: ntp set <server> [server2] [server3]");
+        return;
+      }
+      String servers[ESP32SERIALCTL_NTP_MAX_SERVERS];
+      const size_t provided = ctx.argc();
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        if (i < provided)
+        {
+          servers[i] = ctx.arg(i).c_str();
+        }
+        else
+        {
+          servers[i] = "";
+        }
+      }
+      if (servers[0].length() == 0)
+      {
+        ctx.printError(400, "Primary server required");
+        return;
+      }
+      if (!ctx.controller().ntpStoreServers(servers))
+      {
+        ctx.printError(507, "Failed to store servers");
+        return;
+      }
+      ctx.controller().ntpReconfigureIfNeeded();
+
+      ctx.printOK("ntp set");
+      char line[128];
+      for (size_t i = 0; i < ESP32SERIALCTL_NTP_MAX_SERVERS; ++i)
+      {
+        if (servers[i].length() == 0)
+        {
+          continue;
+        }
+        snprintf(line, sizeof(line), "server%u: %s",
+                 static_cast<unsigned>(i), servers[i].c_str());
+        ctx.printBody(line);
+      }
+    }
+
+    static void handleNtpEnable(Context &ctx)
+    {
+      if (ctx.argc() != 0)
+      {
+        ctx.printError(400, "Usage: ntp enable");
+        return;
+      }
+      const String &tz = ctx.controller().currentTimezone();
+      if (tz.length() == 0)
+      {
+        ctx.printError(412, "Set timezone first via sys timezone");
+        return;
+      }
+      if (!ctx.controller().ntpConfigure(true))
+      {
+        ctx.printError(500, "Failed to configure NTP");
+        return;
+      }
+      if (!ctx.controller().ntpSetEnabledPreference(true))
+      {
+        ctx.controller().ntpConfigure(false);
+        ctx.printError(507, "Failed to enable NTP");
+        return;
+      }
+      ctx.printOK("ntp enable");
+      ctx.printBody("status: enabled");
+      if (ctx.controller().ntpWaitForSync(30000))
+      {
+        struct tm nowLocal = {};
+        if (getLocalTime(&nowLocal, 1000))
+        {
+          time_t nowEpoch = mktime(&nowLocal);
+          char iso[48];
+          if (formatLocalTimeIso(nowEpoch, iso, sizeof(iso)))
+          {
+            char syncLine[64];
+            snprintf(syncLine, sizeof(syncLine), "synced: %s", iso);
+            ctx.printBody(syncLine);
+          }
+        }
+      }
+      else
+      {
+        ctx.printBody("synced: pending");
+      }
+    }
+
+    static void handleNtpDisable(Context &ctx)
+    {
+      if (ctx.argc() != 0)
+      {
+        ctx.printError(400, "Usage: ntp disable");
+        return;
+      }
+      if (!ctx.controller().ntpSetEnabledPreference(false))
+      {
+        ctx.printError(507, "Failed to disable NTP");
+        return;
+      }
+      ctx.controller().ntpConfigure(false);
+      ctx.printOK("ntp disable");
+      ctx.printBody("status: disabled");
+    }
+
+    static void handleNtpAuto(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: ntp auto <on|off>");
+        return;
+      }
+      bool enable;
+      const auto &arg = ctx.arg(0);
+      if (arg.equals("on"))
+      {
+        enable = true;
+      }
+      else if (arg.equals("off"))
+      {
+        enable = false;
+      }
+      else if (!arg.toBool(enable))
+      {
+        ctx.printError(400, "Expected on/off");
+        return;
+      }
+      if (!ctx.controller().ntpSetAutoPreference(enable))
+      {
+        ctx.printError(507, "Failed to update preference");
+        return;
+      }
+      if (enable)
+      {
+        ctx.controller().ntpReconfigureIfNeeded();
+      }
+      ctx.printOK("ntp auto");
+      char line[48];
+      snprintf(line, sizeof(line), "auto: %s", enable ? "on" : "off");
       ctx.printBody(line);
     }
 #endif
@@ -4430,6 +4916,16 @@ namespace esp32serialctl
            ": Disconnect from Wi-Fi"},
           {"wifi", "status", &ESP32SerialCtl::handleWifiStatus,
            ": Show Wi-Fi connection status"},
+          {"ntp", "status", &ESP32SerialCtl::handleNtpStatus,
+           ": Show NTP configuration"},
+          {"ntp", "set", &ESP32SerialCtl::handleNtpSet,
+           "<server> [server2] [server3] : Configure NTP servers"},
+          {"ntp", "enable", &ESP32SerialCtl::handleNtpEnable,
+           ": Enable NTP synchronization"},
+          {"ntp", "disable", &ESP32SerialCtl::handleNtpDisable,
+           ": Disable NTP synchronization"},
+          {"ntp", "auto", &ESP32SerialCtl::handleNtpAuto,
+           "<on|off> : Toggle NTP auto-start"},
 #endif
 #if defined(ESP32SERIALCTL_HAS_STORAGE)
           {"storage", "list", &ESP32SerialCtl::handleStorageList,

@@ -21,3 +21,5 @@
 - (JA) `sys timezone [tz]` コマンドを追加し、NVS への保存・起動時の復元に対応、デフォルトは `ESP32SERIALCTL_DEFAULT_TIMEZONE` で設定可能。
 - (EN) Added `wifi` command suite (`auto/list/add/del/connect/disconnect/status`) with NVS-backed credentials and optional auto-connect on boot.
 - (JA) `wifi` コマンド群（`auto/list/add/del/connect/disconnect/status`）を追加し、NVS による認証情報管理と起動時の自動接続に対応。
+- (EN) Added `ntp` commands (`status/set/enable/disable/auto`) with persistent server list, timezone integration, and web console controls.
+- (JA) `ntp` コマンド（`status/set/enable/disable/auto`）を追加し、サーバー設定の保存やタイムゾーン連携、Web コンソールからの操作に対応。

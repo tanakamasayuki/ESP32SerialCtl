@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "wifi": {
           "title": "Wi-Fi コマンド",
-          "description": "Wi-Fi 接続の状態確認や登録済みアクセスポイントの管理、自動接続設定を行います。",
+          "description": "Wi-Fi 接続の状態確認や登録済みアクセスポイントの管理、自動接続設定を行います。NTP を利用する場合は先に sys timezone でタイムゾーンを設定してください。",
           "ariaTablist": "Wi-Fiコマンド"
         },
         "storage": {
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           },
           "sys-timezone": {
-            "description": "永続化されるタイムゾーンを照会・設定します。起動時の RTC 初期化で利用されます。",
+            "description": "永続化されるタイムゾーンを照会・設定します。起動時の RTC 初期化や NTP 同期で利用されます。",
             "field": {
               "label": "タイムゾーン (例: JST-9/CST-8/UTC+0)",
               "placeholder": "JST-9"
@@ -277,6 +277,62 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "現在の Wi-Fi 接続を切断します。",
             "actions": {
               "run": "wifi disconnect を送信"
+            }
+          },
+          "ntp": {
+            "status": {
+              "description": "NTP の自動設定や同期状態、利用中のサーバーを表示します。利用前に sys timezone を設定してください。",
+              "actions": {
+                "run": "ntp status を送信"
+              }
+            },
+            "set": {
+              "description": "NTP サーバーを最大 3 台まで登録します。先に sys timezone を設定してください。",
+              "fields": {
+                "server1": {
+                  "label": "サーバー 1",
+                  "placeholder": "pool.ntp.org"
+                },
+                "server2": {
+                  "label": "サーバー 2 (任意)",
+                  "placeholder": ""
+                },
+                "server3": {
+                  "label": "サーバー 3 (任意)",
+                  "placeholder": ""
+                }
+              },
+              "actions": {
+                "run": "ntp set を送信"
+              },
+              "errors": {
+                "serverRequired": "サーバー名を入力してください。"
+              }
+            },
+            "enable": {
+              "description": "NTP 同期を開始します。sys timezone を設定し、Wi-Fi 接続を確認してください。",
+              "actions": {
+                "run": "ntp enable を送信"
+              }
+            },
+            "disable": {
+              "description": "NTP 同期を停止します。",
+              "actions": {
+                "run": "ntp disable を送信"
+              }
+            },
+            "auto": {
+              "description": "起動時に NTP を自動設定するかを切り替えます。",
+              "fields": {
+                "mode": {
+                  "label": "自動設定",
+                  "optionOn": "on",
+                  "optionOff": "off"
+                }
+              },
+              "actions": {
+                "run": "ntp auto を送信"
+              }
             }
           }
         },
@@ -576,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "wifi": {
           "title": "Wi-Fi Commands",
-          "description": "Check connection status, manage stored access points, and control auto-connect behavior.",
+          "description": "Inspect connection status, manage stored access points, and control auto-connect behavior. Configure sys timezone before using NTP features.",
           "ariaTablist": "Wi-Fi Commands"
         },
         "storage": {
@@ -648,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           },
           "sys-timezone": {
-            "description": "Inspect or update the persisted timezone used during startup initialization.",
+            "description": "Inspect or update the persisted timezone used during startup initialization and NTP synchronization.",
             "field": {
               "label": "Timezone (e.g. JST-9/CST-8/UTC+0)",
               "placeholder": "JST-9"
@@ -754,6 +810,62 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "Disconnect from the current Wi-Fi network.",
             "actions": {
               "run": "Send wifi disconnect"
+            }
+          },
+          "ntp": {
+            "status": {
+              "description": "Show NTP auto settings, sync status, and configured servers. Set sys timezone first before enabling NTP.",
+              "actions": {
+                "run": "Send ntp status"
+              }
+            },
+            "set": {
+              "description": "Store up to three NTP servers. Configure sys timezone first.",
+              "fields": {
+                "server1": {
+                  "label": "Server 1",
+                  "placeholder": "pool.ntp.org"
+                },
+                "server2": {
+                  "label": "Server 2 (optional)",
+                  "placeholder": ""
+                },
+                "server3": {
+                  "label": "Server 3 (optional)",
+                  "placeholder": ""
+                }
+              },
+              "actions": {
+                "run": "Send ntp set"
+              },
+              "errors": {
+                "serverRequired": "Enter a primary server."
+              }
+            },
+            "enable": {
+              "description": "Enable NTP synchronization. Ensure sys timezone is set and Wi-Fi is connected.",
+              "actions": {
+                "run": "Send ntp enable"
+              }
+            },
+            "disable": {
+              "description": "Disable NTP synchronization.",
+              "actions": {
+                "run": "Send ntp disable"
+              }
+            },
+            "auto": {
+              "description": "Toggle automatic NTP configuration on startup.",
+              "fields": {
+                "mode": {
+                  "label": "Auto setting",
+                  "optionOn": "on",
+                  "optionOff": "off"
+                }
+              },
+              "actions": {
+                "run": "Send ntp auto"
+              }
             }
           }
         },
@@ -1053,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "wifi": {
           "title": "Wi-Fi 指令",
-          "description": "查看连接状态、管理已保存的接入点，并控制开机自动连接。",
+          "description": "查看连接状态、管理已保存的接入点，并控制开机自动连接。启用 NTP 前请先通过 sys timezone 设置时区。",
           "ariaTablist": "Wi-Fi 指令"
         },
         "storage": {
@@ -1125,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           },
           "sys-timezone": {
-            "description": "查询或更新启动时复用的持久化时区。",
+            "description": "查询或更新启动时复用的持久化时区，并用于 NTP 同步。",
             "field": {
               "label": "时区 (例如: JST-9/CST-8/UTC+0)",
               "placeholder": "JST-9"
@@ -1231,6 +1343,62 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "断开当前的 Wi-Fi 连接。",
             "actions": {
               "run": "发送 wifi disconnect"
+            }
+          },
+          "ntp": {
+            "status": {
+              "description": "显示 NTP 自动设置、同步状态及当前使用的服务器。启用前请先设置 sys timezone。",
+              "actions": {
+                "run": "发送 ntp status"
+              }
+            },
+            "set": {
+              "description": "注册最多 3 个 NTP 服务器，使用前请先设置 sys timezone。",
+              "fields": {
+                "server1": {
+                  "label": "服务器 1",
+                  "placeholder": "pool.ntp.org"
+                },
+                "server2": {
+                  "label": "服务器 2 (可选)",
+                  "placeholder": ""
+                },
+                "server3": {
+                  "label": "服务器 3 (可选)",
+                  "placeholder": ""
+                }
+              },
+              "actions": {
+                "run": "发送 ntp set"
+              },
+              "errors": {
+                "serverRequired": "请输入主要服务器。"
+              }
+            },
+            "enable": {
+              "description": "启用 NTP 同步。请确认已设置 sys timezone 且 Wi-Fi 已连接。",
+              "actions": {
+                "run": "发送 ntp enable"
+              }
+            },
+            "disable": {
+              "description": "停止 NTP 同步。",
+              "actions": {
+                "run": "发送 ntp disable"
+              }
+            },
+            "auto": {
+              "description": "切换开机时是否自动配置 NTP。",
+              "fields": {
+                "mode": {
+                  "label": "自动配置",
+                  "optionOn": "on",
+                  "optionOff": "off"
+                }
+              },
+              "actions": {
+                "run": "发送 ntp auto"
+              }
             }
           }
         },
@@ -1847,6 +2015,16 @@ OK fs ls
   const wifiConnectSsidInput = document.querySelector('#wifi-connect-ssid');
   const wifiConnectKeyInput = document.querySelector('#wifi-connect-key');
   const wifiConnectRunButton = document.querySelector('#wifi-connect-run');
+  const ntpSetServerInputs = [
+    document.querySelector('#ntp-set-server1'),
+    document.querySelector('#ntp-set-server2'),
+    document.querySelector('#ntp-set-server3')
+  ];
+  const ntpSetRunButton = document.querySelector('#ntp-set-run');
+  const ntpEnableRunButton = document.querySelector('#ntp-enable-run');
+  const ntpDisableRunButton = document.querySelector('#ntp-disable-run');
+  const ntpAutoSelect = document.querySelector('#ntp-auto-select');
+  const ntpAutoRunButton = document.querySelector('#ntp-auto-run');
 
   const helpElements = {
     helpButton: document.querySelector('#command-help-help .card-actions button'),
@@ -1974,7 +2152,8 @@ OK fs ls
     'sys-timezone',
     'sys-mem',
     'wifi-status',
-    'wifi-list'
+    'wifi-list',
+    'ntp-status'
   ]);
   let autoCommandQueue = [];
 
@@ -2203,7 +2382,14 @@ OK fs ls
     'wifi-list': `OK wifi list
 | entries: 2
 | #0 slot:0 ssid:DemoNet
-| #1 slot:1 ssid:Guest`
+| #1 slot:1 ssid:Guest`,
+    'ntp-status': `OK ntp status
+| auto: on
+| enabled: on
+| timezone: JST-9
+| server0: pool.ntp.org
+| running: yes
+| sync: completed`
   };
 
   const extractPipeValue = (raw, key) => {
@@ -2366,6 +2552,8 @@ OK fs ls
     }
   };
 
+  const helpAutoIds = new Set(['help', 'question']);
+
   document.querySelectorAll('.command-layout').forEach((layout) => {
     const commandTabs = layout.querySelectorAll('.command-tab');
     const commandPanels = layout.querySelectorAll('.command-panel');
@@ -2394,6 +2582,8 @@ OK fs ls
         updateResultSection(activePanel, commandId);
         if (layout.closest('#tab-system') || layout.closest('#tab-wifi')) {
           enqueueAutoCommand(commandId);
+        } else if (helpAutoIds.has(commandId) && connectionState === 'connected') {
+          sendSystemCommand(commandId, { panel: activePanel });
         }
       }
     };
@@ -3044,6 +3234,13 @@ OK fs ls
     if (state === 'connected') {
       if (currentTab === 'system' || currentTab === 'wifi') {
         triggerActiveAutoCommand(currentTab);
+      }
+      if (currentTab === 'help') {
+        const activeHelpPanel = document.querySelector('#tab-help .command-panel.is-active');
+        const commandId = activeHelpPanel?.dataset.command;
+        if (commandId && helpAutoIds.has(commandId)) {
+          sendSystemCommand(commandId, { panel: activeHelpPanel });
+        }
       }
       if (currentTab === 'storage') {
         runStorageAutoFetch().catch(() => {
@@ -3732,6 +3929,61 @@ OK fs ls
     });
   };
 
+  const handleNtpAutoRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const mode = ntpAutoSelect?.value === 'off' ? 'off' : 'on';
+    appendLogEntry('debug', `UI: ntp auto -> ${mode}`);
+    sendSystemCommand('ntp-auto', {
+      commandText: `ntp auto ${mode}`,
+      button: ntpAutoRunButton
+    });
+  };
+
+  const handleNtpSetRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const servers = ntpSetServerInputs.map((input) => (input ? input.value.trim() : ''));
+    if (!servers[0]) {
+      appendLogEntry('error', translate('commands.wifi.ntp.set.errors.serverRequired'));
+      return;
+    }
+    const args = servers.filter((value, index) => value || index === 0).map((value) => quoteArgument(value));
+    appendLogEntry('debug', `UI: ntp set -> ${args.join(' ')}`);
+    sendSystemCommand('ntp-set', {
+      commandText: `ntp set ${args.join(' ')}`,
+      button: ntpSetRunButton
+    });
+  };
+
+  const handleNtpEnableRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    appendLogEntry('debug', 'UI: ntp enable');
+    sendSystemCommand('ntp-enable', {
+      commandText: 'ntp enable',
+      button: ntpEnableRunButton
+    });
+  };
+
+  const handleNtpDisableRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    appendLogEntry('debug', 'UI: ntp disable');
+    sendSystemCommand('ntp-disable', {
+      commandText: 'ntp disable',
+      button: ntpDisableRunButton
+    });
+  };
+
   const attachCommandButtonHandler = (button, handler) => {
     if (!button || typeof handler !== 'function') {
       return;
@@ -3756,6 +4008,10 @@ OK fs ls
   attachCommandButtonHandler(wifiAddRunButton, handleWifiAddRun);
   attachCommandButtonHandler(wifiDelRunButton, handleWifiDelRun);
   attachCommandButtonHandler(wifiConnectRunButton, handleWifiConnectRun);
+  attachCommandButtonHandler(ntpAutoRunButton, handleNtpAutoRun);
+  attachCommandButtonHandler(ntpSetRunButton, handleNtpSetRun);
+  attachCommandButtonHandler(ntpEnableRunButton, handleNtpEnableRun);
+  attachCommandButtonHandler(ntpDisableRunButton, handleNtpDisableRun);
 
   commandPanels.forEach(({ button }, commandId) => {
     if (!button) {
