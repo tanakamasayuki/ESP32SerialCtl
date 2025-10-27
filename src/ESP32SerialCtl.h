@@ -50,8 +50,11 @@
 #define ESP32SERIALCTL_HAS_WIFI 1
 #endif
 
-#if defined(ESP32SERIALCTL_ENABLE_PREFERENCES) || defined(Preferences_h) || defined(_PREFERENCES_H_) || \
-    defined(_PREFERENCES_H)
+#if !defined(ESP32SERIALCTL_DEFAULT_TIMEZONE)
+#define ESP32SERIALCTL_DEFAULT_TIMEZONE ""
+#endif
+
+#if !defined(ESP32SERIALCTL_DISABLE_PREFERENCES)
 #include <Preferences.h>
 #define ESP32SERIALCTL_HAS_PREFERENCES 1
 #endif
@@ -127,6 +130,8 @@ namespace esp32serialctl
 {
 
   inline constexpr const char kPrefsNamespace[] = "serial_ctl";
+  inline constexpr const char kPrefsTimezoneKey[] = "tz";
+  inline constexpr const char kPrefsDefaultTimezone[] = ESP32SERIALCTL_DEFAULT_TIMEZONE;
 
   enum class NumberUnit : uint8_t
   {
@@ -288,6 +293,7 @@ namespace esp32serialctl
 
     void service()
     {
+      ensureInitialized();
       while (input_.available() > 0)
       {
         int raw = input_.read();
@@ -300,15 +306,83 @@ namespace esp32serialctl
       flushPromptIfNeeded();
     }
 
+    void ensureInitialized()
+    {
+      if (initialized_)
+      {
+        return;
+      }
+      initialized_ = true;
+      runInitialSetup();
+    }
+
+    void runInitialSetup()
+    {
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      applyStoredTimezone();
+#endif
+    }
+
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+    void applyStoredTimezone()
+    {
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, true))
+      {
+        return;
+      }
+      String timezone = prefs.getString(kPrefsTimezoneKey, kPrefsDefaultTimezone);
+      prefs.end();
+      if (timezone.length() > 0)
+      {
+        applyTimezoneEnv(timezone.c_str());
+      }
+    }
+
+    bool saveTimezone(const char *tz)
+    {
+      if (!tz || !*tz)
+      {
+        return false;
+      }
+      Preferences prefs;
+      if (!prefs.begin(kPrefsNamespace, false))
+      {
+        return false;
+      }
+      const size_t expected = strlen(tz);
+      const size_t written = prefs.putString(kPrefsTimezoneKey, tz);
+      prefs.end();
+      return written == expected;
+    }
+
+    static bool applyTimezoneEnv(const char *tz)
+    {
+      if (!tz || !*tz)
+      {
+        return false;
+      }
+      if (setenv("TZ", tz, 1) != 0)
+      {
+        return false;
+      }
+      tzset();
+      return true;
+    }
+#endif
+
 #if defined(ESP32SERIALCTL_HAS_WIFI)
     WiFiMulti wifiMulti;
     void wifi_begin(uint16_t timeout_ms, wifi_mode_t mode, bool autoReconnect)
     {
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
       Preferences prefs;
+#endif
 
       WiFi.mode(mode);
       WiFi.setAutoReconnect(autoReconnect);
 
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
       prefs.begin(kPrefsNamespace, true);
       for (int i = 0; i < 8; i++)
       {
@@ -320,6 +394,7 @@ namespace esp32serialctl
         }
       }
       prefs.end();
+#endif
 
       unsigned long start = millis();
       while (WiFi.status() != WL_CONNECTED)
@@ -363,6 +438,7 @@ namespace esp32serialctl
 
     void execute(const char *line)
     {
+      ensureInitialized();
       if (!line)
       {
         return;
@@ -1067,6 +1143,7 @@ namespace esp32serialctl
     Option options_[MaxTokens];
     size_t optionCount_ = 0;
     bool promptPending_ = true;
+    bool initialized_ = false;
   };
 
   template <size_t MaxLineLength = 128, size_t MaxTokens = 16>
@@ -3105,6 +3182,60 @@ namespace esp32serialctl
       ctx.printBody(line);
     }
 
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+    static void printTimezone(Context &ctx)
+    {
+      const char *current = getenv("TZ");
+      if (!current || !*current)
+      {
+        current = kPrefsDefaultTimezone;
+      }
+      ctx.printOK("sys timezone");
+      char line[64];
+      snprintf(line, sizeof(line), "tz: %s", (*current) ? current : "(none)");
+      ctx.printBody(line);
+    }
+
+    static void handleSysTimezone(Context &ctx)
+    {
+      if (ctx.argc() == 0)
+      {
+        printTimezone(ctx);
+        return;
+      }
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: sys timezone [tz]");
+        return;
+      }
+
+      const auto &arg = ctx.arg(0);
+      const char *tz = arg.c_str();
+      if (!tz || !*tz)
+      {
+        ctx.printError(400, "Timezone required");
+        return;
+      }
+
+      if (!Base::applyTimezoneEnv(tz))
+      {
+        ctx.printError(500, "Failed to apply timezone");
+        return;
+      }
+
+      if (!ctx.controller().saveTimezone(tz))
+      {
+        ctx.printError(507, "Failed to save timezone");
+        return;
+      }
+
+      ctx.printOK("sys timezone");
+      char line[64];
+      snprintf(line, sizeof(line), "tz: %s", tz);
+      ctx.printBody(line);
+    }
+#endif
+
     static void handleSysMem(Context &ctx)
     {
       char lines[24][96];
@@ -3669,6 +3800,10 @@ namespace esp32serialctl
            ": Show local time (ISO 8601)"},
           {"sys", "mem", &ESP32SerialCtl::handleSysMem,
            ": Show heap and PSRAM usage"},
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+          {"sys", "timezone", &ESP32SerialCtl::handleSysTimezone,
+           "[tz] : Show or set timezone"},
+#endif
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},
 #if defined(ESP32SERIALCTL_HAS_STORAGE)

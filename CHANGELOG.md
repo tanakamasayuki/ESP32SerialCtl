@@ -17,3 +17,5 @@
 - (JA) ストレージ管理（`storage list/use/status`）とファイルシステム操作（`fs ls/cat/write/rm/stat/mkdir/mv`）、Base64 転送ヘルパー（`fs b64read/b64write`）を追加。
 - (EN) `fs hash` now reports the file size alongside `sha256` / `md5` digests.
 - (JA) `fs hash` が `sha256` / `md5` のダイジェストに加えてファイルサイズも表示するよう改善。
+- (EN) Added `sys timezone [tz]` with persisted NVS storage, startup restore, and configurable default via `ESP32SERIALCTL_DEFAULT_TIMEZONE`.
+- (JA) `sys timezone [tz]` コマンドを追加し、NVS への保存・起動時の復元に対応、デフォルトは `ESP32SERIALCTL_DEFAULT_TIMEZONE` で設定可能。
