@@ -51,7 +51,7 @@
           <li>
             <button class="tab-button is-active" role="tab" aria-selected="true" data-tab="system">
               <span class="tab-label" data-i18n="nav.tabs.system.label">システム</span>
-              <span class="tab-desc" data-i18n="nav.tabs.system.desc">sys info / uptime / reset</span>
+              <span class="tab-desc" data-i18n="nav.tabs.system.desc">sys info / uptime / time / timezone / reset</span>
             </button>
           </li>
           <li>
@@ -75,7 +75,7 @@
           <li>
             <button class="tab-button" role="tab" data-tab="help">
               <span class="tab-label" data-i18n="nav.tabs.help.label">ヘルプ</span>
-              <span class="tab-desc" data-i18n="nav.tabs.help.desc">help / ?</span>
+              <span class="tab-desc" data-i18n="nav.tabs.help.desc">help / log</span>
             </button>
           </li>
         </ul>
@@ -97,17 +97,21 @@
                 data-command="sys-info" aria-controls="command-system-sys-info">
                 sys info
               </button>
+              <button id="tab-system-sys-mem" class="command-tab" role="tab" aria-selected="false"
+                data-command="sys-mem" aria-controls="command-system-sys-mem">
+                sys mem
+              </button>
               <button id="tab-system-sys-uptime" class="command-tab" role="tab" aria-selected="false"
                 data-command="sys-uptime" aria-controls="command-system-sys-uptime">
                 sys uptime
               </button>
+              <button id="tab-system-sys-timezone" class="command-tab" role="tab" aria-selected="false"
+                data-command="sys-timezone" aria-controls="command-system-sys-timezone">
+                sys timezone
+              </button>
               <button id="tab-system-sys-time" class="command-tab" role="tab" aria-selected="false"
                 data-command="sys-time" aria-controls="command-system-sys-time">
                 sys time
-              </button>
-              <button id="tab-system-sys-mem" class="command-tab" role="tab" aria-selected="false"
-                data-command="sys-mem" aria-controls="command-system-sys-mem">
-                sys mem
               </button>
               <button id="tab-system-sys-reset" class="command-tab" role="tab" aria-selected="false"
                 data-command="sys-reset" aria-controls="command-system-sys-reset">
@@ -162,15 +166,69 @@
               </div>
             </article>
 
+            <article class="card command-panel" id="command-system-sys-timezone" data-command="sys-timezone"
+              data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-timezone">
+              <h3>sys timezone [tz]</h3>
+              <p data-i18n="commands.system.sys-timezone.description">
+                永続化されたタイムゾーンを取得・設定します。RTC 初期化時にも利用されます。
+              </p>
+              <div class="form-field">
+                <label for="sys-timezone-input" data-i18n="commands.system.sys-timezone.field.label">タイムゾーン (例:
+                  JST-9)</label>
+                <input id="sys-timezone-input" type="text" placeholder=""
+                  data-i18n-placeholder="commands.system.sys-timezone.field.placeholder" />
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" id="sys-timezone-get"
+                  data-i18n="commands.system.sys-timezone.actions.get">
+                  タイムゾーンを取得
+                </button>
+                <button class="btn btn-primary" type="button" id="sys-timezone-set"
+                  data-i18n="commands.system.sys-timezone.actions.set">
+                  タイムゾーンを設定
+                </button>
+                <button class="btn btn-secondary" type="button" id="sys-timezone-use-browser" data-system-utility="true"
+                  data-i18n="commands.system.sys-timezone.actions.useBrowser">
+                  ブラウザタイムゾーンを入力
+                </button>
+              </div>
+              <div class="result-section" data-result="sys-timezone">
+                <header class="result-header">
+                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                  <span class="result-timestamp" data-result-timestamp>--:--</span>
+                </header>
+                <table class="kv-table" data-result-table hidden>
+                  <tbody></tbody>
+                </table>
+                <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
+              </div>
+            </article>
+
             <article class="card command-panel" id="command-system-sys-time" data-command="sys-time"
               data-auto-fetch="true" role="tabpanel" aria-labelledby="tab-system-sys-time">
-              <h3>sys time</h3>
+              <h3>sys time [datetime]</h3>
               <p data-i18n="commands.system.sys-time.description">
-                現在時刻を ISO 8601 形式で取得します。タイムゾーンや RTC の同期確認に使用します。
+                現在時刻を ISO 8601 形式で取得・設定します。RTC やタイムゾーンの確認に利用できます。
               </p>
+              <div class="form-field">
+                <label for="sys-time-input" data-i18n="commands.system.sys-time.field.label">日時
+                  (YYYY-MM-DDTHH:MM:SS)</label>
+                <input id="sys-time-input" type="text" placeholder=""
+                  data-i18n-placeholder="commands.system.sys-time.field.placeholder" />
+              </div>
               <div class="card-actions">
-                <button class="btn btn-outline" disabled data-i18n="commands.system.sys-time.action">sys time
-                  を送信</button>
+                <button class="btn btn-outline" type="button" id="sys-time-get"
+                  data-i18n="commands.system.sys-time.actions.get">
+                  現在時刻を取得
+                </button>
+                <button class="btn btn-primary" type="button" id="sys-time-set"
+                  data-i18n="commands.system.sys-time.actions.set">
+                  指定時刻を設定
+                </button>
+                <button class="btn btn-secondary" type="button" id="sys-time-use-browser" data-system-utility="true"
+                  data-i18n="commands.system.sys-time.actions.useBrowser">
+                  ブラウザ時刻を入力
+                </button>
               </div>
               <div class="result-section" data-result="sys-time">
                 <header class="result-header">
@@ -543,8 +601,10 @@
                   <select id="gpio-mode-select" disabled>
                     <option value="input" data-i18n="peripherals.options.gpioMode.input">input</option>
                     <option value="output" data-i18n="peripherals.options.gpioMode.output">output</option>
-                    <option value="input_pullup" data-i18n="peripherals.options.gpioMode.input_pullup">input_pullup</option>
-                    <option value="input_pulldown" data-i18n="peripherals.options.gpioMode.input_pulldown">input_pulldown</option>
+                    <option value="input_pullup" data-i18n="peripherals.options.gpioMode.input_pullup">input_pullup
+                    </option>
+                    <option value="input_pulldown" data-i18n="peripherals.options.gpioMode.input_pulldown">
+                      input_pulldown</option>
                   </select>
                 </div>
               </div>
@@ -586,7 +646,8 @@
                 </div>
               </div>
               <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioWrite">gpio write を送信</button>
+                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioWrite">gpio write
+                  を送信</button>
               </div>
             </article>
 
@@ -600,7 +661,8 @@
                   data-i18n-placeholder="peripherals.placeholders.pin" />
               </div>
               <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle を送信</button>
+                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
+                  を送信</button>
               </div>
             </article>
 
@@ -713,7 +775,8 @@
                 <span data-i18n="peripherals.notes.stream">チャンク送信の進捗やエラーを表示予定</span>
               </div>
               <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbStreamStart">rgb stream を開始</button>
+                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbStreamStart">rgb stream
+                  を開始</button>
               </div>
             </article>
           </div>
@@ -730,8 +793,6 @@
             <div class="command-tablist" role="tablist" aria-label="ヘルプコマンド" data-i18n-aria-label="help.tabsLabel">
               <button id="tab-help-help" class="command-tab is-active" role="tab" aria-selected="true"
                 data-command="help" aria-controls="command-help-help">help</button>
-              <button id="tab-help-question" class="command-tab" role="tab" aria-selected="false"
-                data-command="question" aria-controls="command-help-question">?</button>
               <button id="tab-help-log" class="command-tab" role="tab" aria-selected="false" data-command="log"
                 aria-controls="command-help-log">log</button>
               <button id="tab-help-docs" class="command-tab" role="tab" aria-selected="false" data-command="docs"
@@ -748,7 +809,8 @@
                 <button class="btn btn-outline" data-i18n="commands.help.help.action">help を送信</button>
               </div>
               <div class="console-area console-area--light">
-                <pre class="console-output" data-help-output data-i18n="commands.help.help.placeholder">コマンド一覧がここに表示されます</pre>
+                <pre class="console-output" data-help-output
+                  data-i18n="commands.help.help.placeholder">コマンド一覧がここに表示されます</pre>
               </div>
             </article>
 

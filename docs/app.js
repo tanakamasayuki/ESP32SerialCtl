@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "システム",
-            "desc": "sys info / uptime / reset"
+            "desc": "sys info / uptime / time / timezone / reset"
           },
           "storage": {
             "label": "ストレージ",
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "help": {
             "label": "ヘルプ",
-            "desc": "help / ?"
+            "desc": "help / log"
           }
         }
       },
@@ -146,8 +146,35 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "sys uptime を送信"
           },
           "sys-time": {
-            "description": "現在時刻を ISO 8601 形式で取得します。タイムゾーンや RTC の同期確認に使用します。",
-            "action": "sys time を送信"
+            "description": "現在時刻を ISO 8601 形式で取得・設定します。RTC やタイムゾーンの確認にも利用できます。",
+            "field": {
+              "label": "日時 (YYYY-MM-DDTHH:MM:SS)",
+              "placeholder": ""
+            },
+            "actions": {
+              "get": "現在時刻を取得",
+              "set": "指定時刻を設定",
+              "useBrowser": "ブラウザ時刻を入力"
+            },
+            "errors": {
+              "required": "日時を入力してください。",
+              "invalid": "YYYY-MM-DDTHH:MM:SS 形式で入力してください。"
+            }
+          },
+          "sys-timezone": {
+            "description": "永続化されるタイムゾーンを照会・設定します。起動時の RTC 初期化で利用されます。",
+            "field": {
+              "label": "タイムゾーン (例: JST-9/CST-8/UTC+0)",
+              "placeholder": ""
+            },
+            "actions": {
+              "get": "タイムゾーンを取得",
+              "set": "タイムゾーンを設定",
+              "useBrowser": "ブラウザタイムゾーンを入力"
+            },
+            "errors": {
+              "required": "タイムゾーンを入力してください。"
+            }
           },
           "sys-mem": {
             "description": "ヒープおよび PSRAM の総量・空き・最小値・最大ブロックを確認します。",
@@ -422,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "System",
-            "desc": "sys info / uptime / reset"
+            "desc": "sys info / uptime / time / timezone / reset"
           },
           "storage": {
             "label": "Storage",
@@ -438,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "help": {
             "label": "Help",
-            "desc": "help / ?"
+            "desc": "help / log"
           }
         }
       },
@@ -501,8 +528,35 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "Send sys uptime"
           },
           "sys-time": {
-            "description": "Fetch current time in ISO 8601 format to verify timezone and RTC sync.",
-            "action": "Send sys time"
+            "description": "Fetch or set the current time in ISO 8601 format for RTC and timezone validation.",
+            "field": {
+              "label": "Datetime (YYYY-MM-DDTHH:MM:SS)",
+              "placeholder": ""
+            },
+            "actions": {
+              "get": "Fetch current time",
+              "set": "Apply datetime",
+              "useBrowser": "Use browser time"
+            },
+            "errors": {
+              "required": "Enter a datetime value.",
+              "invalid": "Use YYYY-MM-DDTHH:MM:SS format."
+            }
+          },
+          "sys-timezone": {
+            "description": "Inspect or update the persisted timezone used during startup initialization.",
+            "field": {
+              "label": "Timezone (e.g. JST-9/CST-8/UTC+0)",
+              "placeholder": ""
+            },
+            "actions": {
+              "get": "Fetch timezone",
+              "set": "Apply timezone",
+              "useBrowser": "Use browser timezone"
+            },
+            "errors": {
+              "required": "Enter a timezone value."
+            }
           },
           "sys-mem": {
             "description": "Inspect heap and PSRAM totals, free space, minimum, and largest block.",
@@ -777,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "系统",
-            "desc": "sys info / uptime / reset"
+            "desc": "sys info / uptime / time / timezone / reset"
           },
           "storage": {
             "label": "存储",
@@ -793,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "help": {
             "label": "帮助",
-            "desc": "help / ?"
+            "desc": "help / log"
           }
         }
       },
@@ -856,8 +910,35 @@ document.addEventListener('DOMContentLoaded', () => {
             "action": "发送 sys uptime"
           },
           "sys-time": {
-            "description": "以 ISO 8601 格式获取当前时间，用于确认时区与 RTC 同步。",
-            "action": "发送 sys time"
+            "description": "以 ISO 8601 格式获取或设置当前时间，可用于校验时区与 RTC。",
+            "field": {
+              "label": "日期时间 (YYYY-MM-DDTHH:MM:SS)",
+              "placeholder": ""
+            },
+            "actions": {
+              "get": "获取当前时间",
+              "set": "设置日期时间",
+              "useBrowser": "填入浏览器时间"
+            },
+            "errors": {
+              "required": "请输入日期时间。",
+              "invalid": "请使用 YYYY-MM-DDTHH:MM:SS 格式。"
+            }
+          },
+          "sys-timezone": {
+            "description": "查询或更新启动时复用的持久化时区。",
+            "field": {
+              "label": "时区 (例如: JST-9/CST-8/UTC+0)",
+              "placeholder": ""
+            },
+            "actions": {
+              "get": "获取时区",
+              "set": "设置时区",
+              "useBrowser": "填入浏览器时区"
+            },
+            "errors": {
+              "required": "请输入时区。"
+            }
           },
           "sys-mem": {
             "description": "查看堆与 PSRAM 的总量、空闲、最小值以及最大块。",
@@ -1436,7 +1517,9 @@ OK fs ls
   const statusPill = document.querySelector('.status-pill');
   const logOutput = document.querySelector('[data-log-output]');
   const systemCommandButtons = Array.from(
-    document.querySelectorAll('#tab-system .command-panel .card-actions button')
+    document.querySelectorAll(
+      '#tab-system .command-panel .card-actions button:not([data-system-utility="true"])'
+    )
   );
   const systemCommandPanels = new Map();
   systemCommandButtons.forEach((button) => {
@@ -1448,6 +1531,13 @@ OK fs ls
     button.disabled = false;
     button.removeAttribute('disabled');
   });
+
+  const sysTimeInput = document.querySelector('#sys-time-input');
+  const sysTimeSetButton = document.querySelector('#sys-time-set');
+  const sysTimeUseBrowserButton = document.querySelector('#sys-time-use-browser');
+  const sysTimezoneInput = document.querySelector('#sys-timezone-input');
+  const sysTimezoneSetButton = document.querySelector('#sys-timezone-set');
+  const sysTimezoneUseBrowserButton = document.querySelector('#sys-timezone-use-browser');
 
   const helpElements = {
     helpButton: document.querySelector('#command-help-help .card-actions button'),
@@ -1568,7 +1658,7 @@ OK fs ls
   let connectionState = 'disconnected';
   let refreshConnectionLabel = () => { };
 
-  const systemAutoCommandIds = new Set(['sys-info', 'sys-uptime', 'sys-time', 'sys-mem']);
+  const systemAutoCommandIds = new Set(['sys-info', 'sys-uptime', 'sys-time', 'sys-timezone', 'sys-mem']);
   let systemAutoQueue = [];
 
   const resetSystemAutoQueue = () => {
@@ -1766,6 +1856,8 @@ OK fs ls
 | Uptime: 0:23:28 (1408444 ms)`,
     'sys-time': `OK sys time
 | localtime: 1970-01-01T00:23:32+00:00`,
+    'sys-timezone': `OK sys timezone
+| tz: JST-9`,
     'sys-mem': `OK sys mem
 | Heap Total: 306664 bytes
 | Heap Free: 256336 bytes
@@ -1778,6 +1870,110 @@ OK fs ls
 | RTOS Heap Free: 256336 bytes
 | RTOS Heap Min Free: 245608 bytes
 | Task Stack High Water: 3952 words`
+  };
+
+  const extractPipeValue = (raw, key) => {
+    if (!raw) {
+      return '';
+    }
+    const regex = new RegExp(`^\\|\\s*${key}\\s*:\\s*(.+)$`, 'mi');
+    const match = regex.exec(raw);
+    return match ? match[1].trim() : '';
+  };
+
+  const updateSysTimeInputFromOutput = (raw) => {
+    if (!sysTimeInput) {
+      return;
+    }
+    const value = extractPipeValue(raw, 'localtime');
+    if (!value) {
+      return;
+    }
+    const match = value.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+    if (match) {
+      sysTimeInput.value = match[1];
+    } else {
+      sysTimeInput.value = value;
+    }
+  };
+
+  const updateSysTimezoneInputFromOutput = (raw) => {
+    if (!sysTimezoneInput) {
+      return;
+    }
+    const value = extractPipeValue(raw, 'tz');
+    if (value) {
+      sysTimezoneInput.value = value;
+    }
+  };
+
+  const pad2 = (value) => value.toString().padStart(2, '0');
+
+  const formatDateTimeLocalForInput = (date) =>
+    `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(
+      date.getHours()
+    )}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+
+  const TIMEZONE_ABBREVIATION_OVERRIDES = {
+    'Asia/Tokyo': 'JST',
+    'Asia/Seoul': 'KST',
+    'Asia/Shanghai': 'CST',
+    'Asia/Taipei': 'CST',
+    'Asia/Hong_Kong': 'HKT',
+    'Asia/Singapore': 'SGT',
+    'America/New_York': 'EST',
+    'America/Chicago': 'CST',
+    'America/Denver': 'MST',
+    'America/Los_Angeles': 'PST',
+    'America/Phoenix': 'MST',
+    'Europe/London': 'GMT',
+    'Europe/Berlin': 'CET',
+    'Europe/Paris': 'CET',
+    'Australia/Sydney': 'AEST'
+  };
+
+  const resolveAbbreviation = (timeZone) => {
+    if (!timeZone) {
+      return 'UTC';
+    }
+    if (TIMEZONE_ABBREVIATION_OVERRIDES[timeZone]) {
+      return TIMEZONE_ABBREVIATION_OVERRIDES[timeZone];
+    }
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        timeZoneName: 'short'
+      });
+      const parts = formatter.formatToParts(new Date());
+      const zonePart = parts.find((part) => part.type === 'timeZoneName')?.value || '';
+      const letters = zonePart.replace(/[^A-Za-z]/g, '').toUpperCase();
+      if (letters && letters !== 'GMT' && letters.length <= 4) {
+        return letters;
+      }
+    } catch {
+      /* ignore */
+    }
+    const fallback = timeZone.split(/[\\/]/).pop() || 'UTC';
+    const condensed = fallback.replace(/_/g, '').toUpperCase();
+    if (condensed.length >= 2) {
+      return condensed.slice(0, Math.min(4, condensed.length));
+    }
+    return 'UTC';
+  };
+
+  const computeBrowserTimezoneString = () => {
+    const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
+    const abbreviation = resolveAbbreviation(timeZone);
+    const offsetMinutes = new Date().getTimezoneOffset();
+    const absoluteMinutes = Math.abs(offsetMinutes);
+    const hours = Math.trunc(absoluteMinutes / 60);
+    const minutes = absoluteMinutes % 60;
+    let sign = '';
+    if (offsetMinutes !== 0) {
+      sign = offsetMinutes <= 0 ? '-' : '+';
+    }
+    const minutePart = minutes ? `:${minutes.toString().padStart(2, '0')}` : '';
+    return `${abbreviation}${sign}${hours}${minutePart}`;
   };
 
   const parsePipeTable = (raw) =>
@@ -3032,20 +3228,109 @@ OK fs ls
     });
   };
 
-  const sendSystemCommand = (commandId) => {
+  const sendSystemCommand = (commandId, options = {}) => {
     const entry = systemCommandPanels.get(commandId);
     if (!entry) {
       return;
     }
-    const commandText = commandId.replace(/-/g, ' ');
+    const { commandText: overrideText, button: overrideButton, onFinalize } = options;
+    const commandText = overrideText || commandId.replace(/-/g, ' ');
+    const targetButton = overrideButton || entry.button;
     runSerialCommand(commandText, {
       id: commandId,
       panel: entry.panel,
-      button: entry.button
+      button: targetButton,
+      onFinalize: (result) => {
+        if (!result?.error) {
+          if (commandId === 'sys-time') {
+            updateSysTimeInputFromOutput(result.output);
+          } else if (commandId === 'sys-timezone') {
+            updateSysTimezoneInputFromOutput(result.output);
+          }
+        }
+        if (typeof onFinalize === 'function') {
+          onFinalize(result);
+        }
+      }
     }).catch(() => {
       /* handled via log */
     });
   };
+
+  const fillSysTimeWithBrowserNow = () => {
+    if (!sysTimeInput) {
+      return;
+    }
+    sysTimeInput.value = formatDateTimeLocalForInput(new Date());
+    sysTimeInput.focus();
+  };
+
+  const fillSysTimezoneWithBrowser = () => {
+    if (!sysTimezoneInput) {
+      return;
+    }
+    sysTimezoneInput.value = computeBrowserTimezoneString();
+    sysTimezoneInput.focus();
+  };
+
+  const handleSysTimeSet = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const value = (sysTimeInput?.value || '').trim();
+    if (!value) {
+      appendLogEntry('error', translate('commands.system.sys-time.errors.required'));
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) {
+      appendLogEntry('error', translate('commands.system.sys-time.errors.invalid'));
+      return;
+    }
+    appendLogEntry('debug', `UI: sys time set -> ${value}`);
+    sendSystemCommand('sys-time', {
+      commandText: `sys time ${value}`,
+      button: sysTimeSetButton
+    });
+  };
+
+  const handleSysTimezoneSet = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const value = (sysTimezoneInput?.value || '').trim();
+    if (!value) {
+      appendLogEntry('error', translate('commands.system.sys-timezone.errors.required'));
+      return;
+    }
+    appendLogEntry('debug', `UI: sys timezone set -> ${value}`);
+    sendSystemCommand('sys-timezone', {
+      commandText: `sys timezone ${value}`,
+      button: sysTimezoneSetButton
+    });
+  };
+
+  const attachSystemButtonHandler = (button, handler) => {
+    if (!button || typeof handler !== 'function') {
+      return;
+    }
+    button.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        handler();
+      },
+      { capture: true }
+    );
+  };
+
+  attachSystemButtonHandler(sysTimeUseBrowserButton, fillSysTimeWithBrowserNow);
+  attachSystemButtonHandler(sysTimeSetButton, handleSysTimeSet);
+  attachSystemButtonHandler(sysTimezoneUseBrowserButton, fillSysTimezoneWithBrowser);
+  attachSystemButtonHandler(sysTimezoneSetButton, handleSysTimezoneSet);
 
   systemCommandPanels.forEach(({ button }, commandId) => {
     if (!button) {
