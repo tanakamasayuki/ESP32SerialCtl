@@ -7,11 +7,6 @@ void setup()
 {
     Serial.begin(115200);
     delay(500);
-
-    esp32SerialCtl.wifi_begin();
-
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
 }
 
 void loop()
