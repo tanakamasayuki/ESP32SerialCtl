@@ -38,6 +38,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#if !defined(_WIN32)
+#include <sys/time.h>
+#endif
 #include <soc/soc.h>
 #include <soc/gpio_reg.h>
 
@@ -3118,28 +3121,24 @@ namespace esp32serialctl
       ctx.printBody(buffer);
     }
 
-    static void handleSysTime(Context &ctx)
+    static bool formatLocalTimeIso(time_t now, char *iso, size_t size)
     {
-      time_t now = time(nullptr);
-      if (now == static_cast<time_t>(-1))
+      if (!iso || size == 0)
       {
-        ctx.printError(500, "time unavailable");
-        return;
+        return false;
       }
 
       struct tm localTm;
 #if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32)
       if (!localtime_r(&now, &localTm))
       {
-        ctx.printError(500, "localtime failed");
-        return;
+        return false;
       }
 #else
       struct tm *tmp = localtime(&now);
       if (!tmp)
       {
-        ctx.printError(500, "localtime failed");
-        return;
+        return false;
       }
       localTm = *tmp;
 #endif
@@ -3147,14 +3146,12 @@ namespace esp32serialctl
       char datePart[32];
       if (strftime(datePart, sizeof(datePart), "%Y-%m-%dT%H:%M:%S", &localTm) == 0)
       {
-        ctx.printError(500, "format failed");
-        return;
+        return false;
       }
 
       char zone[8] = {0};
       const size_t zoneLen = strftime(zone, sizeof(zone), "%z", &localTm);
 
-      char iso[48];
       if (zoneLen == 5)
       {
         char zoneFormatted[8];
@@ -3165,15 +3162,142 @@ namespace esp32serialctl
         zoneFormatted[4] = zone[3];
         zoneFormatted[5] = zone[4];
         zoneFormatted[6] = '\0';
-        snprintf(iso, sizeof(iso), "%s%s", datePart, zoneFormatted);
+        snprintf(iso, size, "%s%s", datePart, zoneFormatted);
       }
       else if (zoneLen > 0)
       {
-        snprintf(iso, sizeof(iso), "%s%s", datePart, zone);
+        snprintf(iso, size, "%s%s", datePart, zone);
       }
       else
       {
-        snprintf(iso, sizeof(iso), "%sZ", datePart);
+        snprintf(iso, size, "%sZ", datePart);
+      }
+      return true;
+    }
+
+    static bool parseLocalDateTime(const char *text, struct tm &out)
+    {
+      if (!text)
+      {
+        return false;
+      }
+
+      const size_t len = strlen(text);
+      if (len != 19)
+      {
+        return false;
+      }
+
+      const char sepDate = text[10];
+      if (text[4] != '-' || text[7] != '-' ||
+          (sepDate != 'T' && sepDate != ' ') ||
+          text[13] != ':' || text[16] != ':')
+      {
+        return false;
+      }
+
+      auto parseDigits = [](const char *ptr, size_t length) -> int
+      {
+        int value = 0;
+        for (size_t i = 0; i < length; ++i)
+        {
+          char ch = ptr[i];
+          if (ch < '0' || ch > '9')
+          {
+            return -1;
+          }
+          value = value * 10 + (ch - '0');
+        }
+        return value;
+      };
+
+      const int year = parseDigits(text, 4);
+      const int month = parseDigits(text + 5, 2);
+      const int day = parseDigits(text + 8, 2);
+      const int hour = parseDigits(text + 11, 2);
+      const int minute = parseDigits(text + 14, 2);
+      const int second = parseDigits(text + 17, 2);
+
+      if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31 ||
+          hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59)
+      {
+        return false;
+      }
+
+      struct tm tmValue;
+      memset(&tmValue, 0, sizeof(tmValue));
+      tmValue.tm_year = year - 1900;
+      tmValue.tm_mon = month - 1;
+      tmValue.tm_mday = day;
+      tmValue.tm_hour = hour;
+      tmValue.tm_min = minute;
+      tmValue.tm_sec = second;
+      tmValue.tm_isdst = -1;
+      out = tmValue;
+      return true;
+    }
+
+    static bool setSystemTime(time_t epoch)
+    {
+#if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(__unix__)
+      struct timeval tv;
+      tv.tv_sec = epoch;
+      tv.tv_usec = 0;
+      return settimeofday(&tv, nullptr) == 0;
+#elif defined(CLOCK_REALTIME)
+      struct timespec ts;
+      ts.tv_sec = epoch;
+      ts.tv_nsec = 0;
+      return clock_settime(CLOCK_REALTIME, &ts) == 0;
+#else
+      (void)epoch;
+      return false;
+#endif
+    }
+
+    static void handleSysTime(Context &ctx)
+    {
+      if (ctx.argc() > 1)
+      {
+        ctx.printError(400, "Usage: sys time [YYYY-MM-DDTHH:MM:SS]");
+        return;
+      }
+
+      if (ctx.argc() == 1)
+      {
+        struct tm parsed;
+        if (!parseLocalDateTime(ctx.arg(0).c_str(), parsed))
+        {
+          ctx.printError(400, "Invalid datetime (use YYYY-MM-DDTHH:MM:SS)");
+          return;
+        }
+
+        const time_t epoch = mktime(&parsed);
+        if (epoch == static_cast<time_t>(-1))
+        {
+          ctx.printError(400, "Datetime out of range");
+          return;
+        }
+
+        if (!setSystemTime(epoch))
+        {
+          ctx.printError(500, "Failed to set time");
+          return;
+        }
+      }
+
+      time_t now = time(nullptr);
+      if (now == static_cast<time_t>(-1))
+      {
+        ctx.printError(500, "time unavailable");
+        return;
+      }
+
+      char iso[48];
+      if (!formatLocalTimeIso(now, iso, sizeof(iso)))
+      {
+        ctx.printError(500, "format failed");
+        return;
       }
 
       ctx.printOK("sys time");
@@ -3797,7 +3921,7 @@ namespace esp32serialctl
           {"sys", "uptime", &ESP32SerialCtl::handleSysUptime,
            ": Show system uptime"},
           {"sys", "time", &ESP32SerialCtl::handleSysTime,
-           ": Show local time (ISO 8601)"},
+           "[datetime] : Show or set local time (ISO 8601)"},
           {"sys", "mem", &ESP32SerialCtl::handleSysMem,
            ": Show heap and PSRAM usage"},
 #if defined(ESP32SERIALCTL_HAS_PREFERENCES)

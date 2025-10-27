@@ -7,8 +7,8 @@
 - (JA) プラットフォームで `RGB_BUILTIN` が定義されている場合、その値を RGB LED のデフォルトピンとして使用。
 - (EN) Added GPIO (`mode/read/write/toggle`), ADC, PWM, and RGB command handlers with consistent OK/body output format.
 - (JA) GPIO（`mode/read/write/toggle`）、ADC、PWM、RGB コマンドを追加し、OK 先行の出力形式に統一。
-- (EN) Introduced `sys time` (ISO 8601) and enhanced `sys info`/`sys mem` reporting.
-- (JA) `sys time`（ISO 8601）を追加し、`sys info` と `sys mem` の情報を拡張。
+- (EN) Introduced `sys time [datetime]` (ISO 8601) with optional RTC setting and enhanced `sys info`/`sys mem` reporting.
+- (JA) `sys time [datetime]`（ISO 8601）を追加し、任意で RTC を設定できるようにしつつ `sys info` と `sys mem` の情報を拡張。
 - (EN) Locked PWM to 12-bit resolution and improved duty scaling.
 - (JA) PWM を 12 ビット固定とし、duty のスケーリングを改善。
 - (EN) Added automatic GPIO output-mode adjustments and richer RGB streaming options.
