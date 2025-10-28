@@ -2738,6 +2738,7 @@ OK fs ls
   let currentFsSelection = null;
   let fsPathMap = new Map();
   let fsFetching = false;
+  let fsAutoRefreshTimer = null;
   let lastFsData = null;
   let lastStorageListRaw = storageSamples.list;
   let lastStorageStatusRaw = storageSamples.statusNone;
@@ -4697,6 +4698,10 @@ OK fs ls
   };
 
   const runFsAutoFetch = async ({ silent = false, userInitiated = false } = {}) => {
+    if (fsAutoRefreshTimer) {
+      clearTimeout(fsAutoRefreshTimer);
+      fsAutoRefreshTimer = null;
+    }
     if (!fsElements.tree) {
       return;
     }
@@ -4783,6 +4788,27 @@ OK fs ls
       fsFetching = false;
       updateFsRefreshButtonState();
     }
+  };
+
+  // Schedule a delayed filesystem refresh so the device has time to apply changes.
+  const requestFsAutoRefresh = (delayMs = 350) => {
+    if (fsAutoRefreshTimer) {
+      clearTimeout(fsAutoRefreshTimer);
+      fsAutoRefreshTimer = null;
+    }
+    const effectiveDelay = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : 0;
+    if (effectiveDelay === 0) {
+      runFsAutoFetch({ silent: true }).catch(() => {
+        /* handled via log */
+      });
+      return;
+    }
+    fsAutoRefreshTimer = window.setTimeout(() => {
+      fsAutoRefreshTimer = null;
+      runFsAutoFetch({ silent: true }).catch(() => {
+        /* handled via log */
+      });
+    }, effectiveDelay);
   };
 
   const refreshLanguageSensitiveUI = () => {
@@ -5165,6 +5191,9 @@ OK fs ls
     }
     activeCommand = null;
     updateCommandButtonsState();
+    if (!error && shouldAutoRefreshFsCommand(commandText)) {
+      requestFsAutoRefresh(350);
+    }
     if (error) {
       resetAutoCommandQueue();
       if (typeof rejectCommand === 'function') {
@@ -5559,6 +5588,31 @@ OK fs ls
     return `"${value.replace(/(["\\])/g, '\\$1')}"`;
   };
 
+  const shouldAutoRefreshFsCommand = (commandText) => {
+    if (!commandText || typeof commandText !== 'string') {
+      return false;
+    }
+    const normalized = commandText.trim().toLowerCase();
+    if (!normalized.startsWith('fs ')) {
+      return false;
+    }
+    const refreshPrefixes = [
+      'fs mkdir',
+      'fs write',
+      'fs b64write',
+      'fs rm',
+      'fs del',
+      'fs remove',
+      'fs unlink',
+      'fs mv',
+      'fs rename',
+      'fs touch',
+      'fs format',
+      'fs wipe'
+    ];
+    return refreshPrefixes.some((prefix) => normalized.startsWith(prefix));
+  };
+
   const handleFsMkdirRun = () => {
     if (connectionState !== 'connected') {
       appendLogEntry('error', translate('connection.info.connectFirst'));
@@ -5602,10 +5656,7 @@ OK fs ls
         if (!error) {
           input.value = '';
           input.focus();
-          Promise.resolve(runFsAutoFetch({ silent: true }))
-            .catch(() => {
-              /* handled via log */
-            });
+          requestFsAutoRefresh(350);
         }
       }
     }).catch(() => {
@@ -5649,9 +5700,7 @@ OK fs ls
         if (!error) {
           nameInput.value = '';
           nameInput.focus();
-          Promise.resolve(runFsAutoFetch({ silent: true })).catch(() => {
-            /* handled via log */
-          });
+          requestFsAutoRefresh(350);
         }
       }
     })
