@@ -498,9 +498,13 @@ document.addEventListener('DOMContentLoaded', () => {
         "actions": {
           "mkdir": {
             "title": "ディレクトリを追加 (fs mkdir)",
-            "pathLabel": "作成するディレクトリパス",
-            "pathPlaceholder": "/logs",
-            "action": "fs mkdir を送信"
+            "pathLabel": "ディレクトリ名",
+            "pathPlaceholder": "logs",
+            "action": "fs mkdir を送信",
+            "errors": {
+              "nameRequired": "ディレクトリ名を入力してください。",
+              "invalidChars": "ディレクトリ名にスラッシュや .. は使用できません。"
+            }
           },
           "write": {
             "title": "テキストファイルを追加 (fs write)",
@@ -1120,9 +1124,13 @@ document.addEventListener('DOMContentLoaded', () => {
         "actions": {
           "mkdir": {
             "title": "Create Directory (fs mkdir)",
-            "pathLabel": "Directory path",
-            "pathPlaceholder": "/logs",
-            "action": "Send fs mkdir"
+            "pathLabel": "Directory name",
+            "pathPlaceholder": "logs",
+            "action": "Send fs mkdir",
+            "errors": {
+              "nameRequired": "Enter a directory name.",
+              "invalidChars": "Directory name cannot include slashes or .."
+            }
           },
           "write": {
             "title": "Create Text File (fs write)",
@@ -1742,9 +1750,13 @@ document.addEventListener('DOMContentLoaded', () => {
         "actions": {
           "mkdir": {
             "title": "创建目录 (fs mkdir)",
-            "pathLabel": "目录路径",
-            "pathPlaceholder": "/logs",
-            "action": "发送 fs mkdir"
+            "pathLabel": "目录名",
+            "pathPlaceholder": "logs",
+            "action": "发送 fs mkdir",
+            "errors": {
+              "nameRequired": "请输入目录名。",
+              "invalidChars": "目录名不能包含斜杠或 ..。"
+            }
           },
           "write": {
             "title": "创建文本文件 (fs write)",
@@ -3806,6 +3818,13 @@ OK fs ls
     }
     if (fsElements.mkdirPathInput) {
       fsElements.mkdirPathInput.value = '';
+      delete fsElements.mkdirPathInput.dataset.basePath;
+      fsElements.mkdirPathInput.disabled = true;
+      fsElements.mkdirPathInput.setAttribute('disabled', '');
+    }
+    if (fsElements.mkdirRunButton) {
+      fsElements.mkdirRunButton.disabled = true;
+      fsElements.mkdirRunButton.setAttribute('disabled', '');
     }
     if (fsElements.writeSection) {
       fsElements.writeSection.hidden = true;
@@ -4237,8 +4256,14 @@ OK fs ls
   const updateFsActionsForNode = (node) => {
     const isDir = node?.type === 'dir';
     const canCreateDir = isDir && currentStorageId !== 'spiffs';
+    const basePath = isDir ? node?.path || '/' : '/';
+    const mkdirPlaceholder = translate('filesystem.actions.mkdir.pathPlaceholder') || 'logs';
+
     if (fsElements.mkdirSection) {
       fsElements.mkdirSection.hidden = !canCreateDir;
+    }
+    if (fsElements.mkdirPathInput) {
+      fsElements.mkdirPathInput.setAttribute('placeholder', mkdirPlaceholder);
     }
     if (fsElements.writeSection) {
       fsElements.writeSection.hidden = !isDir;
@@ -4249,6 +4274,13 @@ OK fs ls
     if (!isDir) {
       if (fsElements.mkdirPathInput) {
         fsElements.mkdirPathInput.value = '';
+        delete fsElements.mkdirPathInput.dataset.basePath;
+        fsElements.mkdirPathInput.disabled = true;
+        fsElements.mkdirPathInput.setAttribute('disabled', '');
+      }
+      if (fsElements.mkdirRunButton) {
+        fsElements.mkdirRunButton.disabled = true;
+        fsElements.mkdirRunButton.setAttribute('disabled', '');
       }
       if (fsElements.writePathInput) {
         fsElements.writePathInput.value = '';
@@ -4265,13 +4297,36 @@ OK fs ls
         fsElements.writeRunButton.disabled = true;
         fsElements.writeRunButton.setAttribute('disabled', '');
       }
+      if (fsElements.b64writePathInput) {
+        fsElements.b64writePathInput.value = '';
+      }
+      if (fsElements.b64writeChunkInput) {
+        fsElements.b64writeChunkInput.value = '';
+      }
       applyDisabledTitles();
       return;
     }
-    const basePath = node?.path || '/';
+
     if (fsElements.mkdirPathInput) {
-      const placeholder = translate('filesystem.actions.mkdir.pathPlaceholder') || '/logs';
-      fsElements.mkdirPathInput.value = canCreateDir ? joinFsPath(basePath, placeholder) : '';
+      fsElements.mkdirPathInput.value = '';
+      if (canCreateDir) {
+        fsElements.mkdirPathInput.disabled = false;
+        fsElements.mkdirPathInput.removeAttribute('disabled');
+        fsElements.mkdirPathInput.dataset.basePath = basePath;
+      } else {
+        delete fsElements.mkdirPathInput.dataset.basePath;
+        fsElements.mkdirPathInput.disabled = true;
+        fsElements.mkdirPathInput.setAttribute('disabled', '');
+      }
+    }
+    if (fsElements.mkdirRunButton) {
+      if (canCreateDir) {
+        fsElements.mkdirRunButton.disabled = false;
+        fsElements.mkdirRunButton.removeAttribute('disabled');
+      } else {
+        fsElements.mkdirRunButton.disabled = true;
+        fsElements.mkdirRunButton.setAttribute('disabled', '');
+      }
     }
     if (fsElements.writePathInput) {
       const placeholder = translate('filesystem.actions.write.pathPlaceholder') || 'notes.txt';
@@ -5504,6 +5559,60 @@ OK fs ls
     return `"${value.replace(/(["\\])/g, '\\$1')}"`;
   };
 
+  const handleFsMkdirRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    if (!currentStorageId) {
+      appendLogEntry('error', translate('filesystem.messages.selectStorage'));
+      return;
+    }
+    if (currentStorageId === 'spiffs') {
+      appendLogEntry('error', translate('filesystem.hints.spiffs'));
+      return;
+    }
+    const input = fsElements.mkdirPathInput;
+    if (!input) {
+      return;
+    }
+    const selectionNode = currentFsSelection ? fsPathMap.get(currentFsSelection) : null;
+    if (!selectionNode || selectionNode.type !== 'dir') {
+      appendLogEntry('error', translate('filesystem.messages.noDetail'));
+      return;
+    }
+    const basePath = selectionNode.path || '/';
+    const rawName = input.value.trim();
+    const sanitizedName = rawName.replace(/^\/+/, '');
+    if (!sanitizedName) {
+      appendLogEntry('error', translate('filesystem.actions.mkdir.errors.nameRequired'));
+      input.focus();
+      return;
+    }
+    if (/[\\/]/.test(sanitizedName) || sanitizedName === '.' || sanitizedName === '..') {
+      appendLogEntry('error', translate('filesystem.actions.mkdir.errors.invalidChars'));
+      input.focus();
+      return;
+    }
+    const targetPath = joinFsPath(basePath, sanitizedName);
+    appendLogEntry('debug', `UI: fs mkdir -> ${targetPath}`);
+    runSerialCommand(`fs mkdir ${quoteArgument(targetPath)}`, {
+      id: `fs-mkdir-${targetPath}`,
+      onFinalize: ({ error }) => {
+        if (!error) {
+          input.value = '';
+          input.focus();
+          Promise.resolve(runFsAutoFetch({ silent: true }))
+            .catch(() => {
+              /* handled via log */
+            });
+        }
+      }
+    }).catch(() => {
+      /* handled via log */
+    });
+  };
+
   const handleFsWriteRun = () => {
     if (connectionState !== 'connected') {
       appendLogEntry('error', translate('connection.info.connectFirst'));
@@ -5771,6 +5880,7 @@ OK fs ls
   attachCommandButtonHandler(ntpEnableRunButton, handleNtpEnableRun);
   attachCommandButtonHandler(ntpDisableRunButton, handleNtpDisableRun);
   attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
+  attachCommandButtonHandler(fsElements.mkdirRunButton, handleFsMkdirRun);
   attachCommandButtonHandler(fsElements.writeRunButton, handleFsWriteRun);
 
   commandPanels.forEach(({ button }, commandId) => {
