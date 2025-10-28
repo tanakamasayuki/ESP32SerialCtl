@@ -2021,6 +2021,7 @@ namespace esp32serialctl
     static void emitConfigDescriptions(Context &ctx, const ConfigEntry &entry,
                                        const char *lang)
     {
+      char line[192];
       if (lang && *lang)
       {
         const ConfigLocalizedText *match =
@@ -2029,20 +2030,42 @@ namespace esp32serialctl
         {
           match = firstConfigDescription(entry);
         }
+        snprintf(line, sizeof(line), "desc_count: %u",
+                 match ? 1u : 0u);
+        ctx.printBody(line);
         if (match && match->description && *match->description)
         {
           const char *langCode =
               (match->lang && *match->lang) ? match->lang
-                                            : (lang && *lang ? lang : "default");
-          char line[192];
-          snprintf(line, sizeof(line), "desc[%s]: %s", langCode,
-                   match->description);
+                                            : (lang && *lang ? lang : "");
+          snprintf(line, sizeof(line), "desc.lang: %s", langCode);
+          ctx.printBody(line);
+          snprintf(line, sizeof(line), "desc.text: %s", match->description);
           ctx.printBody(line);
         }
         return;
       }
 
-      bool printed = false;
+      unsigned printed = 0;
+      for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
+      {
+        const ConfigLocalizedText &text = entry.descriptions[i];
+        if (!text.description || !*text.description)
+        {
+          if (!text.lang && !text.description)
+          {
+            break;
+          }
+          continue;
+        }
+        ++printed;
+      }
+      snprintf(line, sizeof(line), "desc_count: %u", printed);
+      ctx.printBody(line);
+      if (printed == 0)
+      {
+        return;
+      }
       for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
       {
         const ConfigLocalizedText &text = entry.descriptions[i];
@@ -2055,37 +2078,29 @@ namespace esp32serialctl
           continue;
         }
         const char *langCode =
-            (text.lang && *text.lang) ? text.lang : "default";
-        char line[192];
-        snprintf(line, sizeof(line), "desc[%s]: %s", langCode,
-                 text.description);
+            (text.lang && *text.lang) ? text.lang : "";
+        snprintf(line, sizeof(line), "desc[%u].lang: %s",
+                 static_cast<unsigned>(i), langCode);
         ctx.printBody(line);
-        printed = true;
-      }
-      if (!printed)
-      {
-        const ConfigLocalizedText *fallback = firstConfigDescription(entry);
-        if (fallback && fallback->description && *fallback->description)
-        {
-          const char *langCode =
-              (fallback->lang && *fallback->lang) ? fallback->lang : "default";
-          char line[192];
-          snprintf(line, sizeof(line), "desc[%s]: %s", langCode,
-                   fallback->description);
-          ctx.printBody(line);
-        }
+        snprintf(line, sizeof(line), "desc[%u].text: %s",
+                 static_cast<unsigned>(i), text.description);
+        ctx.printBody(line);
       }
     }
 
     static void handleConfList(Context &ctx)
     {
       ctx.printOK("conf list");
+      const char *lang = ctx.optionValue("lang");
       if (!configEntries_ || configEntryCount_ == 0)
       {
-        ctx.printBody("No config entries");
+        ctx.printBody("config_count: 0");
         return;
       }
-      const char *lang = ctx.optionValue("lang");
+      char line[192];
+      snprintf(line, sizeof(line), "config_count: %u",
+               static_cast<unsigned>(configEntryCount_));
+      ctx.printBody(line);
       for (size_t i = 0; i < configEntryCount_; ++i)
       {
         const ConfigEntry &entry = configEntries_[i];
@@ -2093,18 +2108,22 @@ namespace esp32serialctl
         {
           continue;
         }
-        const bool stored = configHasStoredValue(entry);
-        char line[160];
-        snprintf(line, sizeof(line), "[%u] %s (%s)",
-                 static_cast<unsigned>(i), entry.name,
-                 stored ? "stored" : "default");
+        snprintf(line, sizeof(line), "index: %u", static_cast<unsigned>(i));
         ctx.printBody(line);
-        if (entry.defaultValue)
-        {
-          snprintf(line, sizeof(line), "default: %s",
-                   *entry.defaultValue ? entry.defaultValue : "(empty)");
-          ctx.printBody(line);
-        }
+        snprintf(line, sizeof(line), "name: %s",
+                 entry.name ? entry.name : "");
+        ctx.printBody(line);
+        String storedValue;
+        const bool stored = configLoadStoredValue(entry, storedValue);
+        snprintf(line, sizeof(line), "stored: %s", stored ? "true" : "false");
+        ctx.printBody(line);
+        snprintf(line, sizeof(line), "value: %s",
+                 stored ? storedValue.c_str()
+                        : ((entry.defaultValue && *entry.defaultValue) ? entry.defaultValue : ""));
+        ctx.printBody(line);
+        snprintf(line, sizeof(line), "default: %s",
+                 (entry.defaultValue && *entry.defaultValue) ? entry.defaultValue : "");
+        ctx.printBody(line);
         emitConfigDescriptions(ctx, entry, lang);
       }
     }
@@ -2137,17 +2156,27 @@ namespace esp32serialctl
       }
       ctx.printOK("conf get");
       char line[160];
-      snprintf(line, sizeof(line), "[%u] %s (%s)",
-               static_cast<unsigned>(index), entry->name,
-               stored ? "stored" : "default");
+      snprintf(line, sizeof(line), "index: %u",
+               static_cast<unsigned>(index));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "name: %s",
+               entry->name ? entry->name : "");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "stored: %s", stored ? "true" : "false");
       ctx.printBody(line);
       snprintf(line, sizeof(line), "value: %s",
-               value.length() > 0 ? value.c_str() : "(empty)");
+               value.length() > 0 ? value.c_str() : "");
       ctx.printBody(line);
       if (!stored && entry->defaultValue)
       {
         snprintf(line, sizeof(line), "default: %s",
-                 *entry->defaultValue ? entry->defaultValue : "(empty)");
+                 entry->defaultValue ? entry->defaultValue : "");
+        ctx.printBody(line);
+      }
+      else if (stored && entry->defaultValue)
+      {
+        snprintf(line, sizeof(line), "default: %s",
+                 entry->defaultValue ? entry->defaultValue : "");
         ctx.printBody(line);
       }
     }
@@ -2181,13 +2210,23 @@ namespace esp32serialctl
       }
       ctx.printOK("conf set");
       char line[160];
-      snprintf(line, sizeof(line), "[%u] %s",
-               static_cast<unsigned>(index),
-               entry->name ? entry->name : "(unnamed)");
+      snprintf(line, sizeof(line), "index: %u",
+               static_cast<unsigned>(index));
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "name: %s",
+               entry->name ? entry->name : "");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "stored: true");
       ctx.printBody(line);
       snprintf(line, sizeof(line), "value: %s",
-               (valueText && *valueText) ? valueText : "(empty)");
+               (valueText && *valueText) ? valueText : "");
       ctx.printBody(line);
+      if (entry->defaultValue)
+      {
+        snprintf(line, sizeof(line), "default: %s",
+                 entry->defaultValue ? entry->defaultValue : "");
+        ctx.printBody(line);
+      }
 #else
       (void)valueText;
       ctx.printError(501, "Preferences disabled");
@@ -2222,10 +2261,20 @@ namespace esp32serialctl
       }
       ctx.printOK("conf del");
       char line[160];
-      snprintf(line, sizeof(line), "[%u] %s",
-               static_cast<unsigned>(index),
-               entry->name ? entry->name : "(unnamed)");
+      snprintf(line, sizeof(line), "index: %u",
+               static_cast<unsigned>(index));
       ctx.printBody(line);
+      snprintf(line, sizeof(line), "name: %s",
+               entry->name ? entry->name : "");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "stored: false");
+      ctx.printBody(line);
+      if (entry->defaultValue)
+      {
+        snprintf(line, sizeof(line), "default: %s",
+                 entry->defaultValue ? entry->defaultValue : "");
+        ctx.printBody(line);
+      }
 #else
       ctx.printError(501, "Preferences disabled");
 #endif
