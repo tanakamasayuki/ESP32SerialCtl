@@ -5473,7 +5473,7 @@ namespace esp32serialctl
           {"conf", "list", &ESP32SerialCtl::handleConfList,
            "[--lang code] : List configurable entries"},
           {"conf", "get", &ESP32SerialCtl::handleConfGet,
-           "<name> [--lang code] : Show config value and source"},
+           "<name> : Show config value and source"},
           {"conf", "set", &ESP32SerialCtl::handleConfSet,
            "<name> <value> : Store config value"},
           {"conf", "del", &ESP32SerialCtl::handleConfDel,
