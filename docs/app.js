@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "システム",
-            "desc": "sys info / uptime / time / timezone / reset / conf list"
+            "desc": "sys info / uptime / time / timezone / reset"
           },
           "wifi": {
             "label": "Wi-Fi",
@@ -679,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "System",
-            "desc": "sys info / uptime / time / timezone / reset / conf list"
+            "desc": "sys info / uptime / time / timezone / reset"
           },
           "wifi": {
             "label": "Wi-Fi",
@@ -1291,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "系统",
-            "desc": "sys info / uptime / time / timezone / reset / conf list"
+            "desc": "sys info / uptime / time / timezone / reset"
           },
           "wifi": {
             "label": "Wi-Fi",
@@ -3482,9 +3482,8 @@ OK fs ls
     const defaultValue = typeof entry.default === 'string' ? entry.default : '';
     const defaultHint = document.createElement('div');
     defaultHint.className = 'config-default-hint';
-    defaultHint.textContent = `${translate('sections.config.labels.defaultValue')}: ${
-      defaultValue || translate('sections.config.labels.empty')
-    }`;
+    defaultHint.textContent = `${translate('sections.config.labels.defaultValue')}: ${defaultValue || translate('sections.config.labels.empty')
+      }`;
     valueCell.append(defaultHint);
 
     const descCell = document.createElement('div');
@@ -4345,17 +4344,11 @@ OK fs ls
     serialReader = reader;
     readLoopPromise = (async () => {
       try {
-        appendLogEntry('debug', 'Read loop started.');
         while (true) {
           if (serialReader !== reader) {
-            appendLogEntry('debug', 'Read loop detected reader ownership changed; exiting.');
             break;
           }
           const { value, done } = await reader.read();
-          appendLogEntry(
-            'debug',
-            `Read loop received chunk. done=${done} length=${value ? value.length : 0}`
-          );
           if (done) {
             const remaining = textDecoder.decode();
             if (remaining) {
@@ -4371,11 +4364,10 @@ OK fs ls
       } catch (error) {
         appendLogEntry('error', `Read error: ${error.message}`);
       } finally {
-        appendLogEntry('debug', 'Read loop exiting. Releasing reader lock.');
         try {
           reader.releaseLock();
         } catch {
-          appendLogEntry('debug', 'Reader lock release threw but ignored.');
+          /* ignore */
         }
         if (serialReader === reader) {
           serialReader = null;
