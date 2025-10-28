@@ -132,6 +132,7 @@ static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, "my_app_confi
 ```
 
 `conf list` はデフォルトで登録済みの多言語説明をすべて表示し、`--lang ja` のように指定すると特定言語のみに絞り込めます。値の取得・更新は名前で行い（`conf get <name> [--lang ja]` / `conf set <name> "value"` / `conf del <name>`）、これらのコマンドでは説明文は出力されません。スケッチ側では `esp32SerialCtl.configGet("api_key")` で実際に利用される文字列を取得します。設定や名前空間を実行時に切り替える必要がある場合は、`ESP32SerialCtl<>::setConfigNamespace(...)` / `ESP32SerialCtl<>::setConfigEntries(...)` を利用してください。
+`ConfigEntry` を登録していない場合は `conf` 系コマンドは自動的に無効化され、ヘルプや CLI の一覧にも表示されません。
 
 ## 時刻とネットワークのヘルパー
 

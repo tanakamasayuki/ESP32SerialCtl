@@ -1079,6 +1079,18 @@ namespace esp32serialctl
       }
     }
 
+    using CommandSupportFilter = bool (*)(const Command &cmd);
+
+    static void setCommandSupportFilter(CommandSupportFilter filter)
+    {
+      commandSupportFilter_ = filter;
+    }
+
+    static bool commandSupported(const Command &cmd)
+    {
+      return !commandSupportFilter_ || commandSupportFilter_(cmd);
+    }
+
     bool printHelp(const char *topic = nullptr)
     {
       const bool hasTopic = topic && *topic;
@@ -1092,6 +1104,10 @@ namespace esp32serialctl
           {
             continue;
           }
+          if (!commandSupported(cmd))
+          {
+            continue;
+          }
           emitHelpEntry(cmd);
         }
         return true;
@@ -1102,7 +1118,7 @@ namespace esp32serialctl
       for (size_t i = 0; i < commandCount_; ++i)
       {
         const Command &cmd = commands_[i];
-        if (cmd.group && equalsIgnoreCase(cmd.group, topicText))
+        if (cmd.group && equalsIgnoreCase(cmd.group, topicText) && commandSupported(cmd))
         {
           groupMatch = true;
           break;
@@ -1117,7 +1133,7 @@ namespace esp32serialctl
         for (size_t i = 0; i < commandCount_; ++i)
         {
           const Command &cmd = commands_[i];
-          if (cmd.group && equalsIgnoreCase(cmd.group, topicText))
+          if (cmd.group && equalsIgnoreCase(cmd.group, topicText) && commandSupported(cmd))
           {
             emitHelpEntry(cmd);
           }
@@ -1133,7 +1149,7 @@ namespace esp32serialctl
           continue;
         }
         const bool isTopLevel = !cmd.group || !*cmd.group;
-        if (isTopLevel && equalsIgnoreCase(cmd.name, topicText))
+        if (isTopLevel && equalsIgnoreCase(cmd.name, topicText) && commandSupported(cmd))
         {
           char header[64];
           snprintf(header, sizeof(header), "help %s", topicText);
@@ -1438,6 +1454,12 @@ namespace esp32serialctl
         return;
       }
 
+      if (!commandSupported(*selected))
+      {
+        emitError(404, "Unknown command");
+        return;
+      }
+
       if (!selected->handler)
       {
         emitError(500, "No handler");
@@ -1468,6 +1490,10 @@ namespace esp32serialctl
     void emitHelpEntry(const Command &cmd)
     {
       if (!cmd.name)
+      {
+        return;
+      }
+      if (!commandSupported(cmd))
       {
         return;
       }
@@ -1633,6 +1659,7 @@ namespace esp32serialctl
     Print &output_;
     const Command *const commands_;
     const size_t commandCount_;
+    static CommandSupportFilter commandSupportFilter_;
     char lineBuffer_[MaxLineLength + 1];
     size_t linePos_ = 0;
     bool overflow_ = false;
@@ -1653,6 +1680,10 @@ namespace esp32serialctl
 #endif
   };
 
+  template <size_t MaxLineLength, size_t MaxTokens>
+  typename SerialCtl<MaxLineLength, MaxTokens>::CommandSupportFilter
+      SerialCtl<MaxLineLength, MaxTokens>::commandSupportFilter_ = nullptr;
+
   template <size_t MaxLineLength = 128, size_t MaxTokens = 16>
   class ESP32SerialCtl
   {
@@ -1662,7 +1693,10 @@ namespace esp32serialctl
     using Context = typename Base::Context;
 
     ESP32SerialCtl()
-        : cli_(Serial, kCommands, kCommandCount) {}
+        : cli_(Serial, kCommands, kCommandCount)
+    {
+      configureConfig(nullptr, 0, nullptr);
+    }
 
     template <size_t EntryCount>
     explicit ESP32SerialCtl(const ConfigEntry (&entries)[EntryCount],
@@ -1680,7 +1714,10 @@ namespace esp32serialctl
     }
 
     explicit ESP32SerialCtl(Stream &io)
-        : cli_(io, kCommands, kCommandCount) {}
+        : cli_(io, kCommands, kCommandCount)
+    {
+      configureConfig(nullptr, 0, nullptr);
+    }
 
     template <size_t EntryCount>
     ESP32SerialCtl(Stream &io, const ConfigEntry (&entries)[EntryCount],
@@ -1698,7 +1735,10 @@ namespace esp32serialctl
     }
 
     ESP32SerialCtl(Stream &input, Print &output)
-        : cli_(input, output, kCommands, kCommandCount) {}
+        : cli_(input, output, kCommands, kCommandCount)
+    {
+      configureConfig(nullptr, 0, nullptr);
+    }
 
     template <size_t EntryCount>
     ESP32SerialCtl(Stream &input, Print &output,
@@ -1753,10 +1793,12 @@ namespace esp32serialctl
       {
         configEntries_ = nullptr;
         configEntryCount_ = 0;
+        Base::setCommandSupportFilter(&ESP32SerialCtl::filterCommand);
         return;
       }
       configEntries_ = entries;
       configEntryCount_ = count;
+      Base::setCommandSupportFilter(&ESP32SerialCtl::filterCommand);
     }
 
     static const ConfigEntry *configEntry(size_t index)
@@ -1837,6 +1879,11 @@ namespace esp32serialctl
       {
         setConfigEntries(entries, count);
       }
+      else if (!entries || count == 0)
+      {
+        setConfigEntries(nullptr, 0);
+      }
+      Base::setCommandSupportFilter(&ESP32SerialCtl::filterCommand);
     }
 
     static const char *configNamespaceCStr()
@@ -1845,9 +1892,23 @@ namespace esp32serialctl
                                            : kPrefsConfigDefaultNamespace;
     }
 
+    static bool configSupportEnabled()
+    {
+      return configEntries_ && configEntryCount_ > 0;
+    }
+
+    static bool filterCommand(const Command &cmd)
+    {
+      if (cmd.group && Base::equalsIgnoreCase(cmd.group, "conf"))
+      {
+        return configSupportEnabled();
+      }
+      return true;
+    }
+
     static const ConfigEntry *findConfigEntry(const char *name, size_t *indexOut = nullptr)
     {
-      if (!configEntries_ || !name || !*name)
+      if (!configSupportEnabled() || !name || !*name)
       {
         return nullptr;
       }
@@ -2090,6 +2151,11 @@ namespace esp32serialctl
 
     static void handleConfList(Context &ctx)
     {
+      if (!configSupportEnabled())
+      {
+        ctx.printError(404, "Config not supported");
+        return;
+      }
       ctx.printOK("conf list");
       const char *lang = ctx.optionValue("lang");
       if (!configEntries_ || configEntryCount_ == 0)
@@ -2130,6 +2196,11 @@ namespace esp32serialctl
 
     static void handleConfGet(Context &ctx)
     {
+      if (!configSupportEnabled())
+      {
+        ctx.printError(404, "Config not supported");
+        return;
+      }
       if (ctx.argc() != 1)
       {
         ctx.printError(400, "Usage: conf get <name>");
@@ -2183,6 +2254,11 @@ namespace esp32serialctl
 
     static void handleConfSet(Context &ctx)
     {
+      if (!configSupportEnabled())
+      {
+        ctx.printError(404, "Config not supported");
+        return;
+      }
       if (ctx.argc() != 2)
       {
         ctx.printError(400, "Usage: conf set <name> <value>");
@@ -2235,6 +2311,11 @@ namespace esp32serialctl
 
     static void handleConfDel(Context &ctx)
     {
+      if (!configSupportEnabled())
+      {
+        ctx.printError(404, "Config not supported");
+        return;
+      }
       if (ctx.argc() != 1)
       {
         ctx.printError(400, "Usage: conf del <name>");
@@ -5515,7 +5596,7 @@ namespace esp32serialctl
            ": Show heap and PSRAM usage"},
 #if defined(ESP32SERIALCTL_HAS_PREFERENCES)
           {"sys", "timezone", &ESP32SerialCtl::handleSysTimezone,
-           "[tz] : Show or set timezone"},
+          "[tz] : Show or set timezone"},
 #endif
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},

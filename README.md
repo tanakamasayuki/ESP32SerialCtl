@@ -145,6 +145,8 @@ the entries or namespace need to be chosen dynamically (for example, after
 reading a manifest from storage), the static helpers
 `ESP32SerialCtl<>::setConfigNamespace(...)` and
 `ESP32SerialCtl<>::setConfigEntries(...)` remain available.
+If no `ConfigEntry` array is registered, the `conf` commands are disabled and
+remain hidden from the CLI/help output.
 
 ## Time and Network Helpers
 
