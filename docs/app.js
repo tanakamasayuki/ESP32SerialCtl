@@ -430,7 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "シリアル応答やエラーを表示するコンソール領域です。",
             "placeholder": "ESP32 からの応答ログがここに表示されます",
             "clear": "ログをクリア",
-            "save": "ログを保存"
+            "save": "ログを保存",
+            "saveError": "ログのエクスポートに失敗しました。"
           },
           "docs": {
             "title": "関連ドキュメント",
@@ -1056,7 +1057,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "Console area for serial responses and errors.",
             "placeholder": "Responses from the ESP32 will appear here.",
             "clear": "Clear Log",
-            "save": "Save Log"
+            "save": "Save Log",
+            "saveError": "Failed to export log."
           },
           "docs": {
             "title": "Related Documents",
@@ -1682,7 +1684,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "显示串口响应与错误的控制台区域。",
             "placeholder": "来自 ESP32 的响应将显示在此。",
             "clear": "清除日志",
-            "save": "保存日志"
+            "save": "保存日志",
+            "saveError": "日志导出失败。"
           },
           "docs": {
             "title": "相关文档",
@@ -2260,6 +2263,8 @@ OK fs ls
   const statusLabel = document.querySelector('#connection-status-label');
   const statusPill = document.querySelector('.status-pill');
   const logOutput = document.querySelector('[data-log-output]');
+  const logClearButton = document.querySelector('[data-log-clear]');
+  const logSaveButton = document.querySelector('[data-log-save]');
   const commandButtons = Array.from(
     document.querySelectorAll(
       '#tab-system .command-panel .card-actions button:not([data-system-utility="true"]), ' +
@@ -2438,6 +2443,29 @@ OK fs ls
       }
     });
   };
+
+  function updateLogButtonsState() {
+    const hasEntries = Boolean(logOutput?.querySelector('.log-entry'));
+    if (logClearButton) {
+      if (hasEntries) {
+        logClearButton.disabled = false;
+        logClearButton.removeAttribute('disabled');
+      } else {
+        logClearButton.disabled = true;
+        logClearButton.setAttribute('disabled', '');
+      }
+    }
+    if (logSaveButton) {
+      if (hasEntries) {
+        logSaveButton.disabled = false;
+        logSaveButton.removeAttribute('disabled');
+      } else {
+        logSaveButton.disabled = true;
+        logSaveButton.setAttribute('disabled', '');
+      }
+    }
+    applyDisabledTitles();
+  }
 
   let connectionState = 'disconnected';
   let refreshConnectionLabel = () => { };
@@ -4877,6 +4905,7 @@ OK fs ls
   let serialReader = null;
   let activeCommand = null;
   let logLineBuffer = '';
+  let lastLogDownloadUrl = null;
   let isDisconnecting = false;
   let pendingCleanupPromise = null;
   let readLoopPromise = null;
@@ -4945,6 +4974,7 @@ OK fs ls
       refreshConnectionLabel();
       updateCommandButtonsState();
       applyDisabledTitles();
+      updateLogButtonsState();
       return;
     }
     connectionState = state;
@@ -5001,6 +5031,7 @@ OK fs ls
     refreshConnectionLabel();
     applyDisabledTitles();
     updateFsRefreshButtonState();
+    updateLogButtonsState();
     if (state === 'connected') {
       fetchHelpCommandList().catch(() => {
         /* handled via log */
@@ -5045,6 +5076,20 @@ OK fs ls
     }
   };
 
+  function restoreLogPlaceholder() {
+    if (!logOutput) {
+      return;
+    }
+    logOutput.innerHTML = '';
+    const placeholder = document.createElement('span');
+    placeholder.dataset.i18n = 'commands.help.log.placeholder';
+    placeholder.textContent = translate('commands.help.log.placeholder');
+    logOutput.append(placeholder);
+    logOutput.dataset.hasPlaceholder = 'true';
+    logOutput.scrollTop = 0;
+    updateLogButtonsState();
+  }
+
   const clearLogPlaceholder = () => {
     if (!logOutput) {
       return;
@@ -5069,7 +5114,80 @@ OK fs ls
     entry.textContent = `[${formatTimeStamp()}] ${message}`;
     logOutput.append(entry);
     logOutput.scrollTop = logOutput.scrollHeight;
+    updateLogButtonsState();
   };
+
+  const collectLogLines = () => {
+    const entries = Array.from(logOutput?.querySelectorAll('.log-entry') || []).map(
+      (entry) => entry.textContent || ''
+    );
+    const pending = (logLineBuffer || '').replace(/\r/g, '').trim();
+    if (pending) {
+      entries.push(`[${formatTimeStamp()}] >> ${pending}`);
+    }
+    return entries;
+  };
+
+  const buildLogFileName = () => {
+    const now = new Date();
+    const pad = (value) => value.toString().padStart(2, '0');
+    return `esp32-log-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(
+      now.getHours()
+    )}${pad(now.getMinutes())}${pad(now.getSeconds())}.txt`;
+  };
+
+  const triggerLogDownload = (lines) => {
+    if (!lines.length) {
+      return null;
+    }
+    if (!document.body) {
+      throw new Error('Document body unavailable');
+    }
+    const blob = new Blob([`${lines.join('\n')}\n`], { type: 'text/plain' });
+    if (lastLogDownloadUrl) {
+      URL.revokeObjectURL(lastLogDownloadUrl);
+      lastLogDownloadUrl = null;
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    lastLogDownloadUrl = objectUrl;
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = buildLogFileName();
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => {
+      if (lastLogDownloadUrl === objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        lastLogDownloadUrl = null;
+      } else {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }, 1000);
+    return anchor.download;
+  };
+
+  if (logClearButton) {
+    logClearButton.addEventListener('click', () => {
+      logLineBuffer = '';
+      restoreLogPlaceholder();
+    });
+  }
+
+  if (logSaveButton) {
+    logSaveButton.addEventListener('click', () => {
+      try {
+        const lines = collectLogLines();
+        triggerLogDownload(lines);
+      } catch (error) {
+        const fallback = translate('commands.help.log.saveError');
+        const details = error?.message;
+        appendLogEntry('error', details ? `${fallback} (${details})` : fallback);
+      }
+    });
+  }
+
+  updateLogButtonsState();
 
   const processLogChunk = (chunk) => {
     if (!logOutput) {
