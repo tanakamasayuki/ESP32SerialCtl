@@ -527,6 +527,12 @@ document.addEventListener('DOMContentLoaded', () => {
             "chunkPlaceholder": "fs b64write /image.bin \"QUJD...\"",
             "firstButton": "1 行目 (append なし)",
             "appendButton": "2 行目以降 (--append)"
+          },
+          "delete": {
+            "title": "選択項目を削除 (fs rm)",
+            "hint": "選択中のファイルまたはディレクトリを削除します。操作は取り消せません。",
+            "action": "fs rm を送信",
+            "confirm": "{path} を削除しますか？"
           }
         }
       },
@@ -1154,6 +1160,12 @@ document.addEventListener('DOMContentLoaded', () => {
             "chunkPlaceholder": "fs b64write /image.bin \"QUJD...\"",
             "firstButton": "First line (without append)",
             "appendButton": "Additional lines (--append)"
+          },
+          "delete": {
+            "title": "Delete Item (fs rm)",
+            "hint": "Remove the selected file or directory. This action cannot be undone.",
+            "action": "Send fs rm",
+            "confirm": "Delete {path}?"
           }
         }
       },
@@ -1781,6 +1793,12 @@ document.addEventListener('DOMContentLoaded', () => {
             "chunkPlaceholder": "fs b64write /image.bin \"QUJD...\"",
             "firstButton": "首行（无 append）",
             "appendButton": "后续行 (--append)"
+          },
+          "delete": {
+            "title": "删除选定项 (fs rm)",
+            "hint": "删除所选文件或目录，此操作无法撤销。",
+            "action": "发送 fs rm",
+            "confirm": "确定删除 {path} 吗？"
           }
         }
       },
@@ -2596,7 +2614,9 @@ OK fs ls
     b64writePathInput: document.querySelector('#fs-b64write-path'),
     b64writeChunkInput: document.querySelector('#fs-b64write-chunk'),
     b64writeFirstButton: document.querySelector('#fs-b64write-first'),
-    b64writeAppendButton: document.querySelector('#fs-b64write-append')
+    b64writeAppendButton: document.querySelector('#fs-b64write-append'),
+    deleteSection: document.querySelector('[data-fs-action-section="delete"]'),
+    deleteButton: document.querySelector('#fs-delete-run')
   };
 
   const tabButtons = document.querySelectorAll('.tab-button');
@@ -3882,6 +3902,14 @@ OK fs ls
     if (fsElements.b64writeChunkInput) {
       fsElements.b64writeChunkInput.value = '';
     }
+    if (fsElements.deleteSection) {
+      fsElements.deleteSection.hidden = true;
+    }
+    if (fsElements.deleteButton) {
+      fsElements.deleteButton.disabled = true;
+      fsElements.deleteButton.setAttribute('disabled', '');
+      delete fsElements.deleteButton.dataset.fsTargetPath;
+    }
     currentFsSelection = null;
     applyDisabledTitles();
   };
@@ -4283,9 +4311,34 @@ OK fs ls
   };
 
   const updateFsActionsForNode = (node) => {
+    const path = node?.path || '';
     const isDir = node?.type === 'dir';
+    const isRootDir = isDir && path === '/';
+    const canShowDelete = Boolean(node) && !isRootDir;
+
+    if (fsElements.deleteSection) {
+      fsElements.deleteSection.hidden = !canShowDelete;
+    }
+    if (fsElements.deleteButton) {
+      if (canShowDelete) {
+        fsElements.deleteButton.dataset.fsTargetPath = path;
+        const canExecuteDelete = connectionState === 'connected' && Boolean(currentStorageId);
+        if (canExecuteDelete) {
+          fsElements.deleteButton.disabled = false;
+          fsElements.deleteButton.removeAttribute('disabled');
+        } else {
+          fsElements.deleteButton.disabled = true;
+          fsElements.deleteButton.setAttribute('disabled', '');
+        }
+      } else {
+        fsElements.deleteButton.disabled = true;
+        fsElements.deleteButton.setAttribute('disabled', '');
+        delete fsElements.deleteButton.dataset.fsTargetPath;
+      }
+    }
+
     const canCreateDir = isDir && currentStorageId !== 'spiffs';
-    const basePath = isDir ? node?.path || '/' : '/';
+    const basePath = isDir ? path || '/' : '/';
     const mkdirPlaceholder = translate('filesystem.actions.mkdir.pathPlaceholder') || 'logs';
 
     if (fsElements.mkdirSection) {
@@ -4300,6 +4353,7 @@ OK fs ls
     if (fsElements.b64writeSection) {
       fsElements.b64writeSection.hidden = !isDir;
     }
+
     if (!isDir) {
       if (fsElements.mkdirPathInput) {
         fsElements.mkdirPathInput.value = '';
@@ -4381,6 +4435,7 @@ OK fs ls
     if (fsElements.b64writeChunkInput) {
       fsElements.b64writeChunkInput.value = '';
     }
+
     applyDisabledTitles();
   };
 
@@ -4975,6 +5030,12 @@ OK fs ls
       updateCommandButtonsState();
       applyDisabledTitles();
       updateLogButtonsState();
+      if (currentFsSelection) {
+        const selectedNode = fsPathMap.get(currentFsSelection);
+        if (selectedNode) {
+          updateFsActionsForNode(selectedNode);
+        }
+      }
       return;
     }
     connectionState = state;
@@ -5032,6 +5093,12 @@ OK fs ls
     applyDisabledTitles();
     updateFsRefreshButtonState();
     updateLogButtonsState();
+    if (currentFsSelection) {
+      const selectedNode = fsPathMap.get(currentFsSelection);
+      if (selectedNode) {
+        updateFsActionsForNode(selectedNode);
+      }
+    }
     if (state === 'connected') {
       fetchHelpCommandList().catch(() => {
         /* handled via log */
@@ -5827,6 +5894,42 @@ OK fs ls
       });
   };
 
+  const handleFsDeleteRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    if (!currentStorageId) {
+      appendLogEntry('error', translate('filesystem.messages.selectStorage'));
+      return;
+    }
+    const targetPath =
+      fsElements.deleteButton?.dataset.fsTargetPath || currentFsSelection || '';
+    if (!targetPath || targetPath === '/') {
+      appendLogEntry('error', translate('filesystem.messages.noDetail'));
+      return;
+    }
+    const template = translate('filesystem.actions.delete.confirm') || 'Delete {path}?';
+    const message = template.replace('{path}', targetPath);
+    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (!window.confirm(message)) {
+        return;
+      }
+    }
+    appendLogEntry('debug', `UI: fs rm -> ${targetPath}`);
+    runSerialCommand(`fs rm ${quoteArgument(targetPath)}`, {
+      id: `fs-rm-${targetPath}`,
+      onFinalize: ({ error }) => {
+        if (!error) {
+          resetFsDetails();
+          requestFsAutoRefresh(350);
+        }
+      }
+    }).catch(() => {
+      /* handled via log */
+    });
+  };
+
   const handleFsListRefresh = () => {
     runFsAutoFetch({ userInitiated: true }).catch(() => {
       /* handled via log */
@@ -6049,6 +6152,7 @@ OK fs ls
   attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
   attachCommandButtonHandler(fsElements.mkdirRunButton, handleFsMkdirRun);
   attachCommandButtonHandler(fsElements.writeRunButton, handleFsWriteRun);
+  attachCommandButtonHandler(fsElements.deleteButton, handleFsDeleteRun);
 
   commandPanels.forEach(({ button }, commandId) => {
     if (!button) {
