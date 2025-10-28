@@ -1862,6 +1862,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const tabCommandRequirements = {
+    system: ['sys'],
+    wifi: ['wifi', 'ntp'],
+    config: ['conf'],
+    storage: ['storage'],
+    filesystem: ['fs'],
+    peripherals: ['gpio', 'adc', 'i2c', 'pwm', 'rgb']
+  };
+
+  const tabSupportState = new Map();
+  let availableCommandPrefixes = new Set();
+
   const storageSamples = {
     list: `OK storage list
 |   sd (SD card) [not mounted]
@@ -2336,6 +2348,9 @@ OK fs ls
       },
       onFinalize: ({ output }) => {
         updateHelpOutput(output);
+        if (output) {
+          processHelpOutput(output);
+        }
       }
     }).catch((error) => {
       if (connectionState === 'connected') {
@@ -2499,6 +2514,164 @@ OK fs ls
 
   const tabButtons = document.querySelectorAll('.tab-button');
   const tabPanels = document.querySelectorAll('.tab-content');
+  const tabButtonMap = new Map();
+  const tabPanelMap = new Map();
+
+  tabButtons.forEach((button) => {
+    const tabId = button.dataset.tab;
+    if (!tabId) {
+      return;
+    }
+    tabButtonMap.set(tabId, button);
+    if (!tabSupportState.has(tabId)) {
+      tabSupportState.set(tabId, true);
+    }
+  });
+
+  tabPanels.forEach((panel) => {
+    const tabId = panel.id.replace(/^tab-/, '');
+    tabPanelMap.set(tabId, panel);
+    if (!tabSupportState.has(tabId)) {
+      tabSupportState.set(tabId, true);
+    }
+  });
+
+  const isTabSupported = (tabId) => tabSupportState.get(tabId) !== false;
+
+  const applyTabVisibility = (tabId, supported) => {
+    const previous = tabSupportState.get(tabId);
+    tabSupportState.set(tabId, supported);
+    const button = tabButtonMap.get(tabId);
+    if (button) {
+      button.classList.toggle('is-hidden', !supported);
+      button.setAttribute('aria-hidden', supported ? 'false' : 'true');
+      button.setAttribute('tabindex', supported ? '0' : '-1');
+      if (!supported) {
+        button.classList.remove('is-active');
+      }
+    }
+    const listItem = button ? button.closest('li') : null;
+    if (listItem) {
+      listItem.classList.toggle('is-hidden', !supported);
+      listItem.setAttribute('aria-hidden', supported ? 'false' : 'true');
+    }
+    const panel = tabPanelMap.get(tabId);
+    if (panel) {
+      panel.classList.toggle('is-hidden', !supported);
+      if (!supported) {
+        panel.classList.remove('is-active');
+      }
+      panel.setAttribute('aria-hidden', supported ? 'false' : 'true');
+    }
+    if (previous !== supported) {
+      appendLogEntry('debug', `UI: tab ${tabId} ${supported ? 'visible' : 'hidden'} (help)`);
+    }
+  };
+
+  const ensureActiveTabVisible = () => {
+    const currentButton = tabButtonMap.get(currentTab);
+    if (currentButton && !currentButton.classList.contains('is-hidden')) {
+      return;
+    }
+    const fallback = Array.from(tabButtons).find((btn) => !btn.classList.contains('is-hidden'));
+    if (fallback) {
+      activateTab(fallback.dataset.tab);
+    }
+  };
+
+  const updateAvailableCommandGroups = (prefixSet) => {
+    const normalized = new Set(Array.from(prefixSet).map((value) => value.toLowerCase()));
+    availableCommandPrefixes = normalized;
+    const handledTabs = new Set();
+    Object.entries(tabCommandRequirements).forEach(([tabId, requirements]) => {
+      const supported = requirements.some((req) => normalized.has(req));
+      applyTabVisibility(tabId, supported);
+      handledTabs.add(tabId);
+    });
+    tabButtonMap.forEach((_, tabId) => {
+      if (!handledTabs.has(tabId)) {
+        applyTabVisibility(tabId, true);
+      }
+    });
+    ensureActiveTabVisible();
+    if (!isTabSupported('config')) {
+      configEntries = [];
+      configNeedsInitialFetch = true;
+      renderConfigTable([]);
+    } else {
+      renderConfigTable(configEntries);
+      if (configNeedsInitialFetch && connectionState === 'connected') {
+        refreshConfigList({ silent: true }).catch(() => {
+          /* handled via log */
+        });
+      }
+    }
+  };
+
+  const parseHelpOutput = (raw) => {
+    const prefixes = new Set();
+    if (!raw) {
+      return prefixes;
+    }
+    const sanitized = String(raw).replace(/\r/g, '');
+    sanitized.split('\n').forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return;
+      }
+      let content = trimmed;
+      if (trimmed.startsWith('|')) {
+        content = trimmed.slice(1).trim();
+      } else if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+        content = trimmed.slice(1).trim();
+      }
+      if (!content) {
+        return;
+      }
+      const match = content.match(/^([A-Za-z0-9_]+)/);
+      if (match) {
+        prefixes.add(match[1].toLowerCase());
+      }
+    });
+    return prefixes;
+  };
+
+  const processHelpOutput = (raw) => {
+    const prefixes = parseHelpOutput(raw);
+    if (!prefixes.size) {
+      return;
+    }
+    if (!prefixes.size) {
+      appendLogEntry('debug', 'UI: no command prefixes detected in help output');
+      return;
+    }
+    appendLogEntry('debug', `UI: help command prefixes -> ${Array.from(prefixes).join(', ')}`);
+    updateAvailableCommandGroups(prefixes);
+  };
+
+  const fetchHelpCommandList = async () => {
+    if (!isSerialReady()) {
+      return;
+    }
+    if (activeCommand && typeof activeCommand.id === 'string' && activeCommand.id.startsWith('help')) {
+      return;
+    }
+    try {
+      await runSerialCommand('help', {
+        id: 'help-auto',
+        onFinalize: (result) => {
+          if (!result?.error && result.output) {
+            processHelpOutput(result.output);
+            if (helpOutputState === 'placeholder') {
+              updateHelpOutput(result.output);
+            }
+          }
+        }
+      });
+    } catch (error) {
+      appendLogEntry('error', error?.message || 'help command failed');
+    }
+  };
 
   let storageInitialized = false;
   let currentStorageId = null;
@@ -2548,32 +2721,41 @@ OK fs ls
   };
 
   const activateTab = (targetId) => {
-    currentTab = targetId;
+    let nextTab = targetId;
+    const targetButton = tabButtonMap.get(targetId);
+    if (!targetButton || targetButton.classList.contains('is-hidden')) {
+      const firstVisible = Array.from(tabButtons).find((button) => !button.classList.contains('is-hidden'));
+      if (!firstVisible) {
+        return;
+      }
+      nextTab = firstVisible.dataset.tab;
+    }
+    currentTab = nextTab;
     tabButtons.forEach((button) => {
-      const isActive = button.dataset.tab === targetId;
+      const isActive = button.dataset.tab === currentTab;
       button.classList.toggle('is-active', isActive);
       button.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
     tabPanels.forEach((panel) => {
-      const isActive = panel.id === `tab-${targetId}`;
+      const isActive = panel.id === `tab-${currentTab}`;
       panel.classList.toggle('is-active', isActive);
     });
 
-    if (targetId === 'system' || targetId === 'wifi') {
-      triggerActiveAutoCommand(targetId);
+    if (currentTab === 'system' || currentTab === 'wifi') {
+      triggerActiveAutoCommand(currentTab);
     }
-    if (targetId === 'storage') {
+    if (currentTab === 'storage') {
       runStorageAutoFetch().catch(() => {
         /* handled via log */
       });
     }
-    if (targetId === 'filesystem') {
+    if (currentTab === 'filesystem') {
       runFsAutoFetch();
     }
-    if (targetId === 'config') {
+    if (currentTab === 'config') {
       ensureConfigInitialized();
-      if (configNeedsInitialFetch) {
+      if (configNeedsInitialFetch && isTabSupported('config')) {
         refreshConfigList({ silent: true }).catch(() => {
           /* handled via log */
         });
@@ -3220,7 +3402,8 @@ OK fs ls
   };
 
   const updateConfigControlsState = () => {
-    const refreshDisabled = connectionState !== 'connected' || configLoading;
+    const configSupported = isTabSupported('config');
+    const refreshDisabled = !configSupported || connectionState !== 'connected' || configLoading;
     if (configRefreshButton) {
       if (refreshDisabled) {
         configRefreshButton.disabled = true;
@@ -3229,6 +3412,16 @@ OK fs ls
         configRefreshButton.disabled = false;
         configRefreshButton.removeAttribute('disabled');
       }
+    }
+    if (!configSupported) {
+      if (configEmptyState) {
+        configEmptyState.hidden = false;
+        configEmptyState.textContent = translate('sections.config.empty');
+      }
+      if (configTableBody) {
+        configTableBody.innerHTML = '';
+      }
+      return;
     }
     if (!configTableBody) {
       return;
@@ -3342,6 +3535,15 @@ OK fs ls
     if (!configTableBody) {
       return;
     }
+    if (!isTabSupported('config')) {
+      configTableBody.innerHTML = '';
+      if (configEmptyState) {
+        configEmptyState.hidden = false;
+        configEmptyState.textContent = translate('sections.config.empty');
+      }
+      updateConfigControlsState();
+      return;
+    }
     configTableBody.innerHTML = '';
     if (!Array.isArray(entriesToRender) || !entriesToRender.length) {
       if (configEmptyState) {
@@ -3364,6 +3566,9 @@ OK fs ls
   const refreshConfigList = async ({ silent = false } = {}) => {
     ensureConfigInitialized();
     if (configLoading) {
+      return;
+    }
+    if (!isTabSupported('config')) {
       return;
     }
     if (!isSerialReady()) {
@@ -3894,6 +4099,23 @@ OK fs ls
     refreshConnectionLabel();
     applyDisabledTitles();
     if (state === 'connected') {
+      fetchHelpCommandList().catch(() => {
+        /* handled via log */
+      });
+      if (isTabSupported('config')) {
+        ensureConfigInitialized();
+        if (configNeedsInitialFetch) {
+          refreshConfigList({ silent: true }).catch(() => {
+            /* handled via log */
+          });
+        } else {
+          renderConfigTable(configEntries);
+        }
+      } else {
+        configEntries = [];
+        configNeedsInitialFetch = true;
+        renderConfigTable([]);
+      }
       if (currentTab === 'system' || currentTab === 'wifi') {
         triggerActiveAutoCommand(currentTab);
       }

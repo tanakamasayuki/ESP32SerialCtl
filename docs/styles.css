@@ -207,6 +207,14 @@ p {
   background: var(--color-accent-soft);
 }
 
+.tab-list li.is-hidden {
+  display: none !important;
+}
+
+.tab-button.is-hidden {
+  display: none !important;
+}
+
 .content-panel {
   display: flex;
   flex-direction: column;
@@ -221,6 +229,10 @@ p {
 
 .tab-content.is-active {
   display: flex;
+}
+
+.tab-content.is-hidden {
+  display: none !important;
 }
 
 .tab-header h2 {
