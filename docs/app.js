@@ -3927,8 +3927,9 @@ OK fs ls
 
   const updateFsActionsForNode = (node) => {
     const isDir = node?.type === 'dir';
+    const canCreateDir = isDir && currentStorageId !== 'spiffs';
     if (fsElements.mkdirSection) {
-      fsElements.mkdirSection.hidden = !isDir;
+      fsElements.mkdirSection.hidden = !canCreateDir;
     }
     if (fsElements.writeSection) {
       fsElements.writeSection.hidden = !isDir;
@@ -3937,12 +3938,15 @@ OK fs ls
       fsElements.b64writeSection.hidden = !isDir;
     }
     if (!isDir) {
+      if (fsElements.mkdirPathInput) {
+        fsElements.mkdirPathInput.value = '';
+      }
       return;
     }
     const basePath = node?.path || '/';
     if (fsElements.mkdirPathInput) {
       const placeholder = translate('filesystem.actions.mkdir.pathPlaceholder') || '/logs';
-      fsElements.mkdirPathInput.value = joinFsPath(basePath, placeholder);
+      fsElements.mkdirPathInput.value = canCreateDir ? joinFsPath(basePath, placeholder) : '';
     }
     if (fsElements.writePathInput) {
       const placeholder = translate('filesystem.actions.write.pathPlaceholder') || '/notes.txt';
