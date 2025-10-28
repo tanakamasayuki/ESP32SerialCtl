@@ -176,6 +176,25 @@ namespace esp32serialctl
     NumberUnit unit;
   };
 
+#if !defined(ESP32SERIALCTL_CONFIG_MAX_LOCALES)
+#define ESP32SERIALCTL_CONFIG_MAX_LOCALES 8
+#endif
+
+  struct ConfigLocalizedText
+  {
+    const char *lang;
+    const char *description;
+  };
+
+  struct ConfigEntry
+  {
+    const char *name;
+    const char *defaultValue;
+    ConfigLocalizedText descriptions[ESP32SERIALCTL_CONFIG_MAX_LOCALES];
+  };
+
+  inline constexpr const char kPrefsConfigDefaultNamespace[] = "serial_ctl_cfg";
+
   template <size_t MaxLineLength = 128, size_t MaxTokens = 16>
   class SerialCtl
   {
@@ -1645,11 +1664,57 @@ namespace esp32serialctl
     ESP32SerialCtl()
         : cli_(Serial, kCommands, kCommandCount) {}
 
+    template <size_t EntryCount>
+    explicit ESP32SerialCtl(const ConfigEntry (&entries)[EntryCount],
+                            const char *configNamespace = nullptr)
+        : cli_(Serial, kCommands, kCommandCount)
+    {
+      configureConfig(entries, EntryCount, configNamespace);
+    }
+
+    ESP32SerialCtl(const ConfigEntry *entries, size_t count,
+                   const char *configNamespace = nullptr)
+        : cli_(Serial, kCommands, kCommandCount)
+    {
+      configureConfig(entries, count, configNamespace);
+    }
+
     explicit ESP32SerialCtl(Stream &io)
         : cli_(io, kCommands, kCommandCount) {}
 
+    template <size_t EntryCount>
+    ESP32SerialCtl(Stream &io, const ConfigEntry (&entries)[EntryCount],
+                   const char *configNamespace = nullptr)
+        : cli_(io, kCommands, kCommandCount)
+    {
+      configureConfig(entries, EntryCount, configNamespace);
+    }
+
+    ESP32SerialCtl(Stream &io, const ConfigEntry *entries, size_t count,
+                   const char *configNamespace = nullptr)
+        : cli_(io, kCommands, kCommandCount)
+    {
+      configureConfig(entries, count, configNamespace);
+    }
+
     ESP32SerialCtl(Stream &input, Print &output)
         : cli_(input, output, kCommands, kCommandCount) {}
+
+    template <size_t EntryCount>
+    ESP32SerialCtl(Stream &input, Print &output,
+                   const ConfigEntry (&entries)[EntryCount],
+                   const char *configNamespace = nullptr)
+        : cli_(input, output, kCommands, kCommandCount)
+    {
+      configureConfig(entries, EntryCount, configNamespace);
+    }
+
+    ESP32SerialCtl(Stream &input, Print &output, const ConfigEntry *entries,
+                   size_t count, const char *configNamespace = nullptr)
+        : cli_(input, output, kCommands, kCommandCount)
+    {
+      configureConfig(entries, count, configNamespace);
+    }
 
     Base &raw() { return cli_; }
     const Base &raw() const { return cli_; }
@@ -1664,7 +1729,508 @@ namespace esp32serialctl
     static void setDefaultRgbPin(int pin) { rgbDefaultPin_ = pin; }
     static int defaultRgbPin() { return rgbDefaultPin_; }
 
+    static void setConfigNamespace(const char *ns)
+    {
+      if (ns && *ns)
+      {
+        configNamespace_ = ns;
+      }
+      else
+      {
+        configNamespace_ = kPrefsConfigDefaultNamespace;
+      }
+    }
+
+    template <size_t EntryCount>
+    static void setConfigEntries(const ConfigEntry (&entries)[EntryCount])
+    {
+      setConfigEntries(entries, EntryCount);
+    }
+
+    static void setConfigEntries(const ConfigEntry *entries, size_t count)
+    {
+      if (!entries || count == 0)
+      {
+        configEntries_ = nullptr;
+        configEntryCount_ = 0;
+        return;
+      }
+      configEntries_ = entries;
+      configEntryCount_ = count;
+    }
+
+    static const ConfigEntry *configEntry(size_t index)
+    {
+      if (!configEntries_ || index >= configEntryCount_)
+      {
+        return nullptr;
+      }
+      return &configEntries_[index];
+    }
+
+    static size_t configEntryCount()
+    {
+      return configEntryCount_;
+    }
+
+    String configGet(const char *name) const
+    {
+      if (!name || !*name)
+      {
+        return String();
+      }
+      const ConfigEntry *entry = findConfigEntry(name);
+      if (!entry)
+      {
+        return String();
+      }
+      String value;
+      if (configLoadStoredValue(*entry, value))
+      {
+        return value;
+      }
+      return entry->defaultValue ? String(entry->defaultValue) : String();
+    }
+
+    bool configSet(const char *name, const String &value)
+    {
+      if (!name || !*name)
+      {
+        return false;
+      }
+      const ConfigEntry *entry = findConfigEntry(name);
+      if (!entry)
+      {
+        return false;
+      }
+      return configStoreValue(*entry, value);
+    }
+
+    bool configSet(const char *name, const char *value)
+    {
+      return configSet(name, String(value ? value : ""));
+    }
+
+    bool configClear(const char *name)
+    {
+      if (!name || !*name)
+      {
+        return false;
+      }
+      const ConfigEntry *entry = findConfigEntry(name);
+      if (!entry)
+      {
+        return false;
+      }
+      return configRemoveValue(*entry);
+    }
+
   private:
+    static void configureConfig(const ConfigEntry *entries, size_t count,
+                                const char *configNamespace)
+    {
+      if (configNamespace)
+      {
+        setConfigNamespace(configNamespace);
+      }
+      if (entries && count > 0)
+      {
+        setConfigEntries(entries, count);
+      }
+    }
+
+    static const char *configNamespaceCStr()
+    {
+      return configNamespace_.length() > 0 ? configNamespace_.c_str()
+                                           : kPrefsConfigDefaultNamespace;
+    }
+
+    static const ConfigEntry *findConfigEntry(const char *name, size_t *indexOut = nullptr)
+    {
+      if (!configEntries_ || !name || !*name)
+      {
+        return nullptr;
+      }
+      for (size_t i = 0; i < configEntryCount_; ++i)
+      {
+        const ConfigEntry &entry = configEntries_[i];
+        if (!entry.name)
+        {
+          continue;
+        }
+        if (Base::equalsIgnoreCase(entry.name, name))
+        {
+          if (indexOut)
+          {
+            *indexOut = i;
+          }
+          return &entry;
+        }
+      }
+      return nullptr;
+    }
+
+    static bool configLoadStoredValue(const ConfigEntry &entry, String &out)
+    {
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      if (!entry.name || !*entry.name)
+      {
+        out = "";
+        return false;
+      }
+      Preferences prefs;
+      if (!prefs.begin(configNamespaceCStr(), true))
+      {
+        out = "";
+        return false;
+      }
+      const bool exists = prefs.isKey(entry.name);
+      if (exists)
+      {
+        out = prefs.getString(entry.name, "");
+      }
+      else
+      {
+        out = "";
+      }
+      prefs.end();
+      return exists;
+#else
+      (void)entry;
+      out = "";
+      return false;
+#endif
+    }
+
+    static bool configStoreValue(const ConfigEntry &entry, const String &value)
+    {
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      if (!entry.name || !*entry.name)
+      {
+        return false;
+      }
+      Preferences prefs;
+      if (!prefs.begin(configNamespaceCStr(), false))
+      {
+        return false;
+      }
+      const size_t written = prefs.putString(entry.name, value);
+      const size_t expected = static_cast<size_t>(value.length());
+      bool ok = false;
+      if (expected > 0)
+      {
+        ok = written >= expected;
+      }
+      else
+      {
+        ok = prefs.isKey(entry.name);
+      }
+      prefs.end();
+      return ok;
+#else
+      (void)entry;
+      (void)value;
+      return false;
+#endif
+    }
+
+    static bool configRemoveValue(const ConfigEntry &entry)
+    {
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      if (!entry.name || !*entry.name)
+      {
+        return false;
+      }
+      Preferences prefs;
+      if (!prefs.begin(configNamespaceCStr(), false))
+      {
+        return false;
+      }
+      const bool existed = prefs.isKey(entry.name);
+      const bool removed = prefs.remove(entry.name);
+      prefs.end();
+      return existed ? removed : true;
+#else
+      (void)entry;
+      return false;
+#endif
+    }
+
+    static bool configHasStoredValue(const ConfigEntry &entry)
+    {
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      if (!entry.name || !*entry.name)
+      {
+        return false;
+      }
+      Preferences prefs;
+      if (!prefs.begin(configNamespaceCStr(), true))
+      {
+        return false;
+      }
+      const bool exists = prefs.isKey(entry.name);
+      prefs.end();
+      return exists;
+#else
+      (void)entry;
+      return false;
+#endif
+    }
+
+    static const ConfigLocalizedText *
+    findConfigDescriptionForLang(const ConfigEntry &entry, const char *lang)
+    {
+      if (!lang || !*lang)
+      {
+        return nullptr;
+      }
+      for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
+      {
+        const ConfigLocalizedText &text = entry.descriptions[i];
+        if (text.lang && text.description && *text.description &&
+            Base::equalsIgnoreCase(text.lang, lang))
+        {
+          return &text;
+        }
+        if (!text.lang && !text.description)
+        {
+          break;
+        }
+      }
+      return nullptr;
+    }
+
+    static const ConfigLocalizedText *
+    firstConfigDescription(const ConfigEntry &entry)
+    {
+      for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
+      {
+        const ConfigLocalizedText &text = entry.descriptions[i];
+        if (text.description && *text.description)
+        {
+          return &text;
+        }
+        if (!text.lang && !text.description)
+        {
+          break;
+        }
+      }
+      return nullptr;
+    }
+
+    static void emitConfigDescriptions(Context &ctx, const ConfigEntry &entry,
+                                       const char *lang)
+    {
+      if (lang && *lang)
+      {
+        const ConfigLocalizedText *match =
+            findConfigDescriptionForLang(entry, lang);
+        if (!match)
+        {
+          match = firstConfigDescription(entry);
+        }
+        if (match && match->description && *match->description)
+        {
+          const char *langCode =
+              (match->lang && *match->lang) ? match->lang
+                                            : (lang && *lang ? lang : "default");
+          char line[192];
+          snprintf(line, sizeof(line), "desc[%s]: %s", langCode,
+                   match->description);
+          ctx.printBody(line);
+        }
+        return;
+      }
+
+      bool printed = false;
+      for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
+      {
+        const ConfigLocalizedText &text = entry.descriptions[i];
+        if (!text.description || !*text.description)
+        {
+          if (!text.lang && !text.description)
+          {
+            break;
+          }
+          continue;
+        }
+        const char *langCode =
+            (text.lang && *text.lang) ? text.lang : "default";
+        char line[192];
+        snprintf(line, sizeof(line), "desc[%s]: %s", langCode,
+                 text.description);
+        ctx.printBody(line);
+        printed = true;
+      }
+      if (!printed)
+      {
+        const ConfigLocalizedText *fallback = firstConfigDescription(entry);
+        if (fallback && fallback->description && *fallback->description)
+        {
+          const char *langCode =
+              (fallback->lang && *fallback->lang) ? fallback->lang : "default";
+          char line[192];
+          snprintf(line, sizeof(line), "desc[%s]: %s", langCode,
+                   fallback->description);
+          ctx.printBody(line);
+        }
+      }
+    }
+
+    static void handleConfList(Context &ctx)
+    {
+      ctx.printOK("conf list");
+      if (!configEntries_ || configEntryCount_ == 0)
+      {
+        ctx.printBody("No config entries");
+        return;
+      }
+      const char *lang = ctx.optionValue("lang");
+      for (size_t i = 0; i < configEntryCount_; ++i)
+      {
+        const ConfigEntry &entry = configEntries_[i];
+        if (!entry.name)
+        {
+          continue;
+        }
+        const bool stored = configHasStoredValue(entry);
+        char line[160];
+        snprintf(line, sizeof(line), "[%u] %s (%s)",
+                 static_cast<unsigned>(i), entry.name,
+                 stored ? "stored" : "default");
+        ctx.printBody(line);
+        if (entry.defaultValue)
+        {
+          snprintf(line, sizeof(line), "default: %s",
+                   *entry.defaultValue ? entry.defaultValue : "(empty)");
+          ctx.printBody(line);
+        }
+        emitConfigDescriptions(ctx, entry, lang);
+      }
+    }
+
+    static void handleConfGet(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: conf get <name>");
+        return;
+      }
+      const char *name = ctx.arg(0).c_str();
+      if (!name || !*name)
+      {
+        ctx.printError(400, "Invalid config name");
+        return;
+      }
+      size_t index = 0;
+      const ConfigEntry *entry = findConfigEntry(name, &index);
+      if (!entry)
+      {
+        ctx.printError(404, "Config not found");
+        return;
+      }
+      String value;
+      const bool stored = configLoadStoredValue(*entry, value);
+      if (!stored)
+      {
+        value = entry->defaultValue ? entry->defaultValue : "";
+      }
+      ctx.printOK("conf get");
+      char line[160];
+      snprintf(line, sizeof(line), "[%u] %s (%s)",
+               static_cast<unsigned>(index), entry->name,
+               stored ? "stored" : "default");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "value: %s",
+               value.length() > 0 ? value.c_str() : "(empty)");
+      ctx.printBody(line);
+      if (!stored && entry->defaultValue)
+      {
+        snprintf(line, sizeof(line), "default: %s",
+                 *entry->defaultValue ? entry->defaultValue : "(empty)");
+        ctx.printBody(line);
+      }
+    }
+
+    static void handleConfSet(Context &ctx)
+    {
+      if (ctx.argc() != 2)
+      {
+        ctx.printError(400, "Usage: conf set <name> <value>");
+        return;
+      }
+      const char *name = ctx.arg(0).c_str();
+      if (!name || !*name)
+      {
+        ctx.printError(400, "Invalid config name");
+        return;
+      }
+      size_t index = 0;
+      const ConfigEntry *entry = findConfigEntry(name, &index);
+      if (!entry)
+      {
+        ctx.printError(404, "Config not found");
+        return;
+      }
+      const char *valueText = ctx.arg(1).c_str();
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      if (!configStoreValue(*entry, String(valueText)))
+      {
+        ctx.printError(500, "Failed to store config");
+        return;
+      }
+      ctx.printOK("conf set");
+      char line[160];
+      snprintf(line, sizeof(line), "[%u] %s",
+               static_cast<unsigned>(index),
+               entry->name ? entry->name : "(unnamed)");
+      ctx.printBody(line);
+      snprintf(line, sizeof(line), "value: %s",
+               (valueText && *valueText) ? valueText : "(empty)");
+      ctx.printBody(line);
+#else
+      (void)valueText;
+      ctx.printError(501, "Preferences disabled");
+#endif
+    }
+
+    static void handleConfDel(Context &ctx)
+    {
+      if (ctx.argc() != 1)
+      {
+        ctx.printError(400, "Usage: conf del <name>");
+        return;
+      }
+      const char *name = ctx.arg(0).c_str();
+      if (!name || !*name)
+      {
+        ctx.printError(400, "Invalid config name");
+        return;
+      }
+      size_t index = 0;
+      const ConfigEntry *entry = findConfigEntry(name, &index);
+      if (!entry)
+      {
+        ctx.printError(404, "Config not found");
+        return;
+      }
+#if defined(ESP32SERIALCTL_HAS_PREFERENCES)
+      if (!configRemoveValue(*entry))
+      {
+        ctx.printError(500, "Failed to delete config");
+        return;
+      }
+      ctx.printOK("conf del");
+      char line[160];
+      snprintf(line, sizeof(line), "[%u] %s",
+               static_cast<unsigned>(index),
+               entry->name ? entry->name : "(unnamed)");
+      ctx.printBody(line);
+#else
+      ctx.printError(501, "Preferences disabled");
+#endif
+    }
+
     static bool parsePinArgument(Context &ctx, const typename Base::Argument &arg,
                                  uint8_t &pin, const char *field)
     {
@@ -4880,6 +5446,9 @@ namespace esp32serialctl
     static const size_t kCommandCount;
 
     static int rgbDefaultPin_;
+    static const ConfigEntry *configEntries_;
+    static size_t configEntryCount_;
+    static String configNamespace_;
 
     Base cli_;
   };
@@ -4901,6 +5470,14 @@ namespace esp32serialctl
 #endif
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},
+          {"conf", "list", &ESP32SerialCtl::handleConfList,
+           "[--lang code] : List configurable entries"},
+          {"conf", "get", &ESP32SerialCtl::handleConfGet,
+           "<name> [--lang code] : Show config value and source"},
+          {"conf", "set", &ESP32SerialCtl::handleConfSet,
+           "<name> <value> : Store config value"},
+          {"conf", "del", &ESP32SerialCtl::handleConfDel,
+           "<name> : Remove stored config value"},
 #if defined(ESP32SERIALCTL_HAS_WIFI) && defined(ESP32SERIALCTL_HAS_PREFERENCES)
           {"wifi", "auto", &ESP32SerialCtl::handleWifiAuto,
            "<on|off> : Enable or disable automatic Wi-Fi connect"},
@@ -5044,6 +5621,16 @@ namespace esp32serialctl
   const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommandCount =
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands) /
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands[0]);
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  const ConfigEntry *ESP32SerialCtl<MaxLineLength, MaxTokens>::configEntries_ = nullptr;
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::configEntryCount_ = 0;
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  String ESP32SerialCtl<MaxLineLength, MaxTokens>::configNamespace_ =
+      kPrefsConfigDefaultNamespace;
 
   template <size_t MaxLineLength, size_t MaxTokens>
   int ESP32SerialCtl<MaxLineLength, MaxTokens>::rgbDefaultPin_ =

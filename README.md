@@ -106,6 +106,7 @@ These are emitted automatically before the command handler is called.
 - `sys timezone` gets/sets the persisted TZ string (also used by NTP).
 - `sys mem` lists heap/PSRAM totals, free, minimum, and largest blocks plus stack watermarks.
 - `sys reset` confirms the request, flushes output, then calls `ESP.restart()`.
+- `conf list/get/set/del` expose application-defined configuration slots backed by NVS (`conf list --lang ja` shows localized descriptions). Defaults come from `ESP32SerialCtl::setConfigEntries`.
 - `storage list/use/status` exposes whichever storage backends have been linked in (`SD`, `SPIFFS`, `LittleFS`, `FFat`). Use `storage use <name>` to select the active target and `storage status [name]` to inspect capacity and usage.
 - `fs ls/cat/write/rm/stat/mkdir/mv` manipulate the filesystem on the active storage (or one specified via `--storage <name>`), covering directory listings, file inspection, text writes, deletions, and renames.
 - `fs b64read/b64write` move arbitrary binary blobs by streaming Base64-encoded chunks; pair with `--append` for multi-chunk uploads.
@@ -122,6 +123,28 @@ These are emitted automatically before the command handler is called.
 Library users can also configure the default RGB pin from code via
 `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);`. When the platform
 defines `RGB_BUILTIN`, that pin is picked up automatically.
+
+Application settings can be exposed to the CLI by registering a `ConfigEntry`
+array at startup:
+
+```cpp
+static constexpr esp32serialctl::ConfigEntry kAppConfig[] = {
+    {"api_key", "", {{"en", "External API key"}, {"ja", "外部APIキー"}}},
+};
+
+static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, "my_app_config");
+```
+
+The `conf` command group lets users list entries (`conf list` shows all
+localized descriptions unless `--lang ja` narrows the output), inspect values
+by name (`conf get <name> [--lang ja]`), update them (`conf set <name> "value"`),
+and delete stored overrides (`conf del <name>`). Only `conf list` prints the
+localized descriptions; other commands report status and values. Code can read
+the effective value at runtime with `esp32SerialCtl.configGet("api_key")`. If
+the entries or namespace need to be chosen dynamically (for example, after
+reading a manifest from storage), the static helpers
+`ESP32SerialCtl<>::setConfigNamespace(...)` and
+`ESP32SerialCtl<>::setConfigEntries(...)` remain available.
 
 ## Time and Network Helpers
 

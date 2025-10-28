@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "システム",
-            "desc": "sys info / uptime / time / timezone / reset"
+            "desc": "sys info / uptime / time / timezone / reset / conf list"
           },
           "wifi": {
             "label": "Wi-Fi",
@@ -192,6 +192,58 @@ document.addEventListener('DOMContentLoaded', () => {
           "sys-reset": {
             "description": "ESP32 をソフトリセットします。",
             "action": "sys reset を送信"
+          },
+          "conf-list": {
+            "description": "アプリケーションで定義した設定スロットを一覧表示します。言語を指定しない場合は登録済みの説明をすべて表示し、`--lang` で特定言語に絞り込めます。",
+            "actions": {
+              "run": "conf list を送信"
+            }
+          },
+          "conf-get": {
+            "description": "指定した設定名の値を取得し、保存済みか既定値かを表示します。説明文が必要な場合は `conf list`（必要に応じて `--lang`）を利用してください。",
+            "field": {
+              "label": "設定名",
+              "placeholder": "api_key"
+            },
+            "actions": {
+              "run": "conf get を送信"
+            },
+            "errors": {
+              "required": "設定名を入力してください。"
+            }
+          },
+          "conf-set": {
+            "description": "指定した設定名に文字列値を保存します。複数単語は引用符で囲ってください。",
+            "fields": {
+              "index": {
+                "label": "設定名",
+                "placeholder": "api_key"
+              },
+              "value": {
+                "label": "保存する値",
+                "placeholder": "my-value"
+              }
+            },
+            "actions": {
+              "run": "conf set を送信"
+            },
+            "errors": {
+              "indexRequired": "設定名を入力してください。",
+              "valueRequired": "値を入力してください。"
+            }
+          },
+          "conf-del": {
+            "description": "指定した設定名の保存済み値を削除し、既定値へ戻します。",
+            "field": {
+              "label": "設定名",
+              "placeholder": "api_key"
+            },
+            "actions": {
+              "run": "conf del を送信"
+            },
+            "errors": {
+              "required": "設定名を入力してください。"
+            }
           }
         },
         "wifi": {
@@ -600,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "System",
-            "desc": "sys info / uptime / time / timezone / reset"
+            "desc": "sys info / uptime / time / timezone / reset / conf list"
           },
           "wifi": {
             "label": "Wi-Fi",
@@ -725,6 +777,58 @@ document.addEventListener('DOMContentLoaded', () => {
           "sys-reset": {
             "description": "Soft reset the ESP32.",
             "action": "Send sys reset"
+          },
+          "conf-list": {
+            "description": "List application-defined configuration slots. All available descriptions are shown unless `--lang` is provided to filter a specific language.",
+            "actions": {
+              "run": "Send conf list"
+            }
+          },
+          "conf-get": {
+            "description": "Read a slot by name and report whether a stored value overrides the default. Use `conf list` (optionally with `--lang`) to review localized descriptions.",
+            "field": {
+              "label": "Config name",
+              "placeholder": "api_key"
+            },
+            "actions": {
+              "run": "Send conf get"
+            },
+            "errors": {
+              "required": "Enter a config name."
+            }
+          },
+          "conf-set": {
+            "description": "Persist a string value for the selected slot name. Use quotes when including spaces.",
+            "fields": {
+              "index": {
+                "label": "Config name",
+                "placeholder": "api_key"
+              },
+              "value": {
+                "label": "Value",
+                "placeholder": "my-value"
+              }
+            },
+            "actions": {
+              "run": "Send conf set"
+            },
+            "errors": {
+              "indexRequired": "Enter a config name.",
+              "valueRequired": "Enter a value."
+            }
+          },
+          "conf-del": {
+            "description": "Delete the stored value for the specified slot name so the default is used again.",
+            "field": {
+              "label": "Config name",
+              "placeholder": "api_key"
+            },
+            "actions": {
+              "run": "Send conf del"
+            },
+            "errors": {
+              "required": "Enter a config name."
+            }
           }
         },
         "wifi": {
@@ -1133,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "tabs": {
           "system": {
             "label": "系统",
-            "desc": "sys info / uptime / time / timezone / reset"
+            "desc": "sys info / uptime / time / timezone / reset / conf list"
           },
           "wifi": {
             "label": "Wi-Fi",
@@ -1258,6 +1362,58 @@ document.addEventListener('DOMContentLoaded', () => {
           "sys-reset": {
             "description": "对 ESP32 执行软重启。",
             "action": "发送 sys reset"
+          },
+          "conf-list": {
+            "description": "列出应用定义的配置槽位。若未指定 `--lang`，将显示全部语言的说明；使用 `--lang` 可仅输出某一种语言。",
+            "actions": {
+              "run": "发送 conf list"
+            }
+          },
+          "conf-get": {
+            "description": "按名称读取配置，并提示是已有存储值还是默认值。描述文本请在 `conf list` 中查看（可配合 `--lang` 过滤）。",
+            "field": {
+              "label": "配置名称",
+              "placeholder": "api_key"
+            },
+            "actions": {
+              "run": "发送 conf get"
+            },
+            "errors": {
+              "required": "请输入配置名称。"
+            }
+          },
+          "conf-set": {
+            "description": "为指定名称保存字符串值，若包含空格请使用引号。",
+            "fields": {
+              "index": {
+                "label": "配置名称",
+                "placeholder": "api_key"
+              },
+              "value": {
+                "label": "保存的值",
+                "placeholder": "my-value"
+              }
+            },
+            "actions": {
+              "run": "发送 conf set"
+            },
+            "errors": {
+              "indexRequired": "请输入配置名称。",
+              "valueRequired": "请输入值。"
+            }
+          },
+          "conf-del": {
+            "description": "删除指定名称已保存的值，恢复为默认值。",
+            "field": {
+              "label": "配置名称",
+              "placeholder": "api_key"
+            },
+            "actions": {
+              "run": "发送 conf del"
+            },
+            "errors": {
+              "required": "请输入配置名称。"
+            }
           }
         },
         "wifi": {

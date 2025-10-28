@@ -104,6 +104,7 @@ void loop() {
 - `sys timezone` : 永続化されるタイムゾーン文字列を取得・設定（NTP 同期でも利用）
 - `sys mem` : ヒープ/PSRAM の合計・空き・最小・最大ブロックとスタック余裕を表示
 - `sys reset` : リクエストを確認後に `ESP.restart()` を実行
+- `conf list/get/set/del` : アプリで定義した設定スロットを NVS に保存・取得します。`conf list --lang ja` で多言語説明を指定できます。初期値は `ESP32SerialCtl::setConfigEntries` で登録します。
 - `storage list/use/status` : `SD` / `SPIFFS` / `LittleFS` / `FFat` などインクルード済みのストレージを列挙・選択し、容量や使用量を確認
 - `fs ls/cat/write/rm/stat/mkdir/mv` : `storage use` で選択したストレージ（または `--storage <name>` 指定）に対して、ファイル一覧・内容表示・テキスト書き込み・削除・情報表示・ディレクトリ作成・移動/リネームを行う
 - `fs b64read/b64write` : Base64 でエンコードしたチャンクを送受信し、バイナリデータも転送可能。複数チャンクは `--append` で追記。
@@ -119,6 +120,18 @@ void loop() {
 
 スケッチから RGB のデフォルト pin を設定する場合は `esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(pin);` を呼び出してください。
 `RGB_BUILTIN` が定義されているプラットフォームでは、その値が自動的に既定 pin として利用されます。
+
+アプリ固有の設定を CLI に公開する場合は、起動時に `ConfigEntry` 配列を登録します。
+
+```cpp
+static constexpr esp32serialctl::ConfigEntry kAppConfig[] = {
+    {"api_key", "", {{"ja", "外部API連携用のトークン"}, {"en", "External API key"}}},
+};
+
+static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, "my_app_config");
+```
+
+`conf list` はデフォルトで登録済みの多言語説明をすべて表示し、`--lang ja` のように指定すると特定言語のみに絞り込めます。値の取得・更新は名前で行い（`conf get <name> [--lang ja]` / `conf set <name> "value"` / `conf del <name>`）、これらのコマンドでは説明文は出力されません。スケッチ側では `esp32SerialCtl.configGet("api_key")` で実際に利用される文字列を取得します。設定や名前空間を実行時に切り替える必要がある場合は、`ESP32SerialCtl<>::setConfigNamespace(...)` / `ESP32SerialCtl<>::setConfigEntries(...)` を利用してください。
 
 ## 時刻とネットワークのヘルパー
 
