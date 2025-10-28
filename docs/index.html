@@ -807,8 +807,12 @@
               </div>
               <div class="result-section" data-fs="list">
                 <header class="result-header">
-                  <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
-                  <span class="result-timestamp" data-fs-list-timestamp>--:--</span>
+                  <div class="result-header-info">
+                    <span class="result-title" data-i18n="results.latest">最新結果 (自動取得)</span>
+                    <span class="result-timestamp" data-fs-list-timestamp>--:--</span>
+                  </div>
+                  <button class="btn btn-outline" id="fs-list-refresh-button" disabled
+                    data-i18n="filesystem.list.refresh">一覧を更新</button>
                 </header>
                 <div class="fs-tree" data-fs-tree>
                   <p class="fs-empty" data-fs-empty data-i18n="filesystem.messages.selectStorage">
@@ -885,13 +889,13 @@
               <div class="fs-detail-section" data-fs-action-section="write" hidden>
                 <h4 data-i18n="filesystem.actions.write.title">テキストファイルを追加 (fs write)</h4>
                 <div class="form-field">
-                  <label for="fs-write-path" data-i18n="filesystem.actions.write.pathLabel">パス</label>
-                  <input id="fs-write-path" type="text" placeholder="/notes.txt" disabled
+                  <label for="fs-write-path" data-i18n="filesystem.actions.write.pathLabel">ファイル名</label>
+                  <input id="fs-write-path" type="text" placeholder="notes.txt" disabled
                     data-i18n-placeholder="filesystem.actions.write.pathPlaceholder" />
                 </div>
                 <div class="form-field">
                   <label for="fs-write-content" data-i18n="filesystem.actions.write.contentLabel">内容 (短いテキスト向け)</label>
-                  <textarea id="fs-write-content" rows="3" placeholder="fs write /notes.txt &quot;hello&quot;" disabled
+                  <textarea id="fs-write-content" rows="3" placeholder="hello" disabled
                     data-i18n-placeholder="filesystem.actions.write.contentPlaceholder"></textarea>
                 </div>
                 <div class="card-actions">

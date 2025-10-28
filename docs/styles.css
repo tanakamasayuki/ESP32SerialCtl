@@ -639,6 +639,12 @@ p {
   color: var(--color-muted);
 }
 
+.result-header-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .result-title {
   font-weight: 600;
   color: var(--color-text);

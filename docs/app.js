@@ -453,7 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "ストレージを選択すると自動で最新の一覧を取得します。",
             "ディレクトリは展開して中身を確認できます。",
             "ファイルまたはディレクトリをクリックすると右側に詳細が表示されます。"
-          ]
+          ],
+          "refresh": "一覧を更新",
+          "refreshing": "更新中..."
         },
         "detail": {
           "title": "詳細と追加操作",
@@ -472,6 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
           "selectStorage": "ストレージタブで対象を選択してください。",
           "noSample": "このストレージのサンプルデータはまだ用意されていません。",
           "loading": "ストレージを選択...",
+          "refreshing": "ファイル一覧を取得しています...",
+          "fetchFailed": "ファイル一覧の取得に失敗しました。",
           "noDetail": "ファイルまたはディレクトリを選択すると詳細が表示されます。",
           "dirPlaceholder": "ディレクトリの内容がここに表示されます",
           "catPlaceholder": "ファイル内容がここに表示されます",
@@ -500,11 +504,14 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "write": {
             "title": "テキストファイルを追加 (fs write)",
-            "pathLabel": "パス",
-            "pathPlaceholder": "/notes.txt",
+            "pathLabel": "ファイル名",
+            "pathPlaceholder": "notes.txt",
             "contentLabel": "内容 (短いテキスト向け)",
-            "contentPlaceholder": "fs write /notes.txt \"hello\"",
-            "action": "fs write を送信"
+            "contentPlaceholder": "hello",
+            "action": "fs write を送信",
+            "errors": {
+              "nameRequired": "ファイル名を入力してください。"
+            }
           },
           "b64write": {
             "title": "ファイルをアップロード (fs b64write)",
@@ -1068,7 +1075,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "Selecting a storage automatically fetches the latest listing.",
             "Expand directories to inspect their contents.",
             "Click a file or directory to show details on the right."
-          ]
+          ],
+          "refresh": "Refresh list",
+          "refreshing": "Refreshing..."
         },
         "detail": {
           "title": "Details & Additional Actions",
@@ -1087,6 +1096,8 @@ document.addEventListener('DOMContentLoaded', () => {
           "selectStorage": "Select a storage target from the storage tab.",
           "noSample": "Sample data for this storage has not been prepared yet.",
           "loading": "Select a storage...",
+          "refreshing": "Fetching filesystem list...",
+          "fetchFailed": "Failed to fetch filesystem list.",
           "noDetail": "Select a file or directory to view details.",
           "dirPlaceholder": "Directory contents will appear here.",
           "catPlaceholder": "File contents will appear here.",
@@ -1115,11 +1126,14 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "write": {
             "title": "Create Text File (fs write)",
-            "pathLabel": "Path",
-            "pathPlaceholder": "/notes.txt",
+            "pathLabel": "File name",
+            "pathPlaceholder": "notes.txt",
             "contentLabel": "Content (for short text)",
-            "contentPlaceholder": "fs write /notes.txt \"hello\"",
-            "action": "Send fs write"
+            "contentPlaceholder": "hello",
+            "action": "Send fs write",
+            "errors": {
+              "nameRequired": "File name is required."
+            }
           },
           "b64write": {
             "title": "Upload File (fs b64write)",
@@ -1683,7 +1697,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "选择存储后会自动获取最新列表。",
             "可展开目录查看其中内容。",
             "点击文件或目录可在右侧显示详细信息。"
-          ]
+          ],
+          "refresh": "刷新列表",
+          "refreshing": "刷新中..."
         },
         "detail": {
           "title": "详细信息与附加操作",
@@ -1702,6 +1718,8 @@ document.addEventListener('DOMContentLoaded', () => {
           "selectStorage": "请在存储选项卡中选择目标。",
           "noSample": "该存储的示例数据尚未准备。",
           "loading": "请选择存储...",
+          "refreshing": "正在获取文件列表...",
+          "fetchFailed": "获取文件列表失败。",
           "noDetail": "选择文件或目录以查看详细信息。",
           "dirPlaceholder": "目录内容将在此显示。",
           "catPlaceholder": "文件内容将在此显示。",
@@ -1730,11 +1748,14 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "write": {
             "title": "创建文本文件 (fs write)",
-            "pathLabel": "路径",
-            "pathPlaceholder": "/notes.txt",
+            "pathLabel": "文件名",
+            "pathPlaceholder": "notes.txt",
             "contentLabel": "内容（适用于短文本）",
-            "contentPlaceholder": "fs write /notes.txt \"hello\"",
-            "action": "发送 fs write"
+            "contentPlaceholder": "hello",
+            "action": "发送 fs write",
+            "errors": {
+              "nameRequired": "请输入文件名。"
+            }
           },
           "b64write": {
             "title": "上传文件 (fs b64write)",
@@ -2507,6 +2528,7 @@ OK fs ls
     empty: document.querySelector('[data-fs-empty]'),
     listRaw: document.querySelector('[data-fs-list-raw]'),
     listTimestamp: document.querySelector('[data-fs-list-timestamp]'),
+    listRefreshButton: document.querySelector('#fs-list-refresh-button'),
     infoMessage: document.querySelector('[data-fs-info-message]'),
     selectedPath: document.querySelector('[data-fs-selected-path]'),
     detailTable: document.querySelector('[data-fs-detail-table]'),
@@ -2703,6 +2725,8 @@ OK fs ls
   let currentTab = 'system';
   let currentFsSelection = null;
   let fsPathMap = new Map();
+  let fsFetching = false;
+  let lastFsData = null;
   let lastStorageListRaw = storageSamples.list;
   let lastStorageStatusRaw = storageSamples.statusNone;
   let configInitialized = false;
@@ -2776,7 +2800,7 @@ OK fs ls
       });
     }
     if (currentTab === 'filesystem') {
-      runFsAutoFetch();
+      runFsAutoFetch({ silent: true });
     }
     if (currentTab === 'config') {
       ensureConfigInitialized();
@@ -3295,6 +3319,7 @@ OK fs ls
         storageElements.select.disabled = false;
         storageElements.select.value = currentStorageId || '';
       }
+      updateFsRefreshButtonState();
     }
   };
 
@@ -3787,9 +3812,18 @@ OK fs ls
     }
     if (fsElements.writePathInput) {
       fsElements.writePathInput.value = '';
+      delete fsElements.writePathInput.dataset.basePath;
+      fsElements.writePathInput.disabled = true;
+      fsElements.writePathInput.setAttribute('disabled', '');
     }
     if (fsElements.writeContentInput) {
       fsElements.writeContentInput.value = '';
+      fsElements.writeContentInput.disabled = true;
+      fsElements.writeContentInput.setAttribute('disabled', '');
+    }
+    if (fsElements.writeRunButton) {
+      fsElements.writeRunButton.disabled = true;
+      fsElements.writeRunButton.setAttribute('disabled', '');
     }
     if (fsElements.b64writeSection) {
       fsElements.b64writeSection.hidden = true;
@@ -3801,6 +3835,7 @@ OK fs ls
       fsElements.b64writeChunkInput.value = '';
     }
     currentFsSelection = null;
+    applyDisabledTitles();
   };
 
   const clearFsView = (message) => {
@@ -3822,6 +3857,58 @@ OK fs ls
       fsElements.infoMessage.textContent = translate('filesystem.messages.noDetail');
     }
     resetFsDetails();
+    lastFsData = null;
+    fsFetching = false;
+  };
+
+  const getFsHintKey = (storageId) => {
+    if (!storageId) {
+      return null;
+    }
+    return fsSamples[storageId]?.noteKey || null;
+  };
+
+  const setFsPending = () => {
+    if (fsElements.listTimestamp) {
+      fsElements.listTimestamp.textContent = '--:--';
+    }
+    if (fsElements.listRaw) {
+      fsElements.listRaw.textContent = translate('results.pending');
+    }
+    if (fsElements.tree) {
+      fsElements.tree.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'fs-empty';
+      p.textContent = translate('filesystem.messages.refreshing');
+      fsElements.tree.append(p);
+    }
+    if (fsElements.infoMessage) {
+      fsElements.infoMessage.textContent = translate('filesystem.messages.refreshing');
+    }
+    resetFsDetails();
+    lastFsData = null;
+  };
+
+  const renderFsError = (messageKey) => {
+    fsPathMap = new Map();
+    if (fsElements.tree) {
+      fsElements.tree.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'fs-empty';
+      p.textContent = translate(messageKey || 'filesystem.messages.fetchFailed');
+      fsElements.tree.append(p);
+    }
+    if (fsElements.listRaw) {
+      fsElements.listRaw.textContent = translate('results.placeholder');
+    }
+    if (fsElements.listTimestamp) {
+      fsElements.listTimestamp.textContent = '--:--';
+    }
+    if (fsElements.infoMessage) {
+      fsElements.infoMessage.textContent = translate(messageKey || 'filesystem.messages.fetchFailed');
+    }
+    resetFsDetails();
+    lastFsData = null;
   };
 
   const includeFsRootNode = (items = [], listRaw = null) => {
@@ -3879,6 +3966,62 @@ OK fs ls
     return items[0] || null;
   };
 
+  const renderFsView = (data, { preserveSelection = true, preferredPath = null } = {}) => {
+    if (!fsElements.tree) {
+      return;
+    }
+    const previousSelection = preserveSelection ? (preferredPath || currentFsSelection) : null;
+    const listRaw = data?.listRaw || '';
+    const timestamp = data?.timestamp || '--:--';
+    const infoKey = data?.infoKey || getFsHintKey(currentStorageId);
+
+    if (fsElements.listTimestamp) {
+      fsElements.listTimestamp.textContent = timestamp;
+    }
+    if (fsElements.listRaw) {
+      fsElements.listRaw.textContent = listRaw || translate('results.placeholder');
+    }
+    if (fsElements.infoMessage) {
+      if (infoKey && getTranslationValue(currentLanguage, infoKey) !== undefined) {
+        fsElements.infoMessage.innerHTML = translate(infoKey, { html: true });
+      } else {
+        fsElements.infoMessage.textContent = translate('filesystem.messages.noDetail');
+      }
+    }
+
+    fsPathMap = new Map();
+    fsElements.tree.innerHTML = '';
+    const items = Array.isArray(data?.tree) ? data.tree : [];
+    if (!items.length) {
+      const p = document.createElement('p');
+      p.className = 'fs-empty';
+      p.textContent = translate('filesystem.messages.noDetail');
+      fsElements.tree.append(p);
+      currentFsSelection = null;
+      resetFsDetails();
+      return;
+    }
+
+    const treeWithRoot = includeFsRootNode(items, data?.rootRaw || listRaw || null);
+    fsElements.tree.append(buildFsTree(treeWithRoot));
+
+    let targetPath = null;
+    if (previousSelection && fsPathMap.has(previousSelection)) {
+      targetPath = previousSelection;
+    } else {
+      const preferredNode = fsPathMap.get('/') || null;
+      const defaultNode = preferredNode || findFirstSelectableNode(treeWithRoot);
+      targetPath = defaultNode ? defaultNode.path : null;
+    }
+
+    if (targetPath) {
+      selectFsPath(targetPath);
+    } else {
+      currentFsSelection = null;
+      resetFsDetails();
+    }
+  };
+
   const selectFsPath = (path) => {
     if (!fsElements.tree) {
       return;
@@ -3925,6 +4068,172 @@ OK fs ls
     return `${base}/${child}`;
   };
 
+  const parseFsLsOutput = (raw) => {
+    const result = {
+      path: '/',
+      entries: []
+    };
+    if (!raw) {
+      return result;
+    }
+    const sanitized = String(raw).replace(/\r/g, '');
+    const lines = sanitized.split('\n');
+    lines.forEach((line) => {
+      const trimmed = line.trimEnd();
+      if (!trimmed) {
+        return;
+      }
+      if (!trimmed.startsWith('|')) {
+        return;
+      }
+      const content = trimmed.replace(/^\|\s*/, '');
+      if (!content) {
+        return;
+      }
+      const headerMatch = content.match(/^storage:\s+([^\s]+)\s+path:\s*(.+)$/i);
+      if (headerMatch) {
+        const [, , path] = headerMatch;
+        result.path = normalizeFsDirPath(path);
+        return;
+      }
+      if (content === '(empty)') {
+        return;
+      }
+      if (/^<DIR>\s+/i.test(content)) {
+        const nameRaw = content.replace(/^<DIR>\s+/i, '');
+        const baseName = nameRaw.split('/').filter(Boolean).pop() || nameRaw;
+        const fullPath = normalizeFsDirPath(joinFsPath(result.path, nameRaw));
+        result.entries.push({
+          type: 'dir',
+          name: baseName,
+          path: fullPath,
+          size: '--'
+        });
+        return;
+      }
+      if (/^file\s+/i.test(content)) {
+        const nameRaw = content.replace(/^file\s+/i, '');
+        const baseName = nameRaw.split('/').filter(Boolean).pop() || nameRaw;
+        const fullPath = joinFsPath(result.path, nameRaw);
+        result.entries.push({
+          type: 'file',
+          name: baseName,
+          path: fullPath,
+          size: '--'
+        });
+        return;
+      }
+      const fileMatch = content.match(/^(\d+)\s+(.+)$/);
+      if (fileMatch) {
+        const sizeBytes = Number(fileMatch[1]);
+        const nameRaw = fileMatch[2];
+        const baseName = nameRaw.split('/').filter(Boolean).pop() || nameRaw;
+        const fullPath = joinFsPath(result.path, nameRaw);
+        result.entries.push({
+          type: 'file',
+          name: baseName,
+          path: fullPath,
+          size: Number.isFinite(sizeBytes) ? `${sizeBytes} bytes` : '--'
+        });
+        return;
+      }
+      const fallbackName = content;
+      const baseName = fallbackName.split('/').filter(Boolean).pop() || fallbackName;
+      const fullPath = joinFsPath(result.path, fallbackName);
+      result.entries.push({
+        type: 'file',
+        name: baseName,
+        path: fullPath,
+        size: '--'
+      });
+    });
+    return result;
+  };
+
+  const fetchFsTree = async (storageId) => {
+    const processed = new Set();
+    const queue = ['/'];
+    const directoryMap = new Map();
+    const combinedOutputs = [];
+    let rootRaw = '';
+
+    while (queue.length) {
+      const targetDir = queue.shift();
+      if (processed.has(targetDir)) {
+        continue;
+      }
+      processed.add(targetDir);
+      const commandText = targetDir === '/' ? 'fs ls' : `fs ls ${quoteArgument(targetDir)}`;
+      const raw = await runSerialCommand(commandText, {
+        id: `fs-ls-${storageId || 'default'}-${targetDir.replace(/\//g, '_')}`
+      });
+      const trimmed = raw.trim();
+      if (!/^OK\s+fs\s+ls/i.test(trimmed)) {
+        const error = new Error(trimmed || `fs ls failed for ${targetDir}`);
+        error.commandText = commandText;
+        throw error;
+      }
+      if (!rootRaw) {
+        rootRaw = trimmed;
+      }
+      combinedOutputs.push(trimmed);
+      const parsed = parseFsLsOutput(trimmed);
+      const dirPath = parsed.path;
+      const dirKey = normalizeFsDirPath(dirPath);
+      let dirNode = directoryMap.get(dirKey);
+      if (!dirNode) {
+        dirNode = {
+          name: dirKey === '/' ? '/' : dirKey.split('/').filter(Boolean).pop() || dirKey,
+          path: dirKey,
+          type: 'dir',
+          size: '--',
+          children: []
+        };
+        directoryMap.set(dirKey, dirNode);
+      }
+      const children = parsed.entries.map((entry) => {
+        if (entry.type === 'dir') {
+          const childPath = normalizeFsDirPath(entry.path);
+          let childNode = directoryMap.get(childPath);
+          if (!childNode) {
+            childNode = {
+              name: entry.name,
+              path: childPath,
+              type: 'dir',
+              size: '--',
+              children: []
+            };
+            directoryMap.set(childPath, childNode);
+          } else {
+            childNode.name = entry.name;
+          }
+          if (!processed.has(childPath) && !queue.includes(childPath)) {
+            queue.push(childPath);
+          }
+          return childNode;
+        }
+        return {
+          name: entry.name,
+          path: entry.path,
+          type: 'file',
+          size: entry.size || '--',
+          cat: null,
+          stat: null,
+          b64read: null,
+          hash: null
+        };
+      });
+      dirNode.children = children;
+    }
+
+    const rootNode = directoryMap.get('/') || { children: [] };
+    return {
+      tree: Array.isArray(rootNode.children) ? rootNode.children : [],
+      listRaw: combinedOutputs.join('\n\n'),
+      rootRaw
+    };
+  };
+
   const updateFsActionsForNode = (node) => {
     const isDir = node?.type === 'dir';
     const canCreateDir = isDir && currentStorageId !== 'spiffs';
@@ -3941,6 +4250,22 @@ OK fs ls
       if (fsElements.mkdirPathInput) {
         fsElements.mkdirPathInput.value = '';
       }
+      if (fsElements.writePathInput) {
+        fsElements.writePathInput.value = '';
+        delete fsElements.writePathInput.dataset.basePath;
+        fsElements.writePathInput.disabled = true;
+        fsElements.writePathInput.setAttribute('disabled', '');
+      }
+      if (fsElements.writeContentInput) {
+        fsElements.writeContentInput.value = '';
+        fsElements.writeContentInput.disabled = true;
+        fsElements.writeContentInput.setAttribute('disabled', '');
+      }
+      if (fsElements.writeRunButton) {
+        fsElements.writeRunButton.disabled = true;
+        fsElements.writeRunButton.setAttribute('disabled', '');
+      }
+      applyDisabledTitles();
       return;
     }
     const basePath = node?.path || '/';
@@ -3949,11 +4274,21 @@ OK fs ls
       fsElements.mkdirPathInput.value = canCreateDir ? joinFsPath(basePath, placeholder) : '';
     }
     if (fsElements.writePathInput) {
-      const placeholder = translate('filesystem.actions.write.pathPlaceholder') || '/notes.txt';
-      fsElements.writePathInput.value = joinFsPath(basePath, placeholder);
+      const placeholder = translate('filesystem.actions.write.pathPlaceholder') || 'notes.txt';
+      fsElements.writePathInput.disabled = false;
+      fsElements.writePathInput.removeAttribute('disabled');
+      fsElements.writePathInput.dataset.basePath = basePath;
+      fsElements.writePathInput.value = '';
+      fsElements.writePathInput.setAttribute('placeholder', placeholder);
     }
     if (fsElements.writeContentInput) {
+      fsElements.writeContentInput.disabled = false;
+      fsElements.writeContentInput.removeAttribute('disabled');
       fsElements.writeContentInput.value = '';
+    }
+    if (fsElements.writeRunButton) {
+      fsElements.writeRunButton.disabled = false;
+      fsElements.writeRunButton.removeAttribute('disabled');
     }
     if (fsElements.b64writePathInput) {
       const placeholder = translate('filesystem.actions.b64write.pathPlaceholder') || '/image.bin';
@@ -3962,6 +4297,7 @@ OK fs ls
     if (fsElements.b64writeChunkInput) {
       fsElements.b64writeChunkInput.value = '';
     }
+    applyDisabledTitles();
   };
 
   const parseBase64Chunks = (raw) => {
@@ -4305,42 +4641,92 @@ OK fs ls
     updateFsPreview(node);
   };
 
-  const runFsAutoFetch = () => {
+  const runFsAutoFetch = async ({ silent = false, userInitiated = false } = {}) => {
     if (!fsElements.tree) {
       return;
     }
     if (!currentStorageId) {
       clearFsView(translate('filesystem.messages.selectStorage'));
-      return;
-    }
-    const fsData = fsSamples[currentStorageId];
-    if (!fsData) {
-      clearFsView(translate('filesystem.messages.noSample'));
+      updateFsRefreshButtonState();
       return;
     }
 
-    if (fsElements.infoMessage) {
-      fsElements.infoMessage.innerHTML = translate(fsData.noteKey, { html: true });
-    }
-    if (fsElements.listTimestamp) {
-      fsElements.listTimestamp.textContent = formatTimeStamp();
-    }
-    if (fsElements.listRaw) {
-      fsElements.listRaw.textContent = fsData.listRaw;
+    if (!isSerialReady()) {
+      if (userInitiated) {
+        appendLogEntry('error', translate('connection.info.connectFirst'));
+      }
+      const sample = fsSamples[currentStorageId];
+      if (sample) {
+        const data = {
+          storageId: currentStorageId,
+          tree: sample.tree || [],
+          listRaw: sample.listRaw || '',
+          rootRaw: sample.listRaw || '',
+          timestamp: formatTimeStamp(),
+          infoKey: sample.noteKey || getFsHintKey(currentStorageId),
+          isSample: true
+        };
+        lastFsData = data;
+        renderFsView(data, { preserveSelection: false });
+      } else {
+        clearFsView(translate('filesystem.messages.selectStorage'));
+      }
+      updateFsRefreshButtonState();
+      return;
     }
 
-    fsPathMap = new Map();
-    fsElements.tree.innerHTML = '';
-    const treeWithRoot = includeFsRootNode(fsData.tree || [], fsData.listRaw || null);
-    fsElements.tree.append(buildFsTree(treeWithRoot));
-    currentFsSelection = null;
+    if (fsFetching) {
+      if (userInitiated) {
+        appendLogEntry('info', translate('filesystem.list.refreshing'));
+      }
+      return;
+    }
 
-    const preferredNode = fsPathMap.get('/') || null;
-    const defaultNode = preferredNode || findFirstSelectableNode(treeWithRoot);
-    if (defaultNode) {
-      selectFsPath(defaultNode.path);
-    } else {
-      resetFsDetails();
+    const previousSelection = currentFsSelection;
+    const previousData = lastFsData;
+    fsFetching = true;
+    updateFsRefreshButtonState();
+    setFsPending();
+
+    const targetStorage = currentStorageId;
+    try {
+      const result = await fetchFsTree(targetStorage);
+      if (targetStorage !== currentStorageId) {
+        return;
+      }
+      const data = {
+        storageId: targetStorage,
+        tree: result.tree,
+        listRaw: result.listRaw,
+        rootRaw: result.rootRaw,
+        timestamp: formatTimeStamp(),
+        infoKey: getFsHintKey(targetStorage),
+        isSample: false
+      };
+      lastFsData = data;
+      renderFsView(data, {
+        preserveSelection: Boolean(previousSelection),
+        preferredPath: previousSelection
+      });
+      if (!silent) {
+        appendLogEntry('info', `UI: fs list refreshed (${targetStorage})`);
+      }
+    } catch (error) {
+      if (targetStorage === currentStorageId) {
+        appendLogEntry('error', error?.message || 'fs ls failed');
+        if (previousData) {
+          lastFsData = previousData;
+          renderFsView(previousData, {
+            preserveSelection: Boolean(previousSelection),
+            preferredPath: previousSelection
+          });
+        } else {
+          renderFsError('filesystem.messages.fetchFailed');
+        }
+      }
+    } finally {
+      fsFetching = false;
+      updateFsRefreshButtonState();
     }
   };
 
@@ -4348,20 +4734,24 @@ OK fs ls
     renderStorageList(lastStorageListRaw || getStorageListRaw(currentStorageId || ''), currentStorageId || '');
     renderStorageStatus(lastStorageStatusRaw);
     renderConfigTable(configEntries);
-    if (currentStorageId && fsSamples[currentStorageId]) {
-      const fsData = fsSamples[currentStorageId];
-      if (fsElements.infoMessage) {
-        fsElements.infoMessage.innerHTML = translate(fsData.noteKey, { html: true });
-      }
-      if (currentFsSelection && fsPathMap.size) {
-        const node = fsPathMap.get(currentFsSelection);
-        if (node) {
-          updateFsDetail(node);
-        } else {
-          resetFsDetails();
-        }
+    if (currentStorageId) {
+      if (lastFsData && lastFsData.storageId === currentStorageId) {
+        renderFsView(lastFsData);
+      } else if (fsSamples[currentStorageId]) {
+        const sample = fsSamples[currentStorageId];
+        const data = {
+          storageId: currentStorageId,
+          tree: sample.tree || [],
+          listRaw: sample.listRaw || '',
+          rootRaw: sample.listRaw || '',
+          timestamp: '--:--',
+          infoKey: sample.noteKey || getFsHintKey(currentStorageId),
+          isSample: true
+        };
+        lastFsData = data;
+        renderFsView(data, { preserveSelection: false });
       } else {
-        resetFsDetails();
+        clearFsView(translate('filesystem.messages.selectStorage'));
       }
     } else {
       clearFsView(translate('filesystem.messages.selectStorage'));
@@ -4382,6 +4772,7 @@ OK fs ls
         applyHelpOutput(translate('commands.help.help.placeholder'));
       }
     }
+    updateFsRefreshButtonState();
   };
 
   const COMMAND_TIMEOUT_MS = 8000;
@@ -4411,6 +4802,23 @@ OK fs ls
   let pendingPortClosePromise = null;
 
   const isSerialReady = () => connectionState === 'connected' && Boolean(serialWriter);
+
+  const updateFsRefreshButtonState = () => {
+    if (!fsElements.listRefreshButton) {
+      return;
+    }
+    const labelKey = fsFetching ? 'filesystem.list.refreshing' : 'filesystem.list.refresh';
+    fsElements.listRefreshButton.textContent = translate(labelKey);
+    const shouldDisable = !isSerialReady() || !currentStorageId || fsFetching;
+    if (shouldDisable) {
+      fsElements.listRefreshButton.disabled = true;
+      fsElements.listRefreshButton.setAttribute('disabled', '');
+    } else {
+      fsElements.listRefreshButton.disabled = false;
+      fsElements.listRefreshButton.removeAttribute('disabled');
+    }
+    applyDisabledTitles();
+  };
 
   refreshConnectionLabel = () => {
     if (!statusLabel) {
@@ -4511,6 +4919,7 @@ OK fs ls
     updateConfigControlsState();
     refreshConnectionLabel();
     applyDisabledTitles();
+    updateFsRefreshButtonState();
     if (state === 'connected') {
       fetchHelpCommandList().catch(() => {
         /* handled via log */
@@ -5095,6 +5504,59 @@ OK fs ls
     return `"${value.replace(/(["\\])/g, '\\$1')}"`;
   };
 
+  const handleFsWriteRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    if (!currentStorageId) {
+      appendLogEntry('error', translate('filesystem.messages.selectStorage'));
+      return;
+    }
+    const nameInput = fsElements.writePathInput;
+    const contentInput = fsElements.writeContentInput;
+    if (!nameInput || !contentInput) {
+      return;
+    }
+    const selectionNode = currentFsSelection ? fsPathMap.get(currentFsSelection) : null;
+    const basePath = selectionNode?.type === 'dir' ? selectionNode.path : nameInput.dataset.basePath;
+    if (!basePath || selectionNode?.type !== 'dir') {
+      appendLogEntry('error', translate('filesystem.messages.noDetail'));
+      return;
+    }
+    const rawName = nameInput.value.trim();
+    const sanitizedName = rawName.replace(/^\/+/, '');
+    if (!sanitizedName) {
+      appendLogEntry('error', translate('filesystem.actions.write.errors.nameRequired'));
+      nameInput.focus();
+      return;
+    }
+    const targetPath = joinFsPath(basePath, sanitizedName);
+    const payload = contentInput.value || '';
+    appendLogEntry('debug', `UI: fs write -> ${targetPath}`);
+    runSerialCommand(`fs write ${quoteArgument(targetPath)} ${quoteArgument(payload)}`, {
+      id: `fs-write-${targetPath}`,
+      onFinalize: ({ error }) => {
+        if (!error) {
+          nameInput.value = '';
+          nameInput.focus();
+          Promise.resolve(runFsAutoFetch({ silent: true })).catch(() => {
+            /* handled via log */
+          });
+        }
+      }
+    })
+      .catch(() => {
+        /* handled via log */
+      });
+  };
+
+  const handleFsListRefresh = () => {
+    runFsAutoFetch({ userInitiated: true }).catch(() => {
+      /* handled via log */
+    });
+  };
+
   const fillSysTimeWithBrowserNow = () => {
     if (!sysTimeInput) {
       return;
@@ -5308,6 +5770,8 @@ OK fs ls
   attachCommandButtonHandler(ntpSetRunButton, handleNtpSetRun);
   attachCommandButtonHandler(ntpEnableRunButton, handleNtpEnableRun);
   attachCommandButtonHandler(ntpDisableRunButton, handleNtpDisableRun);
+  attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
+  attachCommandButtonHandler(fsElements.writeRunButton, handleFsWriteRun);
 
   commandPanels.forEach(({ button }, commandId) => {
     if (!button) {
