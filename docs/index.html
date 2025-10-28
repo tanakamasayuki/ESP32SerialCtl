@@ -61,6 +61,12 @@
             </button>
           </li>
           <li>
+            <button class="tab-button" role="tab" data-tab="config">
+              <span class="tab-label" data-i18n="nav.tabs.config.label">コンフィグ</span>
+              <span class="tab-desc" data-i18n="nav.tabs.config.desc">conf list / get / set / del</span>
+            </button>
+          </li>
+          <li>
             <button class="tab-button" role="tab" data-tab="storage">
               <span class="tab-label" data-i18n="nav.tabs.storage.label">ストレージ</span>
               <span class="tab-desc" data-i18n="nav.tabs.storage.desc">storage list / use / status</span>
@@ -683,6 +689,34 @@
                 <pre class="result-raw" data-result-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
               </div>
             </article>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-config" role="tabpanel">
+          <header class="tab-header">
+            <h2 data-i18n="sections.config.title">アプリ設定</h2>
+            <p data-i18n="sections.config.description">
+              conf list で取得したアプリ設定を一覧表示し、個別に編集・既定値へ戻す操作を行えます。
+            </p>
+          </header>
+
+          <div class="config-actions">
+            <button class="btn btn-outline" type="button" id="config-refresh-button"
+              data-i18n="sections.config.actions.refresh">最新の設定を取得</button>
+          </div>
+
+          <div class="config-table-wrapper" id="config-table-wrapper">
+            <div class="config-table" id="config-table" role="table">
+              <div class="config-row config-header" role="row">
+                <div class="config-cell" role="columnheader" data-i18n="sections.config.table.name">設定名</div>
+                <div class="config-cell" role="columnheader" data-i18n="sections.config.table.value">値</div>
+                <div class="config-cell" role="columnheader"
+                  data-i18n="sections.config.table.description">説明</div>
+                <div class="config-cell" role="columnheader" data-i18n="sections.config.table.actions">操作</div>
+              </div>
+              <div id="config-table-body"></div>
+            </div>
+            <p class="config-empty" id="config-empty-state" hidden data-i18n="sections.config.empty">設定が見つかりません。取得ボタンを押してください。</p>
           </div>
         </div>
 

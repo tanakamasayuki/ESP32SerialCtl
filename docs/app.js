@@ -73,6 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "label": "Wi-Fi",
             "desc": "wifi status / connect"
           },
+          "config": {
+            "label": "コンフィグ",
+            "desc": "conf list / get / set / del"
+          },
           "storage": {
             "label": "ストレージ",
             "desc": "storage list / use / status"
@@ -101,6 +105,29 @@ document.addEventListener('DOMContentLoaded', () => {
           "title": "Wi-Fi コマンド",
           "description": "Wi-Fi 接続の状態確認や登録済みアクセスポイントの管理、自動接続設定を行います。NTP を利用する場合は先に sys timezone でタイムゾーンを設定してください。",
           "ariaTablist": "Wi-Fiコマンド"
+        },
+        "config": {
+          "title": "アプリ設定",
+          "description": "アプリケーションが定義した設定スロットを一覧表示し、値の更新や既定値へのリセットを行います。",
+          "actions": {
+            "refresh": "最新の設定を取得",
+            "save": "更新",
+            "reset": "既定に戻す"
+          },
+          "table": {
+            "name": "設定名",
+            "value": "値",
+            "description": "説明",
+            "actions": "操作"
+          },
+          "labels": {
+            "stored": "保存済み",
+            "notStored": "未保存",
+            "defaultValue": "既定値",
+            "empty": "（空）"
+          },
+          "empty": "設定が見つかりません。取得ボタンを押してください。",
+          "ariaTablist": "アプリ設定"
         },
         "storage": {
           "title": "ストレージコマンド",
@@ -662,6 +689,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "label": "Storage",
             "desc": "storage list / use / status"
           },
+          "config": {
+            "label": "Config",
+            "desc": "conf list / get / set / del"
+          },
           "filesystem": {
             "label": "Filesystem",
             "desc": "fs ls / write / hash"
@@ -686,6 +717,29 @@ document.addEventListener('DOMContentLoaded', () => {
           "title": "Wi-Fi Commands",
           "description": "Inspect connection status, manage stored access points, and control auto-connect behavior. Configure sys timezone before using NTP features.",
           "ariaTablist": "Wi-Fi Commands"
+        },
+        "config": {
+          "title": "Application Settings",
+          "description": "List and update application-defined configuration slots stored via conf commands.",
+          "actions": {
+            "refresh": "Refresh settings",
+            "save": "Save",
+            "reset": "Reset to default"
+          },
+          "table": {
+            "name": "Name",
+            "value": "Value",
+            "description": "Description",
+            "actions": "Actions"
+          },
+          "labels": {
+            "stored": "Stored",
+            "notStored": "Using default",
+            "defaultValue": "Default",
+            "empty": "(empty)"
+          },
+          "empty": "No settings found. Fetch the latest list.",
+          "ariaTablist": "Application Settings"
         },
         "storage": {
           "title": "Storage Commands",
@@ -1243,6 +1297,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "label": "Wi-Fi",
             "desc": "wifi status / connect"
           },
+          "config": {
+            "label": "应用配置",
+            "desc": "conf list / get / set / del"
+          },
           "storage": {
             "label": "存储",
             "desc": "storage list / use / status"
@@ -1271,6 +1329,29 @@ document.addEventListener('DOMContentLoaded', () => {
           "title": "Wi-Fi 指令",
           "description": "查看连接状态、管理已保存的接入点，并控制开机自动连接。启用 NTP 前请先通过 sys timezone 设置时区。",
           "ariaTablist": "Wi-Fi 指令"
+        },
+        "config": {
+          "title": "应用配置",
+          "description": "列出应用定义的配置项，并支持更新或恢复默认值。",
+          "actions": {
+            "refresh": "刷新配置",
+            "save": "保存",
+            "reset": "恢复默认"
+          },
+          "table": {
+            "name": "名称",
+            "value": "值",
+            "description": "说明",
+            "actions": "操作"
+          },
+          "labels": {
+            "stored": "已保存",
+            "notStored": "使用默认值",
+            "defaultValue": "默认值",
+            "empty": "（空）"
+          },
+          "empty": "未找到配置，请点击刷新按钮。",
+          "ariaTablist": "应用配置"
         },
         "storage": {
           "title": "存储指令",
@@ -2181,6 +2262,9 @@ OK fs ls
   const ntpDisableRunButton = document.querySelector('#ntp-disable-run');
   const ntpAutoSelect = document.querySelector('#ntp-auto-select');
   const ntpAutoRunButton = document.querySelector('#ntp-auto-run');
+  const configRefreshButton = document.querySelector('#config-refresh-button');
+  const configTableBody = document.querySelector('#config-table-body');
+  const configEmptyState = document.querySelector('#config-empty-state');
 
   const helpElements = {
     helpButton: document.querySelector('#command-help-help .card-actions button'),
@@ -2423,6 +2507,10 @@ OK fs ls
   let fsPathMap = new Map();
   let lastStorageListRaw = storageSamples.list;
   let lastStorageStatusRaw = storageSamples.statusNone;
+  let configInitialized = false;
+  let configLoading = false;
+  let configEntries = [];
+  let configNeedsInitialFetch = true;
 
   if (fsElements.tree && !fsElements.tree.dataset.bound) {
     fsElements.tree.addEventListener('click', (event) => {
@@ -2482,6 +2570,16 @@ OK fs ls
     }
     if (targetId === 'filesystem') {
       runFsAutoFetch();
+    }
+    if (targetId === 'config') {
+      ensureConfigInitialized();
+      if (configNeedsInitialFetch) {
+        refreshConfigList({ silent: true }).catch(() => {
+          /* handled via log */
+        });
+      } else {
+        renderConfigTable(configEntries);
+      }
     }
   };
 
@@ -2993,6 +3091,412 @@ OK fs ls
     }
   };
 
+  const normalizeConfigLang = (value) => {
+    if (!value) {
+      return '';
+    }
+    return normalizeLanguage(value);
+  };
+
+  const parseConfigListOutput = (raw) => {
+    const result = { count: 0, entries: [] };
+    if (!raw) {
+      return result;
+    }
+    const sanitized = String(raw).replace(/\r/g, '');
+    const lines = sanitized.split('\n');
+    let current = null;
+
+    const ensureCurrent = () => {
+      if (!current) {
+        current = { descriptions: [] };
+      }
+    };
+
+    lines.forEach((rawLine) => {
+      const trimmed = rawLine.trim();
+      if (!trimmed.startsWith('|')) {
+        return;
+      }
+      const line = trimmed.replace(/^\|\s*/, '');
+      if (!line) {
+        return;
+      }
+      const colonIndex = line.indexOf(':');
+      const value = colonIndex >= 0 ? line.slice(colonIndex + 1).trimStart() : '';
+      if (line.startsWith('config_count:')) {
+        result.count = parseInt(value, 10) || 0;
+        return;
+      }
+      if (line.startsWith('index:')) {
+        if (current) {
+          result.entries.push(current);
+        }
+        current = {
+          index: parseInt(value, 10) || 0,
+          descriptions: []
+        };
+        return;
+      }
+      if (!current) {
+        return;
+      }
+      if (line.startsWith('name:')) {
+        current.name = value.trim();
+      } else if (line.startsWith('stored:')) {
+        current.stored = value.trim().toLowerCase() === 'true';
+      } else if (line.startsWith('value:')) {
+        current.value = value.replace(/\s+$/g, '');
+      } else if (line.startsWith('default:')) {
+        current.default = value.replace(/\s+$/g, '');
+      } else if (line.startsWith('desc_count:')) {
+        current.desc_count = parseInt(value, 10) || 0;
+      } else if (line.startsWith('desc[')) {
+        const match = line.match(/^desc\[(\d+)\]\.(lang|text):\s*(.*)$/);
+        if (!match) {
+          return;
+        }
+        const idx = parseInt(match[1], 10) || 0;
+        const field = match[2];
+        const descValue = match[3];
+        while (current.descriptions.length <= idx) {
+          current.descriptions.push({ lang: '', text: '' });
+        }
+        current.descriptions[idx][field] = descValue;
+      }
+    });
+
+    if (current) {
+      result.entries.push(current);
+    }
+    return result;
+  };
+
+  const pickConfigDescription = (entry) => {
+    const descriptions = Array.isArray(entry.descriptions) ? entry.descriptions : [];
+    if (!descriptions.length) {
+      return { text: '', lang: '' };
+    }
+    const priorities = [normalizeConfigLang(currentLanguage)];
+    if (!priorities.includes('en')) {
+      priorities.push('en');
+    }
+    descriptions.forEach((desc) => {
+      const lang = normalizeConfigLang(desc.lang || '');
+      if (lang && !priorities.includes(lang)) {
+        priorities.push(lang);
+      }
+    });
+    priorities.push('');
+    for (const code of priorities) {
+      const match = descriptions.find((desc) => normalizeConfigLang(desc.lang || '') === code);
+      if (match && match.text) {
+        return { text: match.text, lang: match.lang || code };
+      }
+    }
+    return { text: descriptions[0].text || '', lang: descriptions[0].lang || '' };
+  };
+
+  const updateConfigRowState = (row) => {
+    if (!row) {
+      return;
+    }
+    const input = row.querySelector('.config-input');
+    const saveButton = row.querySelector('button[data-action="save"]');
+    const resetButton = row.querySelector('button[data-action="reset"]');
+    const baseDisabled = connectionState !== 'connected' || configLoading || row.dataset.loading === 'true';
+    if (input) {
+      input.disabled = baseDisabled || row.dataset.loading === 'true';
+    }
+    if (saveButton) {
+      const original = input ? input.dataset.originalValue || '' : '';
+      const currentValue = input ? input.value : '';
+      saveButton.disabled = baseDisabled || currentValue === original;
+    }
+    if (resetButton) {
+      const stored = row.dataset.stored === 'true';
+      resetButton.disabled = baseDisabled || !stored;
+    }
+  };
+
+  const updateConfigControlsState = () => {
+    const refreshDisabled = connectionState !== 'connected' || configLoading;
+    if (configRefreshButton) {
+      if (refreshDisabled) {
+        configRefreshButton.disabled = true;
+        configRefreshButton.setAttribute('disabled', '');
+      } else {
+        configRefreshButton.disabled = false;
+        configRefreshButton.removeAttribute('disabled');
+      }
+    }
+    if (!configTableBody) {
+      return;
+    }
+    configTableBody.querySelectorAll('.config-row').forEach((row) => {
+      updateConfigRowState(row);
+    });
+  };
+
+  const setConfigPending = () => {
+    configLoading = true;
+    updateConfigControlsState();
+    if (configTableBody) {
+      configTableBody.innerHTML = '';
+    }
+    if (configEmptyState) {
+      configEmptyState.hidden = false;
+      configEmptyState.textContent = translate('results.pending');
+    }
+  };
+
+  const clearConfigPending = () => {
+    configLoading = false;
+    updateConfigControlsState();
+  };
+
+  const createConfigRow = (entry) => {
+    const row = document.createElement('div');
+    row.className = 'config-row';
+    row.dataset.configName = entry.name || '';
+    row.dataset.stored = entry.stored ? 'true' : 'false';
+
+    const nameCell = document.createElement('div');
+    nameCell.className = 'config-cell config-cell--name';
+    const nameTitle = document.createElement('div');
+    nameTitle.className = 'config-name';
+    nameTitle.textContent = entry.name || '';
+    nameCell.append(nameTitle);
+
+    const statusBadge = document.createElement('span');
+    statusBadge.className = `config-status ${entry.stored ? 'config-status--stored' : 'config-status--default'}`;
+    statusBadge.textContent = translate(
+      entry.stored ? 'sections.config.labels.stored' : 'sections.config.labels.notStored'
+    );
+    nameCell.append(statusBadge);
+
+    const valueCell = document.createElement('div');
+    valueCell.className = 'config-cell config-cell--value';
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.className = 'config-input';
+    valueInput.value = entry.value || '';
+    valueInput.placeholder = entry.default || translate('sections.config.labels.empty');
+    valueInput.dataset.originalValue = entry.value || '';
+    valueInput.dataset.configName = entry.name || '';
+    valueCell.append(valueInput);
+
+    const defaultValue = typeof entry.default === 'string' ? entry.default : '';
+    const defaultHint = document.createElement('div');
+    defaultHint.className = 'config-default-hint';
+    defaultHint.textContent = `${translate('sections.config.labels.defaultValue')}: ${
+      defaultValue || translate('sections.config.labels.empty')
+    }`;
+    valueCell.append(defaultHint);
+
+    const descCell = document.createElement('div');
+    descCell.className = 'config-cell config-cell--description';
+    const description = pickConfigDescription(entry);
+    if (description.text) {
+      const descText = document.createElement('div');
+      descText.className = 'config-description-text';
+      descText.textContent = description.text;
+      descCell.append(descText);
+      if (description.lang) {
+        const descLang = document.createElement('span');
+        descLang.className = 'config-description-lang';
+        descLang.textContent = description.lang.toUpperCase();
+        descCell.append(descLang);
+      }
+    } else {
+      const descPlaceholder = document.createElement('div');
+      descPlaceholder.className = 'config-description-text config-description-text--empty';
+      descPlaceholder.textContent = translate('sections.config.labels.empty');
+      descCell.append(descPlaceholder);
+    }
+
+    const actionsCell = document.createElement('div');
+    actionsCell.className = 'config-cell config-cell--actions';
+    const saveButton = document.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'btn btn-primary config-action-save';
+    saveButton.dataset.action = 'save';
+    saveButton.dataset.configName = entry.name || '';
+    saveButton.textContent = translate('sections.config.actions.save');
+    actionsCell.append(saveButton);
+
+    const resetButton = document.createElement('button');
+    resetButton.type = 'button';
+    resetButton.className = 'btn btn-secondary config-action-reset';
+    resetButton.dataset.action = 'reset';
+    resetButton.dataset.configName = entry.name || '';
+    resetButton.textContent = translate('sections.config.actions.reset');
+    actionsCell.append(resetButton);
+
+    row.append(nameCell, valueCell, descCell, actionsCell);
+    updateConfigRowState(row);
+    return row;
+  };
+
+  const renderConfigTable = (entriesToRender = configEntries) => {
+    if (!configTableBody) {
+      return;
+    }
+    configTableBody.innerHTML = '';
+    if (!Array.isArray(entriesToRender) || !entriesToRender.length) {
+      if (configEmptyState) {
+        configEmptyState.hidden = false;
+        configEmptyState.textContent = translate('sections.config.empty');
+      }
+      updateConfigControlsState();
+      return;
+    }
+    if (configEmptyState) {
+      configEmptyState.hidden = true;
+    }
+    entriesToRender.forEach((entry) => {
+      const row = createConfigRow(entry);
+      configTableBody.append(row);
+    });
+    updateConfigControlsState();
+  };
+
+  const refreshConfigList = async ({ silent = false } = {}) => {
+    ensureConfigInitialized();
+    if (configLoading) {
+      return;
+    }
+    if (!isSerialReady()) {
+      if (!silent) {
+        appendLogEntry('error', translate('connection.info.connectFirst'));
+      }
+      return;
+    }
+    try {
+      const raw = await runSerialCommand('conf list', {
+        id: 'conf-list',
+        onStart: () => {
+          setConfigPending();
+        }
+      });
+      const parsed = parseConfigListOutput(raw);
+      configEntries = parsed.entries;
+      configNeedsInitialFetch = false;
+      renderConfigTable(configEntries);
+    } catch (error) {
+      appendLogEntry('error', error?.message || 'conf list failed');
+      renderConfigTable(configEntries);
+    } finally {
+      clearConfigPending();
+    }
+  };
+
+  const handleConfigSave = async (row) => {
+    if (!row) {
+      return;
+    }
+    const name = row.dataset.configName;
+    const input = row.querySelector('.config-input');
+    if (!name || !input) {
+      return;
+    }
+    const value = input.value;
+    if (!isSerialReady()) {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    if (value === input.dataset.originalValue) {
+      return;
+    }
+    row.dataset.loading = 'true';
+    updateConfigRowState(row);
+    try {
+      await runSerialCommand(`conf set ${quoteArgument(name)} ${quoteArgument(value)}`, {
+        id: `conf-set-${name}`
+      });
+      await refreshConfigList({ silent: true });
+    } catch (error) {
+      appendLogEntry('error', error?.message || `conf set ${name} failed`);
+    } finally {
+      delete row.dataset.loading;
+      updateConfigRowState(row);
+    }
+  };
+
+  const handleConfigReset = async (row) => {
+    if (!row) {
+      return;
+    }
+    const name = row.dataset.configName;
+    if (!name) {
+      return;
+    }
+    if (!isSerialReady()) {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    row.dataset.loading = 'true';
+    updateConfigRowState(row);
+    try {
+      await runSerialCommand(`conf del ${quoteArgument(name)}`, {
+        id: `conf-del-${name}`
+      });
+      await refreshConfigList({ silent: true });
+    } catch (error) {
+      appendLogEntry('error', error?.message || `conf del ${name} failed`);
+    } finally {
+      delete row.dataset.loading;
+      updateConfigRowState(row);
+    }
+  };
+
+  const ensureConfigInitialized = () => {
+    if (configInitialized) {
+      return;
+    }
+    configInitialized = true;
+    if (configRefreshButton && !configRefreshButton.dataset.bound) {
+      configRefreshButton.addEventListener('click', () => {
+        refreshConfigList().catch(() => {
+          /* handled via log */
+        });
+      });
+      configRefreshButton.dataset.bound = 'true';
+    }
+    if (configTableBody && !configTableBody.dataset.bound) {
+      configTableBody.addEventListener('input', (event) => {
+        const input = event.target.closest('.config-input');
+        if (!input) {
+          return;
+        }
+        const row = input.closest('.config-row');
+        if (row) {
+          updateConfigRowState(row);
+        }
+      });
+      configTableBody.addEventListener('click', (event) => {
+        const actionButton = event.target.closest('button[data-action]');
+        if (!actionButton) {
+          return;
+        }
+        const row = actionButton.closest('.config-row');
+        const action = actionButton.dataset.action;
+        if (action === 'save') {
+          handleConfigSave(row).catch(() => {
+            /* handled via log */
+          });
+        } else if (action === 'reset') {
+          handleConfigReset(row).catch(() => {
+            /* handled via log */
+          });
+        }
+      });
+      configTableBody.dataset.bound = 'true';
+    }
+    updateConfigControlsState();
+    renderConfigTable(configEntries);
+  };
+
   const resetFsDetails = () => {
     if (fsElements.selectedPath) {
       fsElements.selectedPath.textContent = '--';
@@ -3225,6 +3729,7 @@ OK fs ls
   const refreshLanguageSensitiveUI = () => {
     renderStorageList(lastStorageListRaw || getStorageListRaw(currentStorageId || ''), currentStorageId || '');
     renderStorageStatus(lastStorageStatusRaw);
+    renderConfigTable(configEntries);
     if (currentStorageId && fsSamples[currentStorageId]) {
       const fsData = fsSamples[currentStorageId];
       if (fsElements.infoMessage) {
@@ -3385,6 +3890,7 @@ OK fs ls
       }
     }
     updateCommandButtonsState();
+    updateConfigControlsState();
     refreshConnectionLabel();
     applyDisabledTitles();
     if (state === 'connected') {
@@ -3400,6 +3906,12 @@ OK fs ls
       }
       if (currentTab === 'storage') {
         runStorageAutoFetch().catch(() => {
+          /* handled via log */
+        });
+      }
+      if (currentTab === 'config') {
+        ensureConfigInitialized();
+        refreshConfigList({ silent: true }).catch(() => {
           /* handled via log */
         });
       }
