@@ -461,7 +461,8 @@ document.addEventListener('DOMContentLoaded', () => {
           "dirTitle": "fs ls (ディレクトリ)",
           "catTitle": "fs cat",
           "b64Title": "fs b64read",
-          "hashTitle": "fs hash"
+          "hashTitle": "fs hash",
+          "previewTitle": "プレビュー"
         },
         "hints": {
           "spiffs": "SPIFFS ではディレクトリが利用できないため、すべてのファイルは <code>/</code> 直下に作成されます。",
@@ -475,7 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "dirPlaceholder": "ディレクトリの内容がここに表示されます",
           "catPlaceholder": "ファイル内容がここに表示されます",
           "b64Placeholder": "Base64 形式の読み出し結果がここに表示されます",
-          "hashPlaceholder": "ハッシュ結果がここに表示されます"
+          "hashPlaceholder": "ハッシュ結果がここに表示されます",
+          "previewPlaceholder": "プレビュー可能なデータがまだありません。fs cat または fs b64read の結果が表示されると自動で更新されます。",
+          "previewBinary": "バイナリファイルのプレビューには対応していません。Base64 データをダウンロードして確認してください。"
         },
         "table": {
           "type": "タイプ",
@@ -1073,7 +1076,8 @@ document.addEventListener('DOMContentLoaded', () => {
           "dirTitle": "fs ls (Directory)",
           "catTitle": "fs cat",
           "b64Title": "fs b64read",
-          "hashTitle": "fs hash"
+          "hashTitle": "fs hash",
+          "previewTitle": "Preview"
         },
         "hints": {
           "spiffs": "SPIFFS does not support directories; all files are created under <code>/</code>.",
@@ -1087,7 +1091,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "dirPlaceholder": "Directory contents will appear here.",
           "catPlaceholder": "File contents will appear here.",
           "b64Placeholder": "Base64 read results will appear here.",
-          "hashPlaceholder": "Hash results will appear here."
+          "hashPlaceholder": "Hash results will appear here.",
+          "previewPlaceholder": "No preview available yet. fs cat or fs b64read output will show up here automatically.",
+          "previewBinary": "Binary preview is not supported. Please download the Base64 data instead."
         },
         "table": {
           "type": "Type",
@@ -1685,7 +1691,8 @@ document.addEventListener('DOMContentLoaded', () => {
           "dirTitle": "fs ls（目录）",
           "catTitle": "fs cat",
           "b64Title": "fs b64read",
-          "hashTitle": "fs hash"
+          "hashTitle": "fs hash",
+          "previewTitle": "预览"
         },
         "hints": {
           "spiffs": "SPIFFS 不支持目录，所有文件都会创建在 <code>/</code> 根目录下。",
@@ -1699,7 +1706,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "dirPlaceholder": "目录内容将在此显示。",
           "catPlaceholder": "文件内容将在此显示。",
           "b64Placeholder": "Base64 读取结果将在此显示。",
-          "hashPlaceholder": "哈希结果将在此显示。"
+          "hashPlaceholder": "哈希结果将在此显示。",
+          "previewPlaceholder": "暂时无法预览，等待 fs cat 或 fs b64read 的结果显示在此处。",
+          "previewBinary": "不支持二进制预览，请下载 Base64 数据。"
         },
         "table": {
           "type": "类型",
@@ -2509,7 +2518,23 @@ OK fs ls
     b64Section: document.querySelector('[data-fs-b64-section]'),
     b64Raw: document.querySelector('[data-fs-b64-raw]'),
     hashSection: document.querySelector('[data-fs-hash-section]'),
-    hashRaw: document.querySelector('[data-fs-hash-raw]')
+    hashRaw: document.querySelector('[data-fs-hash-raw]'),
+    previewSection: document.querySelector('[data-fs-preview-section]'),
+    previewEmpty: document.querySelector('[data-fs-preview-empty]'),
+    previewText: document.querySelector('[data-fs-preview-text]'),
+    previewImage: document.querySelector('[data-fs-preview-image]'),
+    mkdirSection: document.querySelector('[data-fs-action-section="mkdir"]'),
+    mkdirPathInput: document.querySelector('#fs-mkdir-path'),
+    mkdirRunButton: document.querySelector('#fs-mkdir-run'),
+    writeSection: document.querySelector('[data-fs-action-section="write"]'),
+    writePathInput: document.querySelector('#fs-write-path'),
+    writeContentInput: document.querySelector('#fs-write-content'),
+    writeRunButton: document.querySelector('#fs-write-run'),
+    b64writeSection: document.querySelector('[data-fs-action-section="b64write"]'),
+    b64writePathInput: document.querySelector('#fs-b64write-path'),
+    b64writeChunkInput: document.querySelector('#fs-b64write-chunk'),
+    b64writeFirstButton: document.querySelector('#fs-b64write-first'),
+    b64writeAppendButton: document.querySelector('#fs-b64write-append')
   };
 
   const tabButtons = document.querySelectorAll('.tab-button');
@@ -3735,6 +3760,46 @@ OK fs ls
     if (fsElements.hashRaw) {
       fsElements.hashRaw.textContent = translate('filesystem.messages.hashPlaceholder');
     }
+    if (fsElements.previewSection) {
+      fsElements.previewSection.hidden = true;
+    }
+    if (fsElements.previewText) {
+      fsElements.previewText.hidden = true;
+      fsElements.previewText.textContent = '';
+    }
+    if (fsElements.previewImage) {
+      fsElements.previewImage.hidden = true;
+      fsElements.previewImage.removeAttribute('src');
+      fsElements.previewImage.removeAttribute('alt');
+    }
+    if (fsElements.previewEmpty) {
+      fsElements.previewEmpty.hidden = false;
+      fsElements.previewEmpty.textContent = translate('filesystem.messages.previewPlaceholder');
+    }
+    if (fsElements.mkdirSection) {
+      fsElements.mkdirSection.hidden = true;
+    }
+    if (fsElements.mkdirPathInput) {
+      fsElements.mkdirPathInput.value = '';
+    }
+    if (fsElements.writeSection) {
+      fsElements.writeSection.hidden = true;
+    }
+    if (fsElements.writePathInput) {
+      fsElements.writePathInput.value = '';
+    }
+    if (fsElements.writeContentInput) {
+      fsElements.writeContentInput.value = '';
+    }
+    if (fsElements.b64writeSection) {
+      fsElements.b64writeSection.hidden = true;
+    }
+    if (fsElements.b64writePathInput) {
+      fsElements.b64writePathInput.value = '';
+    }
+    if (fsElements.b64writeChunkInput) {
+      fsElements.b64writeChunkInput.value = '';
+    }
     currentFsSelection = null;
   };
 
@@ -3834,6 +3899,299 @@ OK fs ls
     updateFsDetail(node);
   };
 
+  const normalizeFsDirPath = (value) => {
+    if (!value || typeof value !== 'string') {
+      return '/';
+    }
+    if (value === '/') {
+      return '/';
+    }
+    const trimmed = value.replace(/\/+$/g, '');
+    if (!trimmed) {
+      return '/';
+    }
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  };
+
+  const joinFsPath = (dirPath, childPath) => {
+    const base = normalizeFsDirPath(dirPath);
+    const child = (childPath || '').toString().replace(/^\/+/, '');
+    if (!child) {
+      return base;
+    }
+    if (base === '/') {
+      return `/${child}`;
+    }
+    return `${base}/${child}`;
+  };
+
+  const updateFsActionsForNode = (node) => {
+    const isDir = node?.type === 'dir';
+    if (fsElements.mkdirSection) {
+      fsElements.mkdirSection.hidden = !isDir;
+    }
+    if (fsElements.writeSection) {
+      fsElements.writeSection.hidden = !isDir;
+    }
+    if (fsElements.b64writeSection) {
+      fsElements.b64writeSection.hidden = !isDir;
+    }
+    if (!isDir) {
+      return;
+    }
+    const basePath = node?.path || '/';
+    if (fsElements.mkdirPathInput) {
+      const placeholder = translate('filesystem.actions.mkdir.pathPlaceholder') || '/logs';
+      fsElements.mkdirPathInput.value = joinFsPath(basePath, placeholder);
+    }
+    if (fsElements.writePathInput) {
+      const placeholder = translate('filesystem.actions.write.pathPlaceholder') || '/notes.txt';
+      fsElements.writePathInput.value = joinFsPath(basePath, placeholder);
+    }
+    if (fsElements.writeContentInput) {
+      fsElements.writeContentInput.value = '';
+    }
+    if (fsElements.b64writePathInput) {
+      const placeholder = translate('filesystem.actions.b64write.pathPlaceholder') || '/image.bin';
+      fsElements.b64writePathInput.value = joinFsPath(basePath, placeholder);
+    }
+    if (fsElements.b64writeChunkInput) {
+      fsElements.b64writeChunkInput.value = '';
+    }
+  };
+
+  const parseBase64Chunks = (raw) => {
+    if (!raw) {
+      return [];
+    }
+    const sanitized = String(raw).replace(/\r/g, '');
+    const chunks = [];
+    sanitized.split('\n').forEach((line) => {
+      const match = line.match(/\|\s*data\[\d+\]:\s*(\S+)/i);
+      if (match && match[1]) {
+        chunks.push(match[1].trim());
+      }
+    });
+    return chunks;
+  };
+
+  const decodeBase64Chunks = (chunks) => {
+    if (!chunks || !chunks.length || typeof atob !== 'function') {
+      return null;
+    }
+    const merged = chunks.join('');
+    const binary = atob(merged);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const isImagePath = (path) => /\.(png|jpe?g|gif|bmp|webp|ico|svg)$/i.test(path || '');
+
+  const getImageMimeType = (path) => {
+    const lower = (path || '').toLowerCase();
+    if (lower.endsWith('.png')) {
+      return 'image/png';
+    }
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+      return 'image/jpeg';
+    }
+    if (lower.endsWith('.gif')) {
+      return 'image/gif';
+    }
+    if (lower.endsWith('.bmp')) {
+      return 'image/bmp';
+    }
+    if (lower.endsWith('.webp')) {
+      return 'image/webp';
+    }
+    if (lower.endsWith('.ico')) {
+      return 'image/x-icon';
+    }
+    if (lower.endsWith('.svg')) {
+      return 'image/svg+xml';
+    }
+    return 'application/octet-stream';
+  };
+
+  const extractCatPayload = (raw) => {
+    if (!raw) {
+      return null;
+    }
+    const sanitized = String(raw).replace(/\r/g, '');
+    const lines = sanitized.split('\n');
+    const payload = [];
+    let started = false;
+    lines.forEach((line) => {
+      const trimmed = line.trimEnd();
+      if (!trimmed.trimStart().startsWith('|')) {
+        return;
+      }
+      const contentRaw = trimmed.trimStart().slice(1);
+      const content = contentRaw.startsWith(' ') ? contentRaw.slice(1) : contentRaw;
+      if (!started) {
+        const looksLikeMeta = /^[A-Za-z0-9_-]+\s*:\s*/.test(content);
+        if (looksLikeMeta) {
+          return;
+        }
+        started = true;
+      }
+      payload.push(content);
+    });
+    if (!payload.length) {
+      return null;
+    }
+    return payload.join('\n');
+  };
+
+  const isBinaryBuffer = (bytes) => {
+    if (!bytes || !bytes.length) {
+      return false;
+    }
+    let controlCount = 0;
+    for (let i = 0; i < bytes.length; i += 1) {
+      const value = bytes[i];
+      if (value === 0) {
+        return true;
+      }
+      if (value < 32 && value !== 9 && value !== 10 && value !== 13) {
+        controlCount += 1;
+      }
+    }
+    return controlCount / bytes.length > 0.2;
+  };
+
+  const decodeUtf8String = (bytes) => {
+    if (!bytes) {
+      return null;
+    }
+    try {
+      const decoder = new TextDecoder('utf-8', { fatal: false });
+      return decoder.decode(bytes);
+    } catch {
+      try {
+        const fallbackDecoder = new TextDecoder();
+        return fallbackDecoder.decode(bytes);
+      } catch {
+        return null;
+      }
+    }
+  };
+
+  const updateFsPreview = (node) => {
+    if (!fsElements.previewSection) {
+      return;
+    }
+    if (!node || node.type !== 'file') {
+      fsElements.previewSection.hidden = true;
+      if (fsElements.previewText) {
+        fsElements.previewText.hidden = true;
+        fsElements.previewText.textContent = '';
+      }
+      if (fsElements.previewImage) {
+        fsElements.previewImage.hidden = true;
+        fsElements.previewImage.removeAttribute('src');
+        fsElements.previewImage.removeAttribute('alt');
+      }
+      if (fsElements.previewEmpty) {
+        fsElements.previewEmpty.hidden = true;
+      }
+      return;
+    }
+
+    const base64Chunks = parseBase64Chunks(node.b64read);
+    let previewKind = 'none';
+    let previewText = '';
+    let previewSrc = '';
+
+    if (base64Chunks.length) {
+      const bytes = decodeBase64Chunks(base64Chunks);
+      if (bytes) {
+        if (isImagePath(node.path)) {
+          previewKind = 'image';
+          previewSrc = `data:${getImageMimeType(node.path)};base64,${base64Chunks.join('')}`;
+        } else if (!isBinaryBuffer(bytes)) {
+          const decoded = decodeUtf8String(bytes);
+          if (decoded !== null) {
+            previewKind = 'text';
+            previewText = decoded;
+          }
+        }
+        if (previewKind === 'none') {
+          previewKind = 'binary';
+        }
+      } else {
+        previewKind = 'binary';
+      }
+    } else {
+      const catPayload = extractCatPayload(node.cat);
+      if (catPayload !== null) {
+        previewKind = 'text';
+        previewText = catPayload;
+      }
+    }
+
+    fsElements.previewSection.hidden = false;
+
+    if (previewKind === 'text') {
+      if (fsElements.previewText) {
+        fsElements.previewText.hidden = false;
+        fsElements.previewText.textContent = previewText;
+      }
+      if (fsElements.previewImage) {
+        fsElements.previewImage.hidden = true;
+        fsElements.previewImage.removeAttribute('src');
+        fsElements.previewImage.removeAttribute('alt');
+      }
+      if (fsElements.previewEmpty) {
+        fsElements.previewEmpty.hidden = true;
+      }
+    } else if (previewKind === 'image') {
+      if (fsElements.previewImage) {
+        fsElements.previewImage.hidden = false;
+        fsElements.previewImage.src = previewSrc;
+        fsElements.previewImage.alt = node.path || 'preview';
+      }
+      if (fsElements.previewText) {
+        fsElements.previewText.hidden = true;
+        fsElements.previewText.textContent = '';
+      }
+      if (fsElements.previewEmpty) {
+        fsElements.previewEmpty.hidden = true;
+      }
+    } else if (previewKind === 'binary') {
+      if (fsElements.previewEmpty) {
+        fsElements.previewEmpty.hidden = false;
+        fsElements.previewEmpty.textContent = translate('filesystem.messages.previewBinary');
+      }
+      if (fsElements.previewText) {
+        fsElements.previewText.hidden = true;
+        fsElements.previewText.textContent = '';
+      }
+      if (fsElements.previewImage) {
+        fsElements.previewImage.hidden = true;
+        fsElements.previewImage.removeAttribute('src');
+        fsElements.previewImage.removeAttribute('alt');
+      }
+    } else {
+      if (fsElements.previewEmpty) {
+        fsElements.previewEmpty.hidden = false;
+        fsElements.previewEmpty.textContent = translate('filesystem.messages.previewPlaceholder');
+      }
+      if (fsElements.previewText) {
+        fsElements.previewText.hidden = true;
+        fsElements.previewText.textContent = '';
+      }
+      if (fsElements.previewImage) {
+        fsElements.previewImage.hidden = true;
+        fsElements.previewImage.removeAttribute('src');
+        fsElements.previewImage.removeAttribute('alt');
+      }
+    }
+  };
+
   const updateFsDetail = (node) => {
     if (!node) {
       resetFsDetails();
@@ -3882,33 +4240,65 @@ OK fs ls
       });
     }
 
-    if (fsElements.dirSection) {
-      fsElements.dirSection.hidden = !(node.type === 'dir' && node.lsRaw);
+    updateFsActionsForNode(node);
+
+    const isDir = node.type === 'dir';
+
+    if (isDir) {
+      if (fsElements.dirSection) {
+        fsElements.dirSection.hidden = true;
+      }
+      if (fsElements.dirRaw) {
+        fsElements.dirRaw.textContent = translate('filesystem.messages.dirPlaceholder');
+      }
+      if (fsElements.catSection) {
+        fsElements.catSection.hidden = true;
+      }
+      if (fsElements.catRaw) {
+        fsElements.catRaw.textContent = translate('filesystem.messages.catPlaceholder');
+      }
+      if (fsElements.b64Section) {
+        fsElements.b64Section.hidden = true;
+      }
+      if (fsElements.b64Raw) {
+        fsElements.b64Raw.textContent = translate('filesystem.messages.b64Placeholder');
+      }
+      if (fsElements.hashSection) {
+        fsElements.hashSection.hidden = true;
+      }
+      if (fsElements.hashRaw) {
+        fsElements.hashRaw.textContent = translate('filesystem.messages.hashPlaceholder');
+      }
+      updateFsPreview(node);
+      return;
     }
-    if (fsElements.dirRaw && node.lsRaw) {
-      fsElements.dirRaw.textContent = node.lsRaw;
+
+    if (fsElements.dirSection) {
+      fsElements.dirSection.hidden = true;
     }
 
     if (fsElements.catSection) {
-      fsElements.catSection.hidden = !(node.type === 'file' && node.cat);
+      fsElements.catSection.hidden = !node.cat;
     }
-    if (fsElements.catRaw && node.cat) {
-      fsElements.catRaw.textContent = node.cat;
+    if (fsElements.catRaw) {
+      fsElements.catRaw.textContent = node.cat || translate('filesystem.messages.catPlaceholder');
     }
 
     if (fsElements.b64Section) {
-      fsElements.b64Section.hidden = !(node.type === 'file' && node.b64read);
+      fsElements.b64Section.hidden = !node.b64read;
     }
-    if (fsElements.b64Raw && node.b64read) {
-      fsElements.b64Raw.textContent = node.b64read;
+    if (fsElements.b64Raw) {
+      fsElements.b64Raw.textContent = node.b64read || translate('filesystem.messages.b64Placeholder');
     }
 
     if (fsElements.hashSection) {
-      fsElements.hashSection.hidden = !(node.type === 'file' && node.hash);
+      fsElements.hashSection.hidden = !node.hash;
     }
-    if (fsElements.hashRaw && node.hash) {
-      fsElements.hashRaw.textContent = node.hash;
+    if (fsElements.hashRaw) {
+      fsElements.hashRaw.textContent = node.hash || translate('filesystem.messages.hashPlaceholder');
     }
+
+    updateFsPreview(node);
   };
 
   const runFsAutoFetch = () => {
@@ -3941,7 +4331,8 @@ OK fs ls
     fsElements.tree.append(buildFsTree(treeWithRoot));
     currentFsSelection = null;
 
-    const defaultNode = findFirstSelectableNode(treeWithRoot);
+    const preferredNode = fsPathMap.get('/') || null;
+    const defaultNode = preferredNode || findFirstSelectableNode(treeWithRoot);
     if (defaultNode) {
       selectFsPath(defaultNode.path);
     } else {

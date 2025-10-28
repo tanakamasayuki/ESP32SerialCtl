@@ -710,13 +710,13 @@
               <div class="config-row config-header" role="row">
                 <div class="config-cell" role="columnheader" data-i18n="sections.config.table.name">設定名</div>
                 <div class="config-cell" role="columnheader" data-i18n="sections.config.table.value">値</div>
-                <div class="config-cell" role="columnheader"
-                  data-i18n="sections.config.table.description">説明</div>
+                <div class="config-cell" role="columnheader" data-i18n="sections.config.table.description">説明</div>
                 <div class="config-cell" role="columnheader" data-i18n="sections.config.table.actions">操作</div>
               </div>
               <div id="config-table-body"></div>
             </div>
-            <p class="config-empty" id="config-empty-state" hidden data-i18n="sections.config.empty">設定が見つかりません。取得ボタンを押してください。</p>
+            <p class="config-empty" id="config-empty-state" hidden data-i18n="sections.config.empty">
+              設定が見つかりません。取得ボタンを押してください。</p>
           </div>
         </div>
 
@@ -857,7 +857,18 @@
                   data-i18n="filesystem.messages.hashPlaceholder">ハッシュ結果がここに表示されます</pre>
               </div>
 
-              <div class="fs-detail-section">
+              <div class="fs-detail-section" data-fs-preview-section hidden>
+                <h4 data-i18n="filesystem.detail.previewTitle">プレビュー</h4>
+                <div class="fs-preview" data-fs-preview>
+                  <p class="fs-empty" data-fs-preview-empty data-i18n="filesystem.messages.previewPlaceholder">
+                    プレビュー可能なデータがありません。fs cat または fs b64read の結果を待っています。
+                  </p>
+                  <pre class="result-raw fs-preview-text" data-fs-preview-text hidden></pre>
+                  <img class="fs-preview-image" data-fs-preview-image alt="" hidden />
+                </div>
+              </div>
+
+              <div class="fs-detail-section" data-fs-action-section="mkdir" hidden>
                 <h4 data-i18n="filesystem.actions.mkdir.title">ディレクトリを追加 (fs mkdir)</h4>
                 <p class="fs-hint fs-hint--warning" data-i18n-html="filesystem.hints.spiffs">
                   SPIFFS ではディレクトリが利用できないため、すべてのファイルは <code>/</code> 直下に作成されます。
@@ -868,12 +879,13 @@
                     data-i18n-placeholder="filesystem.actions.mkdir.pathPlaceholder" />
                 </div>
                 <div class="card-actions">
-                  <button class="btn btn-primary" disabled data-i18n="filesystem.actions.mkdir.action">fs mkdir
+                  <button class="btn btn-primary" id="fs-mkdir-run" disabled
+                    data-i18n="filesystem.actions.mkdir.action">fs mkdir
                     を送信</button>
                 </div>
               </div>
 
-              <div class="fs-detail-section">
+              <div class="fs-detail-section" data-fs-action-section="write" hidden>
                 <h4 data-i18n="filesystem.actions.write.title">テキストファイルを追加 (fs write)</h4>
                 <div class="form-field">
                   <label for="fs-write-path" data-i18n="filesystem.actions.write.pathLabel">パス</label>
@@ -886,12 +898,13 @@
                     data-i18n-placeholder="filesystem.actions.write.contentPlaceholder"></textarea>
                 </div>
                 <div class="card-actions">
-                  <button class="btn btn-primary" disabled data-i18n="filesystem.actions.write.action">fs write
+                  <button class="btn btn-primary" id="fs-write-run" disabled
+                    data-i18n="filesystem.actions.write.action">fs write
                     を送信</button>
                 </div>
               </div>
 
-              <div class="fs-detail-section">
+              <div class="fs-detail-section" data-fs-action-section="b64write" hidden>
                 <h4 data-i18n="filesystem.actions.b64write.title">ファイルをアップロード (fs b64write)</h4>
                 <p class="fs-hint" data-i18n-html="filesystem.actions.b64write.hint">
                   シリアルの 1 行は最大 128 バイトのため、Base64 文字列は 60 バイト程度で分割し、
@@ -909,9 +922,11 @@
                     disabled data-i18n-placeholder="filesystem.actions.b64write.chunkPlaceholder"></textarea>
                 </div>
                 <div class="card-actions">
-                  <button class="btn btn-primary" disabled data-i18n="filesystem.actions.b64write.firstButton">1 行目
+                  <button class="btn btn-primary" id="fs-b64write-first" disabled
+                    data-i18n="filesystem.actions.b64write.firstButton">1 行目
                     (append なし)</button>
-                  <button class="btn btn-primary" disabled data-i18n="filesystem.actions.b64write.appendButton">2 行目以降
+                  <button class="btn btn-primary" id="fs-b64write-append" disabled
+                    data-i18n="filesystem.actions.b64write.appendButton">2 行目以降
                     (--append)</button>
                 </div>
               </div>

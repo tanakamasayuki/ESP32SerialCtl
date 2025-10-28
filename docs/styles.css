@@ -42,6 +42,10 @@ p {
   color: var(--color-muted);
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .page {
   min-height: 100vh;
   display: flex;
@@ -577,6 +581,24 @@ p {
   border-top: 0;
   padding-top: 0;
   margin-top: 0;
+}
+
+.fs-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fs-preview-text {
+  margin: 0;
+}
+
+.fs-preview-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: white;
 }
 
 .fs-selected-path {
