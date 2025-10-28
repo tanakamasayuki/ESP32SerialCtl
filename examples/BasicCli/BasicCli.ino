@@ -28,6 +28,11 @@ void setup()
     file.printf("test string\n");
     file.close();
   }
+
+  esp32SerialCtl.setPinAllAccess(false);
+  esp32SerialCtl.setPinName(GPIO_NUM_2, "LED");
+  esp32SerialCtl.setPinName(GPIO_NUM_16, "RGB LED");
+  esp32serialctl::ESP32SerialCtl<>::setDefaultRgbPin(GPIO_NUM_16);
 }
 
 void loop()

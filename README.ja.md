@@ -109,7 +109,7 @@ void loop() {
 - `fs ls/cat/write/rm/stat/mkdir/mv` : `storage use` で選択したストレージ（または `--storage <name>` 指定）に対して、ファイル一覧・内容表示・テキスト書き込み・削除・情報表示・ディレクトリ作成・移動/リネームを行う
 - `fs b64read/b64write` : Base64 でエンコードしたチャンクを送受信し、バイナリデータも転送可能。複数チャンクは `--append` で追記。
 - `fs hash` : `sha256`（既定）や `md5` のハッシュとファイルサイズを表示し、転送後の整合性を確認
-- `gpio mode/read/write/toggle` : GPIO のモード設定・入出力・トグルを制御
+- `gpio mode/read/write/toggle/pins` : GPIO のモード設定・入出力・アクセス許可一覧表示を制御
 - `adc read` : ADC をサンプリングし、`samples` オプションで平均化
 - `pwm set/stop` : LEDC PWM を自動割り当てで開始/停止（`pwm set <pin> <freq> <duty>`、解像度 12bit 固定・duty は 0..4095 または % 指定）
 - `rgb pin/set/stream` : `rgbLedWrite` で RGB LED を制御（デフォルト pin 対応）
@@ -133,6 +133,19 @@ static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, "my_app_confi
 
 `conf list` はデフォルトで登録済みの多言語説明をすべて表示し、`--lang ja` のように指定すると特定言語のみに絞り込めます。値の取得・更新は名前で行い（`conf get <name> [--lang ja]` / `conf set <name> "value"` / `conf del <name>`）、これらのコマンドでは説明文は出力されません。スケッチ側では `esp32SerialCtl.configGet("api_key")` で実際に利用される文字列を取得します。設定や名前空間を実行時に切り替える必要がある場合は、`ESP32SerialCtl<>::setConfigNamespace(...)` / `ESP32SerialCtl<>::setConfigEntries(...)` を利用してください。
 `ConfigEntry` を登録していない場合は `conf` 系コマンドは自動的に無効化され、ヘルプや CLI の一覧にも表示されません。
+
+## GPIO アクセス制御
+
+GPIO コマンドは、起動時はすべての pin へアクセス可能な「全許可」モードで動作します。
+`esp32SerialCtl.setPinAllAccess(false);` を呼び出すとホワイトリスト方式へ切り替わり、
+明示的に許可されている pin 以外は `gpio` / `adc` / `pwm` / `rgb` から操作できなくなります。
+`setPinName(GPIO_NUM_2, "LED");` のように名前を登録すると、エイリアスを付けると同時にその pin が許可され、
+CLI では `gpio read LED` のように名前で指定できます。名前を変更せずに許可だけ調整したい場合は
+`setPinAllowed(pin, true/false);` を利用してください。
+
+現在のモードや許可リスト、登録済みエイリアスは `gpio pins` コマンドで確認できます。
+全許可モードでは、明示的に許可または名前登録した pin が一覧に表示され、制限モードでは
+各 pin の allow/deny 状態と名前が表示されます。
 
 ## 時刻とネットワークのヘルパー
 

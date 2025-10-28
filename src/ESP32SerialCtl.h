@@ -1766,6 +1766,67 @@ namespace esp32serialctl
     Print &output() { return cli_.output(); }
     Stream &input() { return cli_.input(); }
 
+    void setPinAllAccess(bool enable) { pinAllAccess_ = enable; }
+    bool pinAllAccess() const { return pinAllAccess_; }
+
+    bool setPinName(int pinNumber, const char *name)
+    {
+      return setPinNameInternal(pinNumber, name);
+    }
+
+    bool setPinName(int pinNumber, const String &name)
+    {
+      return setPinNameInternal(pinNumber, name.c_str());
+    }
+
+    bool setPinName(gpio_num_t pin, const char *name)
+    {
+      return setPinName(static_cast<int>(pin), name);
+    }
+
+    bool setPinName(gpio_num_t pin, const String &name)
+    {
+      return setPinName(static_cast<int>(pin), name);
+    }
+
+    bool setPinAllowed(int pinNumber, bool allowed)
+    {
+      return setPinAllowedInternal(pinNumber, allowed);
+    }
+
+    bool setPinAllowed(gpio_num_t pin, bool allowed)
+    {
+      return setPinAllowed(static_cast<int>(pin), allowed);
+    }
+
+    bool isPinAllowed(int pinNumber) const
+    {
+      if (!validPinIndex(pinNumber))
+      {
+        return false;
+      }
+      return pinAllowedEffective(static_cast<uint8_t>(pinNumber));
+    }
+
+    bool isPinAllowed(gpio_num_t pin) const
+    {
+      return isPinAllowed(static_cast<int>(pin));
+    }
+
+    String pinName(int pinNumber) const
+    {
+      if (!validPinIndex(pinNumber))
+      {
+        return String();
+      }
+      return pinNames_[static_cast<uint8_t>(pinNumber)];
+    }
+
+    String pinName(gpio_num_t pin) const
+    {
+      return pinName(static_cast<int>(pin));
+    }
+
     static void setDefaultRgbPin(int pin) { rgbDefaultPin_ = pin; }
     static int defaultRgbPin() { return rgbDefaultPin_; }
 
@@ -1868,6 +1929,124 @@ namespace esp32serialctl
     }
 
   private:
+    static bool validPinIndex(int pin)
+    {
+#if defined(GPIO_PIN_COUNT)
+      return pin >= 0 && pin < GPIO_PIN_COUNT;
+#else
+      return pin >= 0 && pin < 256;
+#endif
+    }
+
+    static bool setPinNameInternal(int pinNumber, const char *name)
+    {
+      if (!validPinIndex(pinNumber))
+      {
+        return false;
+      }
+      const uint8_t pin = static_cast<uint8_t>(pinNumber);
+      if (name && *name)
+      {
+        pinNames_[pin] = name;
+      }
+      else
+      {
+        pinNames_[pin] = "";
+      }
+      pinAllowed_[pin] = true;
+      return true;
+    }
+
+    static bool setPinAllowedInternal(int pinNumber, bool allowed)
+    {
+      if (!validPinIndex(pinNumber))
+      {
+        return false;
+      }
+      pinAllowed_[static_cast<uint8_t>(pinNumber)] = allowed;
+      return true;
+    }
+
+    static bool pinAllowedEffective(uint8_t pin)
+    {
+      if (!validPinIndex(static_cast<int>(pin)))
+      {
+        return false;
+      }
+      if (pinAllAccess_)
+      {
+        return true;
+      }
+      return pinAllowed_[pin];
+    }
+
+    static bool ensurePinAllowed(Context &ctx, uint8_t pin)
+    {
+      if (!pinAllowedEffective(pin))
+      {
+        char message[48];
+        snprintf(message, sizeof(message), "Pin %u not allowed",
+                 static_cast<unsigned>(pin));
+        ctx.printError(403, message);
+        return false;
+      }
+      return true;
+    }
+
+    static bool resolvePinName(const char *text, uint8_t &pin)
+    {
+      if (!text || !*text)
+      {
+        return false;
+      }
+      for (int i = 0; i < GPIO_PIN_COUNT; ++i)
+      {
+        const String &alias = pinNames_[i];
+        if (alias.length() == 0)
+        {
+          continue;
+        }
+        if (Base::equalsIgnoreCase(alias.c_str(), text))
+        {
+          pin = static_cast<uint8_t>(i);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    static bool resolvePinText(const char *text, uint8_t &pin)
+    {
+      if (!text)
+      {
+        return false;
+      }
+      ParsedNumber number;
+      if (Base::parseNumber(text, number) && number.unit == NumberUnit::None &&
+          validPinIndex(static_cast<int>(number.value)))
+      {
+        pin = static_cast<uint8_t>(number.value);
+        return true;
+      }
+      return resolvePinName(text, pin);
+    }
+
+    static bool resolvePinArgument(const typename Base::Argument &arg, uint8_t &pin)
+    {
+      if (arg.empty())
+      {
+        return false;
+      }
+      ParsedNumber number;
+      if (arg.toNumber(number) && number.unit == NumberUnit::None &&
+          validPinIndex(static_cast<int>(number.value)))
+      {
+        pin = static_cast<uint8_t>(number.value);
+        return true;
+      }
+      return resolvePinName(arg.c_str(), pin);
+    }
+
     static void configureConfig(const ConfigEntry *entries, size_t count,
                                 const char *configNamespace)
     {
@@ -2364,15 +2543,12 @@ namespace esp32serialctl
     static bool parsePinArgument(Context &ctx, const typename Base::Argument &arg,
                                  uint8_t &pin, const char *field)
     {
-      ParsedNumber number;
-      if (!arg.toNumber(number) || number.unit != NumberUnit::None || number.value < 0 ||
-          number.value > 255)
+      if (!resolvePinArgument(arg, pin))
       {
         ctx.printError(400, field);
         return false;
       }
-      pin = static_cast<uint8_t>(number.value);
-      return true;
+      return ensurePinAllowed(ctx, pin);
     }
 
     static bool parseUint8Component(Context &ctx, const typename Base::Argument &arg,
@@ -2490,20 +2666,33 @@ namespace esp32serialctl
     static int resolveRgbPin(Context &ctx)
     {
       const typename Base::Option *pinOpt = ctx.findOption("pin");
+      uint8_t resolved = 0;
       if (pinOpt && pinOpt->value)
       {
-        ParsedNumber number;
-        if (!Base::parseNumber(pinOpt->value, number) ||
-            number.unit != NumberUnit::None || number.value < 0 || number.value > 255)
+        if (!resolvePinText(pinOpt->value, resolved))
         {
           ctx.printError(400, "Invalid pin");
           return -1;
         }
-        return static_cast<int>(number.value);
+        if (!ensurePinAllowed(ctx, resolved))
+        {
+          return -1;
+        }
+        return static_cast<int>(resolved);
       }
       if (rgbDefaultPin_ < 0)
       {
         ctx.printError(404, "RGB pin not set");
+        return -1;
+      }
+      if (!validPinIndex(rgbDefaultPin_))
+      {
+        ctx.printError(500, "RGB pin invalid");
+        return -1;
+      }
+      resolved = static_cast<uint8_t>(rgbDefaultPin_);
+      if (!ensurePinAllowed(ctx, resolved))
+      {
         return -1;
       }
       return rgbDefaultPin_;
@@ -5295,6 +5484,98 @@ namespace esp32serialctl
       ctx.printBody(line);
     }
 
+    static void handleGpioPins(Context &ctx)
+    {
+      if (ctx.argc() > 0)
+      {
+        ctx.printError(400, "Usage: gpio pins");
+        return;
+      }
+
+      ctx.printOK("gpio pins");
+
+      char header[64];
+      snprintf(header, sizeof(header), "mode: %s",
+               pinAllAccess_ ? "all" : "restricted");
+      ctx.printBody(header);
+
+      if (pinAllAccess_)
+      {
+        ctx.printBody("allowed pins: all");
+      }
+      else
+      {
+        String allowedList;
+        for (int i = 0; i < GPIO_PIN_COUNT; ++i)
+        {
+          if (!pinAllowed_[i])
+          {
+            continue;
+          }
+          if (allowedList.length() > 0)
+          {
+            allowedList += ", ";
+          }
+          allowedList += i;
+        }
+        char allowedLine[192];
+        snprintf(allowedLine, sizeof(allowedLine), "allowed pins: %s",
+                 allowedList.length() > 0 ? allowedList.c_str() : "(none)");
+        ctx.printBody(allowedLine);
+      }
+
+      if (pinAllAccess_)
+      {
+        for (int i = 0; i < GPIO_PIN_COUNT; ++i)
+        {
+          const bool explicitAllowed = pinAllowed_[i];
+          const String &name = pinNames_[i];
+          if (!explicitAllowed && name.length() == 0)
+          {
+            continue;
+          }
+          char info[192];
+          if (name.length() > 0)
+          {
+            snprintf(info, sizeof(info), "pin %2d: allow%s name: %.100s",
+                     i,
+                     explicitAllowed ? " (explicit)" : "",
+                     name.c_str());
+          }
+          else
+          {
+            snprintf(info, sizeof(info), "pin %02d: allow (explicit)", i);
+          }
+          ctx.printBody(info);
+        }
+        return;
+      }
+
+      for (int i = 0; i < GPIO_PIN_COUNT; ++i)
+      {
+        const bool explicitAllowed = pinAllowed_[i];
+        const bool allowed = pinAllAccess_ || explicitAllowed;
+        const String &name = pinNames_[i];
+        char info[192];
+        if (name.length() > 0)
+        {
+          snprintf(info, sizeof(info), "pin %2d: %s%s name: %.100s",
+                   i,
+                   allowed ? "allow" : "deny",
+                   explicitAllowed ? " (explicit)" : "",
+                   name.c_str());
+        }
+        else
+        {
+          snprintf(info, sizeof(info), "pin %2d: %s%s",
+                   i,
+                   allowed ? "allow" : "deny",
+                   explicitAllowed ? " (explicit)" : "");
+        }
+        ctx.printBody(info);
+      }
+    }
+
     static void handleAdcRead(Context &ctx)
     {
       if (ctx.argc() < 1)
@@ -5575,6 +5856,10 @@ namespace esp32serialctl
     static const Command kCommands[];
     static const size_t kCommandCount;
 
+    static bool pinAllAccess_;
+    static bool pinAllowed_[GPIO_PIN_COUNT];
+    static String pinNames_[GPIO_PIN_COUNT];
+
     static int rgbDefaultPin_;
     static const ConfigEntry *configEntries_;
     static size_t configEntryCount_;
@@ -5596,7 +5881,7 @@ namespace esp32serialctl
            ": Show heap and PSRAM usage"},
 #if defined(ESP32SERIALCTL_HAS_PREFERENCES)
           {"sys", "timezone", &ESP32SerialCtl::handleSysTimezone,
-          "[tz] : Show or set timezone"},
+           "[tz] : Show or set timezone"},
 #endif
           {"sys", "reset", &ESP32SerialCtl::handleSysReset,
            ": Software reset"},
@@ -5670,6 +5955,8 @@ namespace esp32serialctl
            "<pin> <0|1|on|off|low|high> : Write GPIO output"},
           {"gpio", "toggle", &ESP32SerialCtl::handleGpioToggle,
            "<pin> : Toggle output"},
+          {"gpio", "pins", &ESP32SerialCtl::handleGpioPins,
+           ": Show GPIO pin access state"},
           {"adc", "read", &ESP32SerialCtl::handleAdcRead,
            "<pin> [samples N] : Read ADC value (average)"},
           {"pwm", "set", &ESP32SerialCtl::handlePwmSet,
@@ -5751,6 +6038,15 @@ namespace esp32serialctl
   const size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommandCount =
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands) /
       sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands[0]);
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  bool ESP32SerialCtl<MaxLineLength, MaxTokens>::pinAllAccess_ = true;
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  bool ESP32SerialCtl<MaxLineLength, MaxTokens>::pinAllowed_[GPIO_PIN_COUNT] = {false};
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  String ESP32SerialCtl<MaxLineLength, MaxTokens>::pinNames_[GPIO_PIN_COUNT];
 
   template <size_t MaxLineLength, size_t MaxTokens>
   const ConfigEntry *ESP32SerialCtl<MaxLineLength, MaxTokens>::configEntries_ = nullptr;

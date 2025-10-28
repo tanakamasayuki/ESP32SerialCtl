@@ -111,7 +111,7 @@ These are emitted automatically before the command handler is called.
 - `fs ls/cat/write/rm/stat/mkdir/mv` manipulate the filesystem on the active storage (or one specified via `--storage <name>`), covering directory listings, file inspection, text writes, deletions, and renames.
 - `fs b64read/b64write` move arbitrary binary blobs by streaming Base64-encoded chunks; pair with `--append` for multi-chunk uploads.
 - `fs hash` computes file digests (`sha256` default, `md5` optional) and reports byte size to confirm transfers.
-- `gpio mode/read/write/toggle` manipulate pins with familiar semantics.
+- `gpio mode/read/write/toggle/pins` manipulate pins, toggle outputs, and list the access control table.
 - `adc read` samples an ADC channel with optional averaging.
 - `pwm set/stop` manage LEDC PWM (`pwm set <pin> <freq> <duty>`, 12-bit resolution; duty accepts raw 0..4095 or percent).
 - `rgb pin/set/stream` control addressable RGB LEDs via `rgbLedWrite`, with configurable defaults and streaming support.
@@ -147,6 +147,21 @@ reading a manifest from storage), the static helpers
 `ESP32SerialCtl<>::setConfigEntries(...)` remain available.
 If no `ConfigEntry` array is registered, the `conf` commands are disabled and
 remain hidden from the CLI/help output.
+
+## GPIO Access Control
+
+GPIO commands now respect an allow-list that you configure at runtime. By
+default every pin is accessible. Calling `esp32SerialCtl.setPinAllAccess(false)`
+switches to restricted mode, where only pins explicitly marked as allowed can
+be used from `gpio`, `adc`, `pwm`, or `rgb` commands. Use
+`setPinName(GPIO_NUM_2, "LED")` (or the `int` overload) to assign a human
+readable alias and implicitly allow that pin, and call `setPinAllowed(pin, true)`
+or `false` to adjust access without changing the alias. Once an alias is
+registered you can refer to it directly in CLI commands, e.g. `gpio read LED`.
+
+Run `gpio pins` to dump the current mode, the allow-list, and any aliases you
+have defined. In unrestricted mode the command shows which pins were explicitly
+whitelisted or named.
 
 ## Time and Network Helpers
 
