@@ -3759,6 +3759,23 @@ OK fs ls
     resetFsDetails();
   };
 
+  const includeFsRootNode = (items = [], listRaw = null) => {
+    const hasRoot = items.some((item) => item.path === '/' && item.type === 'dir');
+    if (hasRoot) {
+      return items;
+    }
+    return [
+      {
+        name: '/',
+        path: '/',
+        type: 'dir',
+        size: '--',
+        lsRaw: listRaw,
+        children: items.map((item) => item)
+      }
+    ];
+  };
+
   const buildFsTree = (items = []) => {
     const ul = document.createElement('ul');
     ul.className = 'fs-tree-list';
@@ -3771,7 +3788,8 @@ OK fs ls
       button.className = 'fs-node';
       button.dataset.fsPath = item.path;
       button.dataset.fsType = item.type;
-      button.textContent = item.type === 'dir' ? `${item.name}/` : item.name;
+      const isRoot = item.type === 'dir' && item.path === '/';
+      button.textContent = isRoot ? '/' : item.type === 'dir' ? `${item.name}/` : item.name;
       li.append(button);
       if (item.type === 'dir' && item.children && item.children.length) {
         li.append(buildFsTree(item.children));
@@ -3919,10 +3937,11 @@ OK fs ls
 
     fsPathMap = new Map();
     fsElements.tree.innerHTML = '';
-    fsElements.tree.append(buildFsTree(fsData.tree));
+    const treeWithRoot = includeFsRootNode(fsData.tree || [], fsData.listRaw || null);
+    fsElements.tree.append(buildFsTree(treeWithRoot));
     currentFsSelection = null;
 
-    const defaultNode = findFirstSelectableNode(fsData.tree);
+    const defaultNode = findFirstSelectableNode(treeWithRoot);
     if (defaultNode) {
       selectFsPath(defaultNode.path);
     } else {
