@@ -531,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "delete": {
             "title": "選択項目を削除 (fs rm)",
             "hint": "選択中のファイルまたはディレクトリを削除します。操作は取り消せません。",
+            "warningNonEmpty": "ディレクトリを削除する前に、配下のファイルまたはフォルダを削除してください。",
             "action": "fs rm を送信",
             "confirm": "{path} を削除しますか？"
           }
@@ -1164,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "delete": {
             "title": "Delete Item (fs rm)",
             "hint": "Remove the selected file or directory. This action cannot be undone.",
+            "warningNonEmpty": "Remove all files or subdirectories before deleting this directory.",
             "action": "Send fs rm",
             "confirm": "Delete {path}?"
           }
@@ -1797,6 +1799,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "delete": {
             "title": "删除选定项 (fs rm)",
             "hint": "删除所选文件或目录，此操作无法撤销。",
+            "warningNonEmpty": "删除此目录前，请先移除其中的文件或子目录。",
             "action": "发送 fs rm",
             "confirm": "确定删除 {path} 吗？"
           }
@@ -2616,7 +2619,8 @@ OK fs ls
     b64writeFirstButton: document.querySelector('#fs-b64write-first'),
     b64writeAppendButton: document.querySelector('#fs-b64write-append'),
     deleteSection: document.querySelector('[data-fs-action-section="delete"]'),
-    deleteButton: document.querySelector('#fs-delete-run')
+    deleteButton: document.querySelector('#fs-delete-run'),
+    deleteWarning: document.querySelector('[data-fs-delete-warning]')
   };
 
   const tabButtons = document.querySelectorAll('.tab-button');
@@ -3905,6 +3909,9 @@ OK fs ls
     if (fsElements.deleteSection) {
       fsElements.deleteSection.hidden = true;
     }
+    if (fsElements.deleteWarning) {
+      fsElements.deleteWarning.hidden = true;
+    }
     if (fsElements.deleteButton) {
       fsElements.deleteButton.disabled = true;
       fsElements.deleteButton.setAttribute('disabled', '');
@@ -4315,14 +4322,20 @@ OK fs ls
     const isDir = node?.type === 'dir';
     const isRootDir = isDir && path === '/';
     const canShowDelete = Boolean(node) && !isRootDir;
+    const hasChildren = isDir && Array.isArray(node?.children) && node.children.length > 0;
 
     if (fsElements.deleteSection) {
       fsElements.deleteSection.hidden = !canShowDelete;
     }
+    if (fsElements.deleteWarning) {
+      const shouldShowWarning = canShowDelete && hasChildren;
+      fsElements.deleteWarning.hidden = !shouldShowWarning;
+    }
     if (fsElements.deleteButton) {
       if (canShowDelete) {
         fsElements.deleteButton.dataset.fsTargetPath = path;
-        const canExecuteDelete = connectionState === 'connected' && Boolean(currentStorageId);
+        const canExecuteDelete =
+          connectionState === 'connected' && Boolean(currentStorageId) && !hasChildren;
         if (canExecuteDelete) {
           fsElements.deleteButton.disabled = false;
           fsElements.deleteButton.removeAttribute('disabled');

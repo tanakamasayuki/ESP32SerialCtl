@@ -937,6 +937,10 @@
                 <p class="fs-hint" data-i18n="filesystem.actions.delete.hint">
                   選択中のファイルまたはディレクトリを削除します。操作は取り消せません。
                 </p>
+                <p class="fs-hint fs-hint--warning" data-fs-delete-warning hidden
+                  data-i18n="filesystem.actions.delete.warningNonEmpty">
+                  ディレクトリ内のファイルまたはフォルダを先に削除してください。
+                </p>
                 <div class="card-actions">
                   <button class="btn btn-danger" id="fs-delete-run" disabled
                     data-i18n="filesystem.actions.delete.action">fs rm を送信</button>
