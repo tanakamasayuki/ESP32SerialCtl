@@ -956,298 +956,405 @@
 
           <div class="command-layout">
             <div class="command-tablist" role="tablist" aria-label="ペリフェラルコマンド"
-              data-i18n-aria-label="sections.peripherals.title">
-              <button id="tab-peripherals-gpio-mode" class="command-tab" role="tab" aria-selected="false"
-                data-command="gpio-mode" aria-controls="command-peripherals-gpio-mode">gpio mode</button>
-              <button id="tab-peripherals-gpio-read" class="command-tab" role="tab" aria-selected="false"
-                data-command="gpio-read" aria-controls="command-peripherals-gpio-read">gpio read</button>
-              <button id="tab-peripherals-gpio-write" class="command-tab" role="tab" aria-selected="false"
-                data-command="gpio-write" aria-controls="command-peripherals-gpio-write">gpio write</button>
-              <button id="tab-peripherals-gpio-toggle" class="command-tab" role="tab" aria-selected="false"
-                data-command="gpio-toggle" aria-controls="command-peripherals-gpio-toggle">gpio toggle</button>
-              <button id="tab-peripherals-adc-read" class="command-tab" role="tab" aria-selected="false"
-                data-command="adc-read" aria-controls="command-peripherals-adc-read">adc read</button>
-              <button id="tab-peripherals-pwm-set" class="command-tab" role="tab" aria-selected="false"
-                data-command="pwm-set" aria-controls="command-peripherals-pwm-set">pwm set</button>
-              <button id="tab-peripherals-pwm-stop" class="command-tab" role="tab" aria-selected="false"
-                data-command="pwm-stop" aria-controls="command-peripherals-pwm-stop">pwm stop</button>
-              <button id="tab-peripherals-rgb-pin" class="command-tab" role="tab" aria-selected="false"
-                data-command="rgb-pin" aria-controls="command-peripherals-rgb-pin">rgb pin</button>
-              <button id="tab-peripherals-rgb-set" class="command-tab" role="tab" aria-selected="false"
-                data-command="rgb-set" aria-controls="command-peripherals-rgb-set">rgb set</button>
-              <button id="tab-peripherals-rgb-stream" class="command-tab" role="tab" aria-selected="false"
-                data-command="rgb-stream" aria-controls="command-peripherals-rgb-stream">rgb stream</button>
-              <button id="tab-peripherals-i2c-scan" class="command-tab is-active" role="tab" aria-selected="true"
-                data-command="i2c-scan" aria-controls="command-peripherals-i2c-scan">i2c scan</button>
-              <button id="tab-peripherals-i2c-read" class="command-tab" role="tab" aria-selected="false"
-                data-command="i2c-read" aria-controls="command-peripherals-i2c-read">i2c read</button>
-              <button id="tab-peripherals-i2c-write" class="command-tab" role="tab" aria-selected="false"
-                data-command="i2c-write" aria-controls="command-peripherals-i2c-write">i2c write</button>
+              data-i18n-aria-label="peripherals.tablist">
+              <button id="tab-peripherals-settings" class="command-tab is-active" role="tab" aria-selected="true"
+                data-command="peripherals-settings" aria-controls="command-peripherals-settings"
+                data-i18n="peripherals.tabs.settings">設定</button>
+              <button id="tab-peripherals-gpio" class="command-tab" role="tab" aria-selected="false"
+                data-command="peripherals-gpio" aria-controls="command-peripherals-gpio"
+                data-i18n="peripherals.tabs.gpio">GPIO</button>
+              <button id="tab-peripherals-adc" class="command-tab" role="tab" aria-selected="false"
+                data-command="peripherals-adc" aria-controls="command-peripherals-adc" data-i18n="peripherals.tabs.adc">
+                ADC</button>
+              <button id="tab-peripherals-pwm" class="command-tab" role="tab" aria-selected="false"
+                data-command="peripherals-pwm" aria-controls="command-peripherals-pwm" data-i18n="peripherals.tabs.pwm">
+                PWM</button>
+              <button id="tab-peripherals-servo" class="command-tab" role="tab" aria-selected="false"
+                data-command="peripherals-servo" aria-controls="command-peripherals-servo"
+                data-i18n="peripherals.tabs.servo">サーボ</button>
+              <button id="tab-peripherals-rgb" class="command-tab" role="tab" aria-selected="false"
+                data-command="peripherals-rgb" aria-controls="command-peripherals-rgb"
+                data-i18n="peripherals.tabs.rgb">RGB LED</button>
+              <button id="tab-peripherals-i2c" class="command-tab" role="tab" aria-selected="false"
+                data-command="peripherals-i2c" aria-controls="command-peripherals-i2c"
+                data-i18n="peripherals.tabs.i2c">I2C</button>
             </div>
 
-            <article class="card command-panel is-active" id="command-peripherals-i2c-scan" data-command="i2c-scan"
-              role="tabpanel" aria-labelledby="tab-peripherals-i2c-scan">
-              <h3>i2c scan</h3>
-              <p data-i18n="peripherals.commands.i2c-scan.description">指定した I2C バス上の応答アドレスをスキャンします。</p>
-              <div class="form-field">
-                <label for="i2c-scan-bus" data-i18n="peripherals.common.busLabel">バス</label>
-                <select id="i2c-scan-bus" disabled>
-                  <option>Wire</option>
-                  <option>Wire1</option>
-                </select>
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-outline" disabled data-i18n="peripherals.actions.scan">i2c scan を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-i2c-read" data-command="i2c-read"
-              role="tabpanel" aria-labelledby="tab-peripherals-i2c-read">
-              <h3>i2c read &lt;addr&gt; [len]</h3>
-              <p data-i18n="peripherals.commands.i2c-read.description">指定アドレスからデータを読み取ります。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="i2c-read-bus" data-i18n="peripherals.common.busLabel">バス</label>
-                  <select id="i2c-read-bus" disabled>
-                    <option>Wire</option>
-                    <option>Wire1</option>
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label for="i2c-read-address" data-i18n="peripherals.labels.address">アドレス</label>
-                  <input id="i2c-read-address" type="text" placeholder="0x3C" disabled
-                    data-i18n-placeholder="peripherals.placeholders.address" />
-                </div>
-              </div>
-              <div class="form-field">
-                <label for="i2c-read-length" data-i18n="peripherals.labels.length">読み取りバイト数</label>
-                <input id="i2c-read-length" type="number" placeholder="例: 16" disabled
-                  data-i18n-placeholder="peripherals.placeholders.length" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-outline" disabled data-i18n="peripherals.actions.read">i2c read を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-i2c-write" data-command="i2c-write"
-              role="tabpanel" aria-labelledby="tab-peripherals-i2c-write">
-              <h3>i2c write &lt;addr&gt; &lt;bytes...&gt;</h3>
-              <p data-i18n="peripherals.commands.i2c-write.description">バイト列をデバイスへ送信します。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="i2c-write-bus" data-i18n="peripherals.common.busLabel">バス</label>
-                  <select id="i2c-write-bus" disabled>
-                    <option>Wire</option>
-                    <option>Wire1</option>
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label for="i2c-write-address" data-i18n="peripherals.labels.address">アドレス</label>
-                  <input id="i2c-write-address" type="text" placeholder="0x3C" disabled
-                    data-i18n-placeholder="peripherals.placeholders.address" />
-                </div>
-              </div>
-              <div class="form-field">
-                <label for="i2c-write-bytes" data-i18n="peripherals.labels.payload">送信バイト列</label>
-                <input id="i2c-write-bytes" type="text" placeholder="例: 0x00 0x01 0x02" disabled
-                  data-i18n-placeholder="peripherals.placeholders.payload" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.write">i2c write を送信</button>
+            <article class="card command-panel is-active" id="command-peripherals-settings"
+              data-command="peripherals-settings" role="tabpanel" aria-labelledby="tab-peripherals-settings">
+              <h3 data-i18n="peripherals.groups.settings.title">GPIO 設定ビュー</h3>
+              <p data-i18n="peripherals.groups.settings.description">gpio pins の結果を可視化し、許可済みピンや別名を確認します。</p>
+              <div class="peripherals-settings-grid">
+                <section class="peripherals-card">
+                  <h4 data-i18n="peripherals.groups.settings.modeHeading">アクセスモード</h4>
+                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.modePlaceholder">
+                    接続後に gpio pins を実行するとここにモードが表示されます。
+                  </p>
+                  <pre class="peripherals-sample" aria-hidden="true">&gt; gpio pins
+OK gpio pins
+| mode: all
+| allowed pins: all
+&gt;</pre>
+                </section>
+                <section class="peripherals-card">
+                  <h4 data-i18n="peripherals.groups.settings.allowedHeading">許可済みピン</h4>
+                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.allowedPlaceholder">
+                    制限モードでは許可済みピンの一覧が表示されます。
+                  </p>
+                  <div class="peripherals-chip-list" aria-hidden="true">
+                    <span class="chip chip--muted">all</span>
+                    <span class="chip">2</span>
+                    <span class="chip">16</span>
+                  </div>
+                  <pre class="peripherals-sample" aria-hidden="true">| allowed pins: 2, 16</pre>
+                </section>
+                <section class="peripherals-card">
+                  <h4 data-i18n="peripherals.groups.settings.aliasHeading">別名一覧</h4>
+                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.aliasPlaceholder">
+                    ピンへ別名を付けるとここに表示されます。
+                  </p>
+                  <div class="peripherals-alias-list" aria-hidden="true">
+                    <div class="peripherals-alias-row">
+                      <span class="alias-pin">2</span>
+                      <span class="alias-name">LED</span>
+                    </div>
+                    <div class="peripherals-alias-row">
+                      <span class="alias-pin">16</span>
+                      <span class="alias-name">RGB LED</span>
+                    </div>
+                  </div>
+                </section>
               </div>
             </article>
 
-            <article class="card command-panel" id="command-peripherals-gpio-mode" data-command="gpio-mode"
-              role="tabpanel" aria-labelledby="tab-peripherals-gpio-mode">
-              <h3>gpio mode &lt;pin&gt; &lt;mode&gt;</h3>
-              <p data-i18n="peripherals.commands.gpio-mode.description">GPIO の入出力設定を変更します。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="gpio-mode-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                  <input id="gpio-mode-pin" type="number" placeholder="例: 26" disabled
-                    data-i18n-placeholder="peripherals.placeholders.pin" />
-                </div>
-                <div class="form-field">
-                  <label for="gpio-mode-select" data-i18n="peripherals.labels.mode">モード</label>
-                  <select id="gpio-mode-select" disabled>
-                    <option value="input" data-i18n="peripherals.options.gpioMode.input">input</option>
-                    <option value="output" data-i18n="peripherals.options.gpioMode.output">output</option>
-                    <option value="input_pullup" data-i18n="peripherals.options.gpioMode.input_pullup">input_pullup
-                    </option>
-                    <option value="input_pulldown" data-i18n="peripherals.options.gpioMode.input_pulldown">
-                      input_pulldown</option>
-                  </select>
-                </div>
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioMode">gpio mode を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-gpio-read" data-command="gpio-read"
-              role="tabpanel" aria-labelledby="tab-peripherals-gpio-read">
-              <h3>gpio read &lt;pin&gt;</h3>
-              <p data-i18n="peripherals.commands.gpio-read.description">入力ピンの状態を読み取ります。</p>
-              <div class="form-field">
-                <label for="gpio-read-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                <input id="gpio-read-pin" type="number" placeholder="例: 34" disabled
-                  data-i18n-placeholder="peripherals.placeholders.pin" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-outline" disabled data-i18n="peripherals.actions.gpioRead">gpio read を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-gpio-write" data-command="gpio-write"
-              role="tabpanel" aria-labelledby="tab-peripherals-gpio-write">
-              <h3>gpio write &lt;pin&gt; &lt;value&gt;</h3>
-              <p data-i18n="peripherals.commands.gpio-write.description">出力ピンを HIGH/LOW に設定します。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="gpio-write-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                  <input id="gpio-write-pin" type="number" placeholder="例: 25" disabled
-                    data-i18n-placeholder="peripherals.placeholders.pin" />
-                </div>
-                <div class="form-field">
-                  <label for="gpio-write-value" data-i18n="peripherals.labels.value">値</label>
-                  <select id="gpio-write-value" disabled>
-                    <option value="HIGH" data-i18n="peripherals.options.gpioValue.HIGH">HIGH</option>
-                    <option value="LOW" data-i18n="peripherals.options.gpioValue.LOW">LOW</option>
-                  </select>
-                </div>
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioWrite">gpio write
-                  を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-gpio-toggle" data-command="gpio-toggle"
-              role="tabpanel" aria-labelledby="tab-peripherals-gpio-toggle">
-              <h3>gpio toggle &lt;pin&gt;</h3>
-              <p data-i18n="peripherals.commands.gpio-toggle.description">出力ピンの状態をトグルします。</p>
-              <div class="form-field">
-                <label for="gpio-toggle-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                <input id="gpio-toggle-pin" type="number" placeholder="例: 2" disabled
-                  data-i18n-placeholder="peripherals.placeholders.pin" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
-                  を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-adc-read" data-command="adc-read"
-              role="tabpanel" aria-labelledby="tab-peripherals-adc-read">
-              <h3>adc read &lt;channel&gt;</h3>
-              <p data-i18n="peripherals.commands.adc-read.description">ADC チャンネルをサンプリングします。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="adc-channel" data-i18n="peripherals.labels.channel">チャネル</label>
-                  <input id="adc-channel" type="number" placeholder="例: 34" disabled
-                    data-i18n-placeholder="peripherals.placeholders.channel" />
-                </div>
-                <div class="form-field">
-                  <label for="adc-average" data-i18n="peripherals.labels.average">平均回数</label>
-                  <input id="adc-average" type="number" placeholder="例: 8" disabled
-                    data-i18n-placeholder="peripherals.placeholders.average" />
-                </div>
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-outline" disabled data-i18n="peripherals.actions.adcRead">adc read を送信</button>
+            <article class="card command-panel" id="command-peripherals-gpio" data-command="peripherals-gpio"
+              role="tabpanel" aria-labelledby="tab-peripherals-gpio">
+              <h3 data-i18n="peripherals.groups.gpio.title">GPIO 操作</h3>
+              <p data-i18n="peripherals.groups.gpio.description">GPIO のモード切り替えと入出力制御をまとめています。</p>
+              <div class="peripherals-grid">
+                <section class="peripherals-card" id="command-peripherals-gpio-mode">
+                  <h4>gpio mode &lt;pin&gt; &lt;mode&gt;</h4>
+                  <p data-i18n="peripherals.commands.gpio-mode.description">GPIO の入出力設定を変更します。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="gpio-mode-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                      <input id="gpio-mode-pin" type="number" placeholder="例: 26" disabled
+                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                    </div>
+                    <div class="form-field">
+                      <label for="gpio-mode-select" data-i18n="peripherals.labels.mode">モード</label>
+                      <select id="gpio-mode-select" disabled>
+                        <option value="input" data-i18n="peripherals.options.gpioMode.input">input</option>
+                        <option value="output" data-i18n="peripherals.options.gpioMode.output">output</option>
+                        <option value="input_pullup" data-i18n="peripherals.options.gpioMode.input_pullup">input_pullup
+                        </option>
+                        <option value="input_pulldown" data-i18n="peripherals.options.gpioMode.input_pulldown">
+                          input_pulldown</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioMode">gpio mode を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-gpio-read">
+                  <h4>gpio read &lt;pin&gt;</h4>
+                  <p data-i18n="peripherals.commands.gpio-read.description">入力ピンの状態を読み取ります。</p>
+                  <div class="form-field">
+                    <label for="gpio-read-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                    <input id="gpio-read-pin" type="number" placeholder="例: 34" disabled
+                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-outline" disabled data-i18n="peripherals.actions.gpioRead">gpio read を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-gpio-write">
+                  <h4>gpio write &lt;pin&gt; &lt;value&gt;</h4>
+                  <p data-i18n="peripherals.commands.gpio-write.description">出力ピンを HIGH/LOW に設定します。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="gpio-write-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                      <input id="gpio-write-pin" type="number" placeholder="例: 25" disabled
+                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                    </div>
+                    <div class="form-field">
+                      <label for="gpio-write-value" data-i18n="peripherals.labels.value">値</label>
+                      <select id="gpio-write-value" disabled>
+                        <option value="HIGH" data-i18n="peripherals.options.gpioValue.HIGH">HIGH</option>
+                        <option value="LOW" data-i18n="peripherals.options.gpioValue.LOW">LOW</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioWrite">gpio write
+                      を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-gpio-toggle">
+                  <h4>gpio toggle &lt;pin&gt;</h4>
+                  <p data-i18n="peripherals.commands.gpio-toggle.description">出力ピンの状態をトグルします。</p>
+                  <div class="form-field">
+                    <label for="gpio-toggle-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                    <input id="gpio-toggle-pin" type="number" placeholder="例: 2" disabled
+                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
+                      を送信</button>
+                  </div>
+                </section>
               </div>
             </article>
 
-            <article class="card command-panel" id="command-peripherals-pwm-set" data-command="pwm-set" role="tabpanel"
-              aria-labelledby="tab-peripherals-pwm-set">
-              <h3>pwm set &lt;pin&gt; &lt;freq&gt; &lt;duty&gt;</h3>
-              <p data-i18n="peripherals.commands.pwm-set.description">LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="pwm-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                  <input id="pwm-pin" type="number" placeholder="例: 4" disabled
-                    data-i18n-placeholder="peripherals.placeholders.pin" />
-                </div>
-                <div class="form-field">
-                  <label for="pwm-freq" data-i18n="peripherals.labels.frequency">周波数 (Hz)</label>
-                  <input id="pwm-freq" type="number" placeholder="例: 5000" disabled
-                    data-i18n-placeholder="peripherals.placeholders.frequency" />
-                </div>
-              </div>
-              <div class="form-field">
-                <label for="pwm-duty" data-i18n="peripherals.labels.duty">デューティ (0-4095 または %)</label>
-                <input id="pwm-duty" type="text" placeholder="例: 2048 または 50%" disabled
-                  data-i18n-placeholder="peripherals.placeholders.duty" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmSet">pwm set を送信</button>
-              </div>
-            </article>
-
-            <article class="card command-panel" id="command-peripherals-pwm-stop" data-command="pwm-stop"
-              role="tabpanel" aria-labelledby="tab-peripherals-pwm-stop">
-              <h3>pwm stop &lt;pin&gt;</h3>
-              <p data-i18n="peripherals.commands.pwm-stop.description">指定ピンの PWM を停止します。</p>
-              <div class="form-field">
-                <label for="pwm-stop-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                <input id="pwm-stop-pin" type="number" placeholder="例: 4" disabled
-                  data-i18n-placeholder="peripherals.placeholders.pin" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop を送信</button>
+            <article class="card command-panel" id="command-peripherals-adc" data-command="peripherals-adc"
+              role="tabpanel" aria-labelledby="tab-peripherals-adc">
+              <h3 data-i18n="peripherals.groups.adc.title">ADC 測定</h3>
+              <p data-i18n="peripherals.groups.adc.description">ADC チャンネルのサンプリングを行います。</p>
+              <div class="peripherals-grid">
+                <section class="peripherals-card" id="command-peripherals-adc-read">
+                  <h4>adc read &lt;channel&gt;</h4>
+                  <p data-i18n="peripherals.commands.adc-read.description">ADC チャンネルをサンプリングします。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="adc-channel" data-i18n="peripherals.labels.channel">チャネル</label>
+                      <input id="adc-channel" type="number" placeholder="例: 34" disabled
+                        data-i18n-placeholder="peripherals.placeholders.channel" />
+                    </div>
+                    <div class="form-field">
+                      <label for="adc-average" data-i18n="peripherals.labels.average">平均回数</label>
+                      <input id="adc-average" type="number" placeholder="例: 8" disabled
+                        data-i18n-placeholder="peripherals.placeholders.average" />
+                    </div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-outline" disabled data-i18n="peripherals.actions.adcRead">adc read を送信</button>
+                  </div>
+                </section>
               </div>
             </article>
 
-            <article class="card command-panel" id="command-peripherals-rgb-pin" data-command="rgb-pin" role="tabpanel"
-              aria-labelledby="tab-peripherals-rgb-pin">
-              <h3>rgb pin &lt;pin&gt;</h3>
-              <p data-i18n="peripherals.commands.rgb-pin.description">デフォルトの RGB LED 出力ピンを設定します。</p>
-              <div class="form-field">
-                <label for="rgb-pin-input" data-i18n="peripherals.labels.pin">ピン</label>
-                <input id="rgb-pin-input" type="number" placeholder="例: 16" disabled
-                  data-i18n-placeholder="peripherals.placeholders.pin" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbPin">rgb pin を送信</button>
+            <article class="card command-panel" id="command-peripherals-pwm" data-command="peripherals-pwm"
+              role="tabpanel" aria-labelledby="tab-peripherals-pwm">
+              <h3 data-i18n="peripherals.groups.pwm.title">PWM 制御</h3>
+              <p data-i18n="peripherals.groups.pwm.description">LEDC PWM の出力設定と停止をまとめています。</p>
+              <div class="peripherals-grid">
+                <section class="peripherals-card" id="command-peripherals-pwm-set">
+                  <h4>pwm set &lt;pin&gt; &lt;freq&gt; &lt;duty&gt;</h4>
+                  <p data-i18n="peripherals.commands.pwm-set.description">LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="pwm-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                      <input id="pwm-pin" type="number" placeholder="例: 4" disabled
+                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                    </div>
+                    <div class="form-field">
+                      <label for="pwm-freq" data-i18n="peripherals.labels.frequency">周波数 (Hz)</label>
+                      <input id="pwm-freq" type="number" placeholder="例: 5000" disabled
+                        data-i18n-placeholder="peripherals.placeholders.frequency" />
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="pwm-duty" data-i18n="peripherals.labels.duty">デューティ (0-4095 または %)</label>
+                    <input id="pwm-duty" type="text" placeholder="例: 2048 または 50%" disabled
+                      data-i18n-placeholder="peripherals.placeholders.duty" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmSet">pwm set を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-pwm-stop">
+                  <h4>pwm stop &lt;pin&gt;</h4>
+                  <p data-i18n="peripherals.commands.pwm-stop.description">指定ピンの PWM を停止します。</p>
+                  <div class="form-field">
+                    <label for="pwm-stop-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                    <input id="pwm-stop-pin" type="number" placeholder="例: 4" disabled
+                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop を送信</button>
+                  </div>
+                </section>
               </div>
             </article>
 
-            <article class="card command-panel" id="command-peripherals-rgb-set" data-command="rgb-set" role="tabpanel"
-              aria-labelledby="tab-peripherals-rgb-set">
-              <h3>rgb set &lt;r&gt; &lt;g&gt; &lt;b&gt;</h3>
-              <p data-i18n="peripherals.commands.rgb-set.description">単色で RGB LED を発光させます。</p>
-              <div class="dual-field">
-                <div class="form-field">
-                  <label for="rgb-set-r" data-i18n="peripherals.labels.red">R (0-255)</label>
-                  <input id="rgb-set-r" type="number" placeholder="例: 255" disabled
-                    data-i18n-placeholder="peripherals.placeholders.red" />
-                </div>
-                <div class="form-field">
-                  <label for="rgb-set-g" data-i18n="peripherals.labels.green">G (0-255)</label>
-                  <input id="rgb-set-g" type="number" placeholder="例: 128" disabled
-                    data-i18n-placeholder="peripherals.placeholders.green" />
-                </div>
-              </div>
-              <div class="form-field">
-                <label for="rgb-set-b" data-i18n="peripherals.labels.blue">B (0-255)</label>
-                <input id="rgb-set-b" type="number" placeholder="例: 64" disabled
-                  data-i18n-placeholder="peripherals.placeholders.blue" />
-              </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbSet">rgb set を送信</button>
+            <article class="card command-panel" id="command-peripherals-servo" data-command="peripherals-servo"
+              role="tabpanel" aria-labelledby="tab-peripherals-servo">
+              <h3 data-i18n="peripherals.groups.servo.title">サーボ制御</h3>
+              <p data-i18n="peripherals.groups.servo.description">PWM ベースのサーボ操作向けに角度指定フォームを用意しています。</p>
+              <div class="peripherals-grid">
+                <section class="peripherals-card" id="command-peripherals-servo-set">
+                  <h4 data-i18n="peripherals.groups.servo.setHeading">角度を設定 (pwm set)</h4>
+                  <p data-i18n="peripherals.groups.servo.setDescription">ピンと角度を指定してサーボを駆動します。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="servo-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                      <input id="servo-pin" type="number" placeholder="例: 16" disabled
+                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                    </div>
+                    <div class="form-field">
+                      <label for="servo-angle" data-i18n="peripherals.labels.angle">角度 (0-180)</label>
+                      <input id="servo-angle" type="number" placeholder="90" disabled
+                        data-i18n-placeholder="peripherals.placeholders.angle" />
+                    </div>
+                  </div>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="servo-pulse-min" data-i18n="peripherals.labels.pulseMin">最小パルス (μs)</label>
+                      <input id="servo-pulse-min" type="number" placeholder="500" disabled
+                        data-i18n-placeholder="peripherals.placeholders.pulseMin" />
+                    </div>
+                    <div class="form-field">
+                      <label for="servo-pulse-max" data-i18n="peripherals.labels.pulseMax">最大パルス (μs)</label>
+                      <input id="servo-pulse-max" type="number" placeholder="2400" disabled
+                        data-i18n-placeholder="peripherals.placeholders.pulseMax" />
+                    </div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmSet">pwm set を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-servo-stop">
+                  <h4 data-i18n="peripherals.groups.servo.stopHeading">サーボを停止 (pwm stop)</h4>
+                  <p data-i18n="peripherals.groups.servo.stopDescription">サーボ駆動を停止して出力を無効化します。</p>
+                  <div class="form-field">
+                    <label for="servo-stop-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                    <input id="servo-stop-pin" type="number" placeholder="例: 16" disabled
+                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop を送信</button>
+                  </div>
+                </section>
               </div>
             </article>
 
-            <article class="card command-panel" id="command-peripherals-rgb-stream" data-command="rgb-stream"
-              role="tabpanel" aria-labelledby="tab-peripherals-rgb-stream">
-              <h3>rgb stream</h3>
-              <p data-i18n="peripherals.commands.rgb-stream.description">連続した RGB データをストリーミングし、アニメーションを表示します。</p>
-              <div class="console-area console-area--light">
-                <span data-i18n="peripherals.notes.stream">チャンク送信の進捗やエラーを表示予定</span>
+            <article class="card command-panel" id="command-peripherals-rgb" data-command="peripherals-rgb"
+              role="tabpanel" aria-labelledby="tab-peripherals-rgb">
+              <h3 data-i18n="peripherals.groups.rgb.title">RGB LED</h3>
+              <p data-i18n="peripherals.groups.rgb.description">RGB LED のピン設定とカラー制御、ストリーム送信をまとめています。</p>
+              <div class="peripherals-grid">
+                <section class="peripherals-card" id="command-peripherals-rgb-pin">
+                  <h4>rgb pin &lt;pin&gt;</h4>
+                  <p data-i18n="peripherals.commands.rgb-pin.description">デフォルトの RGB LED 出力ピンを設定します。</p>
+                  <div class="form-field">
+                    <label for="rgb-pin-input" data-i18n="peripherals.labels.pin">ピン</label>
+                    <input id="rgb-pin-input" type="number" placeholder="例: 16" disabled
+                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbPin">rgb pin を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-rgb-set">
+                  <h4>rgb set &lt;r&gt; &lt;g&gt; &lt;b&gt;</h4>
+                  <p data-i18n="peripherals.commands.rgb-set.description">単色で RGB LED を発光させます。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="rgb-set-r" data-i18n="peripherals.labels.red">R (0-255)</label>
+                      <input id="rgb-set-r" type="number" placeholder="例: 255" disabled
+                        data-i18n-placeholder="peripherals.placeholders.red" />
+                    </div>
+                    <div class="form-field">
+                      <label for="rgb-set-g" data-i18n="peripherals.labels.green">G (0-255)</label>
+                      <input id="rgb-set-g" type="number" placeholder="例: 128" disabled
+                        data-i18n-placeholder="peripherals.placeholders.green" />
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="rgb-set-b" data-i18n="peripherals.labels.blue">B (0-255)</label>
+                    <input id="rgb-set-b" type="number" placeholder="例: 64" disabled
+                      data-i18n-placeholder="peripherals.placeholders.blue" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbSet">rgb set を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-rgb-stream">
+                  <h4>rgb stream</h4>
+                  <p data-i18n="peripherals.commands.rgb-stream.description">連続した RGB データをストリーミングし、アニメーションを表示します。</p>
+                  <div class="console-area console-area--light">
+                    <span data-i18n="peripherals.notes.stream">チャンク送信の進捗やエラーを表示予定</span>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbStreamStart">rgb stream
+                      を開始</button>
+                  </div>
+                </section>
               </div>
-              <div class="card-actions">
-                <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbStreamStart">rgb stream
-                  を開始</button>
+            </article>
+
+            <article class="card command-panel" id="command-peripherals-i2c" data-command="peripherals-i2c"
+              role="tabpanel" aria-labelledby="tab-peripherals-i2c">
+              <h3 data-i18n="peripherals.groups.i2c.title">I2C 操作</h3>
+              <p data-i18n="peripherals.groups.i2c.description">I2C バスのスキャン、読み取り、書き込みをまとめています。</p>
+              <div class="peripherals-grid">
+                <section class="peripherals-card" id="command-peripherals-i2c-scan">
+                  <h4>i2c scan</h4>
+                  <p data-i18n="peripherals.commands.i2c-scan.description">指定した I2C バス上の応答アドレスをスキャンします。</p>
+                  <div class="form-field">
+                    <label for="i2c-scan-bus" data-i18n="peripherals.common.busLabel">バス</label>
+                    <select id="i2c-scan-bus" disabled>
+                      <option>Wire</option>
+                      <option>Wire1</option>
+                    </select>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-outline" disabled data-i18n="peripherals.actions.scan">i2c scan を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-i2c-read">
+                  <h4>i2c read &lt;addr&gt; [len]</h4>
+                  <p data-i18n="peripherals.commands.i2c-read.description">指定アドレスからデータを読み取ります。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="i2c-read-bus" data-i18n="peripherals.common.busLabel">バス</label>
+                      <select id="i2c-read-bus" disabled>
+                        <option>Wire</option>
+                        <option>Wire1</option>
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label for="i2c-read-address" data-i18n="peripherals.labels.address">アドレス</label>
+                      <input id="i2c-read-address" type="text" placeholder="0x3C" disabled
+                        data-i18n-placeholder="peripherals.placeholders.address" />
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="i2c-read-length" data-i18n="peripherals.labels.length">読み取りバイト数</label>
+                    <input id="i2c-read-length" type="number" placeholder="例: 16" disabled
+                      data-i18n-placeholder="peripherals.placeholders.length" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-outline" disabled data-i18n="peripherals.actions.read">i2c read を送信</button>
+                  </div>
+                </section>
+                <section class="peripherals-card" id="command-peripherals-i2c-write">
+                  <h4>i2c write &lt;addr&gt; &lt;bytes...&gt;</h4>
+                  <p data-i18n="peripherals.commands.i2c-write.description">バイト列をデバイスへ送信します。</p>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="i2c-write-bus" data-i18n="peripherals.common.busLabel">バス</label>
+                      <select id="i2c-write-bus" disabled>
+                        <option>Wire</option>
+                        <option>Wire1</option>
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label for="i2c-write-address" data-i18n="peripherals.labels.address">アドレス</label>
+                      <input id="i2c-write-address" type="text" placeholder="0x3C" disabled
+                        data-i18n-placeholder="peripherals.placeholders.address" />
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="i2c-write-bytes" data-i18n="peripherals.labels.payload">送信バイト列</label>
+                    <input id="i2c-write-bytes" type="text" placeholder="例: 0x00 0x01 0x02" disabled
+                      data-i18n-placeholder="peripherals.placeholders.payload" />
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.write">i2c write を送信</button>
+                  </div>
+                </section>
               </div>
             </article>
           </div>

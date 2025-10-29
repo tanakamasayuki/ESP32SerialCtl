@@ -567,6 +567,56 @@ document.addEventListener('DOMContentLoaded', () => {
           "busLabel": "バス",
           "pinLabel": "ピン"
         },
+        "tablist": "ペリフェラルコマンドカテゴリ",
+        "tabs": {
+          "settings": "設定",
+          "gpio": "GPIO",
+          "adc": "ADC",
+          "pwm": "PWM",
+          "servo": "サーボ",
+          "rgb": "RGB LED",
+          "i2c": "I2C"
+        },
+        "groups": {
+          "settings": {
+            "title": "GPIO 設定ビュー",
+            "description": "gpio pins の結果を可視化し、許可済みピンや別名を確認します。",
+            "modeHeading": "アクセスモード",
+            "modePlaceholder": "接続後に gpio pins を実行するとここにモードが表示されます。",
+            "allowedHeading": "許可済みピン",
+            "allowedPlaceholder": "制限モードでは許可済みピンの一覧が表示されます。",
+            "aliasHeading": "別名一覧",
+            "aliasPlaceholder": "ピンへ別名を付けるとここに表示されます。"
+          },
+          "gpio": {
+            "title": "GPIO 操作",
+            "description": "GPIO のモード切り替えと入出力制御をまとめています。"
+          },
+          "adc": {
+            "title": "ADC 測定",
+            "description": "ADC チャンネルのサンプリングを行います。"
+          },
+          "pwm": {
+            "title": "PWM 制御",
+            "description": "LEDC PWM の出力設定と停止をまとめています。"
+          },
+          "servo": {
+            "title": "サーボ制御",
+            "description": "PWM ベースのサーボ操作向けに角度指定フォームを用意しています。",
+            "setHeading": "角度を設定 (pwm set)",
+            "setDescription": "ピンと角度を指定してサーボを駆動します。",
+            "stopHeading": "サーボを停止 (pwm stop)",
+            "stopDescription": "サーボ駆動を停止して出力を無効化します。"
+          },
+          "rgb": {
+            "title": "RGB LED",
+            "description": "RGB LED のピン設定とカラー制御、ストリーム送信をまとめています。"
+          },
+          "i2c": {
+            "title": "I2C 操作",
+            "description": "I2C バスのスキャン、読み取り、書き込みをまとめています。"
+          }
+        },
         "actions": {
           "scan": "i2c scan を送信",
           "read": "i2c read を送信",
@@ -650,7 +700,10 @@ document.addEventListener('DOMContentLoaded', () => {
           "average": "平均回数",
           "red": "R (0-255)",
           "green": "G (0-255)",
-          "blue": "B (0-255)"
+          "blue": "B (0-255)",
+          "angle": "角度 (0-180)",
+          "pulseMin": "最小パルス (μs)",
+          "pulseMax": "最大パルス (μs)"
         },
         "placeholders": {
           "address": "例: 0x3C",
@@ -666,7 +719,10 @@ document.addEventListener('DOMContentLoaded', () => {
           "average": "例: 8",
           "red": "例: 255",
           "green": "例: 128",
-          "blue": "例: 64"
+          "blue": "例: 64",
+          "angle": "例: 90",
+          "pulseMin": "例: 500",
+          "pulseMax": "例: 2400"
         },
         "notes": {
           "stream": "チャンク送信の進捗やエラーを表示予定"
@@ -1226,6 +1282,56 @@ document.addEventListener('DOMContentLoaded', () => {
           "busLabel": "Bus",
           "pinLabel": "Pin"
         },
+        "tablist": "Peripheral command categories",
+        "tabs": {
+          "settings": "Settings",
+          "gpio": "GPIO",
+          "adc": "ADC",
+          "pwm": "PWM",
+          "servo": "Servo",
+          "rgb": "RGB LED",
+          "i2c": "I2C"
+        },
+        "groups": {
+          "settings": {
+            "title": "GPIO Pins Overview",
+            "description": "Visualize the gpio pins output to review allowed pins and aliases.",
+            "modeHeading": "Access mode",
+            "modePlaceholder": "Run gpio pins after connecting to populate the mode here.",
+            "allowedHeading": "Allowed pins",
+            "allowedPlaceholder": "Restricted mode will list the allowed pins here.",
+            "aliasHeading": "Alias list",
+            "aliasPlaceholder": "Pin aliases appear here once they are assigned."
+          },
+          "gpio": {
+            "title": "GPIO Controls",
+            "description": "Switch pin modes and read or drive values."
+          },
+          "adc": {
+            "title": "ADC Sampling",
+            "description": "Sample analog values from configured channels."
+          },
+          "pwm": {
+            "title": "PWM Control",
+            "description": "Configure LEDC PWM outputs and stop them when finished."
+          },
+          "servo": {
+            "title": "Servo Control",
+            "description": "Servo-friendly forms built on top of pwm set / pwm stop.",
+            "setHeading": "Set angle (pwm set)",
+            "setDescription": "Drive a servo by specifying the pin and target angle.",
+            "stopHeading": "Stop servo (pwm stop)",
+            "stopDescription": "Stop driving the servo output."
+          },
+          "rgb": {
+            "title": "RGB LED",
+            "description": "Manage the RGB LED pin, colors, and streaming animations."
+          },
+          "i2c": {
+            "title": "I2C Operations",
+            "description": "Scan buses and perform read / write operations together."
+          }
+        },
         "actions": {
           "scan": "Send i2c scan",
           "read": "Send i2c read",
@@ -1309,7 +1415,10 @@ document.addEventListener('DOMContentLoaded', () => {
           "average": "Average count",
           "red": "R (0-255)",
           "green": "G (0-255)",
-          "blue": "B (0-255)"
+          "blue": "B (0-255)",
+          "angle": "Angle (0-180)",
+          "pulseMin": "Min pulse (us)",
+          "pulseMax": "Max pulse (us)"
         },
         "placeholders": {
           "address": "e.g. 0x3C",
@@ -1325,7 +1434,10 @@ document.addEventListener('DOMContentLoaded', () => {
           "average": "e.g. 8",
           "red": "e.g. 255",
           "green": "e.g. 128",
-          "blue": "e.g. 64"
+          "blue": "e.g. 64",
+          "angle": "e.g. 90",
+          "pulseMin": "e.g. 500",
+          "pulseMax": "e.g. 2400"
         },
         "notes": {
           "stream": "Progress and errors for chunk streaming will appear here."
@@ -1885,6 +1997,56 @@ document.addEventListener('DOMContentLoaded', () => {
           "busLabel": "总线",
           "pinLabel": "引脚"
         },
+        "tablist": "外设命令分类",
+        "tabs": {
+          "settings": "设置",
+          "gpio": "GPIO",
+          "adc": "ADC",
+          "pwm": "PWM",
+          "servo": "舵机",
+          "rgb": "RGB LED",
+          "i2c": "I2C"
+        },
+        "groups": {
+          "settings": {
+            "title": "GPIO 设置概览",
+            "description": "可视化 gpio pins 输出，查看允许的引脚与别名。",
+            "modeHeading": "访问模式",
+            "modePlaceholder": "连接后运行 gpio pins，这里会显示当前模式。",
+            "allowedHeading": "允许的引脚",
+            "allowedPlaceholder": "在限制模式下会列出允许的引脚。",
+            "aliasHeading": "别名列表",
+            "aliasPlaceholder": "为引脚设置别名后会显示在此。"
+          },
+          "gpio": {
+            "title": "GPIO 控制",
+            "description": "集中切换模式并读取或驱动引脚。"
+          },
+          "adc": {
+            "title": "ADC 采样",
+            "description": "采样指定通道的模拟值。"
+          },
+          "pwm": {
+            "title": "PWM 控制",
+            "description": "配置 LEDC PWM 输出并在需要时停止。"
+          },
+          "servo": {
+            "title": "舵机控制",
+            "description": "基于 pwm set / pwm stop 的舵机角度表单。",
+            "setHeading": "设置角度 (pwm set)",
+            "setDescription": "指定引脚与角度以驱动舵机。",
+            "stopHeading": "停止舵机 (pwm stop)",
+            "stopDescription": "停止输出，解除舵机驱动。"
+          },
+          "rgb": {
+            "title": "RGB LED",
+            "description": "管理 RGB LED 的引脚、颜色与动画流。"
+          },
+          "i2c": {
+            "title": "I2C 操作",
+            "description": "统一执行总线扫描、读取与写入。"
+          }
+        },
         "actions": {
           "scan": "发送 i2c scan",
           "read": "发送 i2c read",
@@ -1968,7 +2130,10 @@ document.addEventListener('DOMContentLoaded', () => {
           "average": "平均次数",
           "red": "R (0-255)",
           "green": "G (0-255)",
-          "blue": "B (0-255)"
+          "blue": "B (0-255)",
+          "angle": "角度 (0-180)",
+          "pulseMin": "最小脉宽 (微秒)",
+          "pulseMax": "最大脉宽 (微秒)"
         },
         "placeholders": {
           "address": "例如: 0x3C",
@@ -1984,7 +2149,10 @@ document.addEventListener('DOMContentLoaded', () => {
           "average": "例如: 8",
           "red": "例如: 255",
           "green": "例如: 128",
-          "blue": "例如: 64"
+          "blue": "例如: 64",
+          "angle": "例如: 90",
+          "pulseMin": "例如: 500",
+          "pulseMax": "例如: 2400"
         },
         "notes": {
           "stream": "分段传输的进度与错误将在此显示。"
