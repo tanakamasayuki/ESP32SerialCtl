@@ -2747,40 +2747,99 @@ OK fs ls
     return prefixes;
   };
 
+  const HELP_AUTO_RETRY_DELAY_MS = 1500;
+  const HELP_AUTO_RETRY_LIMIT = 3;
+  let helpAutoRetryAttempts = 0;
+  let helpAutoRetryTimer = null;
+
+  const clearHelpAutoRetry = () => {
+    if (helpAutoRetryTimer) {
+      window.clearTimeout(helpAutoRetryTimer);
+      helpAutoRetryTimer = null;
+    }
+  };
+
+  const scheduleHelpAutoRetry = () => {
+    if (helpAutoRetryAttempts >= HELP_AUTO_RETRY_LIMIT) {
+      appendLogEntry('debug', 'UI: help auto-fetch retry limit reached.');
+      return;
+    }
+    if (connectionState !== 'connected') {
+      return;
+    }
+    const nextAttempt = helpAutoRetryAttempts + 1;
+    appendLogEntry(
+      'debug',
+      `UI: scheduling help auto-fetch retry ${nextAttempt}/${HELP_AUTO_RETRY_LIMIT}`
+    );
+    clearHelpAutoRetry();
+    helpAutoRetryTimer = window.setTimeout(() => {
+      helpAutoRetryTimer = null;
+      if (connectionState === 'connected') {
+        fetchHelpCommandList({ isRetry: true }).catch(() => {
+          /* handled via log */
+        });
+      }
+    }, HELP_AUTO_RETRY_DELAY_MS);
+    helpAutoRetryAttempts = nextAttempt;
+  };
+
   const processHelpOutput = (raw) => {
     const prefixes = parseHelpOutput(raw);
     if (!prefixes.size) {
-      return;
-    }
-    if (!prefixes.size) {
       appendLogEntry('debug', 'UI: no command prefixes detected in help output');
-      return;
+      return null;
     }
+    clearHelpAutoRetry();
+    helpAutoRetryAttempts = 0;
     appendLogEntry('debug', `UI: help command prefixes -> ${Array.from(prefixes).join(', ')}`);
     updateAvailableCommandGroups(prefixes);
+    return prefixes;
   };
 
-  const fetchHelpCommandList = async () => {
+  const fetchHelpCommandList = async ({ isRetry = false } = {}) => {
     if (!isSerialReady()) {
       return;
     }
     if (activeCommand && typeof activeCommand.id === 'string' && activeCommand.id.startsWith('help')) {
       return;
     }
+    if (activeCommand) {
+      if (isRetry || helpAutoRetryAttempts > 0) {
+        scheduleHelpAutoRetry();
+      }
+      return;
+    }
     try {
       await runSerialCommand('help', {
         id: 'help-auto',
         onFinalize: (result) => {
-          if (!result?.error && result.output) {
-            processHelpOutput(result.output);
-            if (helpOutputState === 'placeholder') {
+          if (result?.error) {
+            if (connectionState === 'connected') {
+              scheduleHelpAutoRetry();
+            }
+            return;
+          }
+          const outputText = typeof result?.output === 'string' ? result.output.trim() : '';
+          if (outputText) {
+            const prefixes = processHelpOutput(result.output);
+            if (prefixes && helpOutputState === 'placeholder') {
               updateHelpOutput(result.output);
             }
+            if (prefixes) {
+              return;
+            }
+          }
+          if (connectionState === 'connected') {
+            scheduleHelpAutoRetry();
           }
         }
       });
     } catch (error) {
       appendLogEntry('error', error?.message || 'help command failed');
+      if (connectionState === 'connected') {
+        scheduleHelpAutoRetry();
+      }
     }
   };
 
@@ -5113,6 +5172,8 @@ OK fs ls
       }
     }
     if (state === 'connected') {
+      helpAutoRetryAttempts = 0;
+      clearHelpAutoRetry();
       fetchHelpCommandList().catch(() => {
         /* handled via log */
       });
@@ -5152,6 +5213,8 @@ OK fs ls
         });
       }
     } else {
+      clearHelpAutoRetry();
+      helpAutoRetryAttempts = 0;
       resetAutoCommandQueue();
     }
   };
