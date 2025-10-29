@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "filesystem": {
             "label": "ファイル操作",
-            "desc": "fs ls / write / hash"
+            "desc": "fs ls / cat / write"
           },
           "peripherals": {
             "label": "ペリフェラル",
@@ -742,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "filesystem": {
             "label": "Filesystem",
-            "desc": "fs ls / write / hash"
+            "desc": "fs ls / cat / write"
           },
           "peripherals": {
             "label": "Peripherals",
@@ -1401,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "filesystem": {
             "label": "文件系统",
-            "desc": "fs ls / write / hash"
+            "desc": "fs ls / cat / write"
           },
           "peripherals": {
             "label": "外设",
