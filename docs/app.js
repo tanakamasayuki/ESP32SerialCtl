@@ -5057,6 +5057,22 @@ OK fs ls
   };
 
   const COMMAND_TIMEOUT_MS = 8000;
+  const FS_B64READ_TIMEOUT_BASE_MS = 14000;
+  const FS_B64READ_TIMEOUT_PER_KIB_MS = 70;
+  const FS_B64READ_TIMEOUT_MAX_MS = 60000;
+
+  const estimateFsB64Timeout = (node) => {
+    if (!node) {
+      return FS_B64READ_TIMEOUT_BASE_MS;
+    }
+    const sizeValue = Number(node.size);
+    if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
+      return FS_B64READ_TIMEOUT_BASE_MS;
+    }
+    const kib = Math.ceil(sizeValue / 1024);
+    const extra = kib * FS_B64READ_TIMEOUT_PER_KIB_MS;
+    return Math.min(FS_B64READ_TIMEOUT_MAX_MS, FS_B64READ_TIMEOUT_BASE_MS + extra);
+  };
   const statusClassMap = {
     disconnected: 'status-pill--disconnected',
     connecting: 'status-pill--connecting',
@@ -5978,6 +5994,7 @@ OK fs ls
     markFsB64Pending(targetPath);
     runSerialCommand(`fs b64read ${quoteArgument(targetPath)}`, {
       id: `fs-b64read-${targetPath}`,
+      timeoutMs: estimateFsB64Timeout(node),
       onFinalize: ({ output, error }) => {
         const refreshedNode = fsPathMap.get(targetPath);
         if (!error && refreshedNode) {
