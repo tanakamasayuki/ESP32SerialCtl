@@ -3343,13 +3343,17 @@ OK fs ls
     return raw;
   };
 
-  const executeStorageStatus = async (storageId) => {
-    const commandText = storageId ? `storage status ${storageId}` : 'storage status';
-    const raw = await runSerialCommand(commandText, {
-      id: storageId ? `storage-status-${storageId}` : 'storage-status',
-      onStart: () => {
-        setStorageStatusPending();
-      }
+  const executeStorageStatus = async (storageId, { ensureUse = false, skipPending = false } = {}) => {
+    if (!skipPending) {
+      setStorageStatusPending();
+    }
+    if (storageId && ensureUse) {
+      await runSerialCommand(`storage use ${storageId}`, {
+        id: `storage-status-use-${storageId}`
+      });
+    }
+    const raw = await runSerialCommand('storage status', {
+      id: storageId ? `storage-status-${storageId}` : 'storage-status'
     });
     lastStorageStatusRaw = raw;
     return raw;
@@ -3384,7 +3388,9 @@ OK fs ls
           currentStorageId = mounted.id;
         }
       }
-      const statusRaw = await executeStorageStatus(currentStorageId);
+      const statusRaw = await executeStorageStatus(currentStorageId, {
+        ensureUse: Boolean(currentStorageId)
+      });
       renderStorageStatus(statusRaw);
     } catch (error) {
       renderStorageList(lastStorageListRaw, currentStorageId || '');
@@ -3418,7 +3424,7 @@ OK fs ls
 
       let statusRaw = '';
       try {
-        statusRaw = await executeStorageStatus(storageId);
+        statusRaw = await executeStorageStatus(storageId, { skipPending: true });
       } catch (error) {
         appendLogEntry('error', `storage status refresh failed: ${error?.message || 'unknown error'}`);
       }
