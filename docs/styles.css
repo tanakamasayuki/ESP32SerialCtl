@@ -719,6 +719,10 @@ p {
   overflow: auto;
 }
 
+[data-fs-b64-raw] {
+  max-height: 320px;
+}
+
 .kv-table {
   width: 100%;
   border-collapse: collapse;
