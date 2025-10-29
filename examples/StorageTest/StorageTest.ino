@@ -21,7 +21,7 @@ void setup()
 
     // --- SD (SDSPI) ---
     SPI.begin();
-    bool ok_sd = SD.begin(PIN_SD_CS, SPI, 40000000 /*max SPI clock*/);
+    bool ok_sd = SD.begin(PIN_SD_CS, SPI, 15000000);
     Serial.printf("SD mount      : %s\n", ok_sd ? "OK" : "FAIL");
 
     // --- SPIFFS ---
