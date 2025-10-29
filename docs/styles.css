@@ -602,6 +602,53 @@ p {
   background: white;
 }
 
+.fs-b64write-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fs-b64write-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.7);
+  transition: border-color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.fs-b64write-dropzone p {
+  margin: 0;
+}
+
+.fs-b64write-dropzone.is-active {
+  border-color: var(--color-accent);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.fs-b64write-dropzone.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.fs-b64write-dropzone:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+.fs-b64write-filename {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-muted);
+  word-break: break-word;
+}
+
+.fs-b64write-upload-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .fs-selected-path {
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular,
     Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;

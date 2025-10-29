@@ -521,12 +521,31 @@ document.addEventListener('DOMContentLoaded', () => {
           "b64write": {
             "title": "ファイルをアップロード (fs b64write)",
             "hint": "シリアルの 1 行は最大 128 バイトのため、Base64 文字列は 60 バイト程度で分割し、2 行目以降は <code>fs b64write &lt;path&gt; &quot;&lt;chunk&gt;&quot; --append</code> を使用します。",
+            "dropHint": "ファイルをここにドロップするか、下のボタンから選択してください。",
+            "selectButton": "ファイルを選択",
+            "uploadButton": "ファイルを送信",
+            "uploadingButton": "送信中...",
+            "noFile": "ファイルがまだ選択されていません。",
+            "selectedFile": "選択中: {name} ({size})",
+            "progress": "{name} を送信中: {sent}/{total} チャンク",
+            "success": "送信完了: {name} ({size}, {chunks} チャンク)",
+            "error": "アップロードに失敗しました: {message}",
+            "logStart": "{path} に {chunks} チャンク ({size}) をアップロードします。",
+            "logDone": "{path} へのアップロードが完了しました。",
+            "logError": "{path} へのアップロード中にエラー: {message}",
             "pathLabel": "パス",
             "pathPlaceholder": "/image.bin",
             "chunkLabel": "Base64 チャンク (最大 60 バイト程度)",
             "chunkPlaceholder": "fs b64write /image.bin \"QUJD...\"",
             "firstButton": "1 行目 (append なし)",
-            "appendButton": "2 行目以降 (--append)"
+            "appendButton": "2 行目以降 (--append)",
+            "errors": {
+              "noFile": "ファイルを選択してください。",
+              "noPath": "アップロード先のパスを入力してください。",
+              "busy": "別のコマンドが実行中です。完了を待ってから再試行してください。",
+              "readFailed": "ファイルの読み込みに失敗しました。",
+              "encodeFailed": "Base64 への変換に失敗しました。"
+            }
           },
           "delete": {
             "title": "選択項目を削除 (fs rm)",
@@ -1155,12 +1174,31 @@ document.addEventListener('DOMContentLoaded', () => {
           "b64write": {
             "title": "Upload File (fs b64write)",
             "hint": "Each serial line is up to 128 bytes; split Base64 chunks to ~60 bytes and use <code>fs b64write &lt;path&gt; &quot;&lt;chunk&gt;&quot; --append</code> from the second line.",
+            "dropHint": "Drop a file here or use the button below.",
+            "selectButton": "Choose File",
+            "uploadButton": "Upload",
+            "uploadingButton": "Uploading...",
+            "noFile": "No file selected yet.",
+            "selectedFile": "Selected: {name} ({size})",
+            "progress": "Uploading {name}: {sent}/{total} chunks",
+            "success": "Upload complete: {name} ({size}, {chunks} chunks)",
+            "error": "Upload failed: {message}",
+            "logStart": "Uploading {size} to {path} in {chunks} chunks...",
+            "logDone": "Upload finished for {path}.",
+            "logError": "Upload aborted for {path}: {message}",
             "pathLabel": "Path",
             "pathPlaceholder": "/image.bin",
             "chunkLabel": "Base64 chunk (up to ~60 bytes)",
             "chunkPlaceholder": "fs b64write /image.bin \"QUJD...\"",
             "firstButton": "First line (without append)",
-            "appendButton": "Additional lines (--append)"
+            "appendButton": "Additional lines (--append)",
+            "errors": {
+              "noFile": "Pick a file before uploading.",
+              "noPath": "Provide a destination path.",
+              "busy": "Another command is running. Wait for it to finish and try again.",
+              "readFailed": "Failed to read the file.",
+              "encodeFailed": "Failed to encode the file as Base64."
+            }
           },
           "delete": {
             "title": "Delete Item (fs rm)",
@@ -1789,12 +1827,31 @@ document.addEventListener('DOMContentLoaded', () => {
           "b64write": {
             "title": "上传文件 (fs b64write)",
             "hint": "串口单行最多 128 字节，请将 Base64 分段为约 60 字节，第二行起使用 <code>fs b64write &lt;path&gt; &quot;&lt;chunk&gt;&quot; --append</code>。",
+            "dropHint": "将文件拖到此处或使用下方按钮选择。",
+            "selectButton": "选择文件",
+            "uploadButton": "上传",
+            "uploadingButton": "上传中...",
+            "noFile": "尚未选择任何文件。",
+            "selectedFile": "已选择: {name} ({size})",
+            "progress": "正在上传 {name}: {sent}/{total} 个块",
+            "success": "上传完成: {name} ({size}, 共 {chunks} 个块)",
+            "error": "上传失败: {message}",
+            "logStart": "正在把 {size} 上传到 {path}，共 {chunks} 个块...",
+            "logDone": "{path} 上传完成。",
+            "logError": "{path} 上传时出错: {message}",
             "pathLabel": "路径",
             "pathPlaceholder": "/image.bin",
             "chunkLabel": "Base64 分段（最多约 60 字节）",
             "chunkPlaceholder": "fs b64write /image.bin \"QUJD...\"",
             "firstButton": "首行（无 append）",
-            "appendButton": "后续行 (--append)"
+            "appendButton": "后续行 (--append)",
+            "errors": {
+              "noFile": "请选择要上传的文件。",
+              "noPath": "请输入目标路径。",
+              "busy": "当前有其他指令在执行，请稍候再试。",
+              "readFailed": "读取文件失败。",
+              "encodeFailed": "Base64 编码失败。"
+            }
           },
           "delete": {
             "title": "删除选定项 (fs rm)",
@@ -2198,6 +2255,144 @@ OK fs ls
   const translate = (key, options = {}) =>
     formatTranslationValue(getTranslationValue(currentLanguage, key), options);
 
+  const interpolate = (template, replacements = {}) => {
+    if (typeof template !== 'string') {
+      return template ?? '';
+    }
+    return Object.entries(replacements).reduce(
+      (acc, [key, value]) => acc.split(`{${key}}`).join(String(value ?? '')),
+      template
+    );
+  };
+
+  let fsB64writeStatus = { key: null, replacements: {} };
+  let fsB64writeSelectedFile = null;
+  let fsB64writeUploading = false;
+  let fsB64writeDropzoneLocked = true;
+
+  function refreshB64writeStatus() {
+    if (!fsElements || !fsElements.b64writeFilename) {
+      return;
+    }
+    const { key, replacements } = fsB64writeStatus || {};
+    if (!key) {
+      fsElements.b64writeFilename.textContent = '';
+      return;
+    }
+    const template = translate(key);
+    if (template) {
+      fsElements.b64writeFilename.textContent = interpolate(template, replacements);
+    } else {
+      fsElements.b64writeFilename.textContent = '';
+    }
+  }
+
+  function setB64writeStatus(key, replacements = {}) {
+    fsB64writeStatus = { key, replacements };
+    refreshB64writeStatus();
+  }
+
+  function refreshB64writeUploadButtonLabel() {
+    if (!fsElements || !fsElements.b64writeUploadButton) {
+      return;
+    }
+    const key = fsB64writeUploading
+      ? 'filesystem.actions.b64write.uploadingButton'
+      : 'filesystem.actions.b64write.uploadButton';
+    const label = translate(key);
+    if (label) {
+      fsElements.b64writeUploadButton.textContent = label;
+    }
+  }
+
+  function updateB64writeDropzoneState() {
+    if (!fsElements || !fsElements.b64writeDropzone) {
+      return;
+    }
+    const dropzone = fsElements.b64writeDropzone;
+    const enabled = !fsB64writeDropzoneLocked && !fsB64writeUploading;
+    dropzone.classList.toggle('is-disabled', !enabled);
+    if (!enabled) {
+      dropzone.classList.remove('is-active');
+      dropzone.setAttribute('tabindex', '-1');
+      dropzone.setAttribute('aria-disabled', 'true');
+    } else {
+      dropzone.setAttribute('tabindex', '0');
+      dropzone.removeAttribute('aria-disabled');
+    }
+  }
+
+  function setB64writeDropzoneLocked(locked) {
+    fsB64writeDropzoneLocked = Boolean(locked);
+    updateB64writeDropzoneState();
+  }
+
+  function updateB64writeUploadAvailability() {
+    if (!fsElements || !fsElements.b64writeUploadButton) {
+      return;
+    }
+    const button = fsElements.b64writeUploadButton;
+    const pathValue = (fsElements.b64writePathInput?.value || '').trim();
+    const canUpload =
+      !fsB64writeUploading &&
+      !fsB64writeDropzoneLocked &&
+      Boolean(fsB64writeSelectedFile) &&
+      pathValue.length > 0;
+    if (canUpload) {
+      button.disabled = false;
+      button.removeAttribute('disabled');
+    } else {
+      button.disabled = true;
+      button.setAttribute('disabled', '');
+    }
+    applyDisabledTitles();
+  }
+
+  function setB64writeUploadingState(uploading) {
+    fsB64writeUploading = Boolean(uploading);
+    refreshB64writeUploadButtonLabel();
+    updateB64writeUploadAvailability();
+    updateB64writeDropzoneState();
+    if (fsElements && fsElements.b64writeSelectButton) {
+      const shouldDisable = fsB64writeUploading || fsB64writeDropzoneLocked;
+      if (shouldDisable) {
+        fsElements.b64writeSelectButton.disabled = true;
+        fsElements.b64writeSelectButton.setAttribute('disabled', '');
+      } else {
+        fsElements.b64writeSelectButton.disabled = false;
+        fsElements.b64writeSelectButton.removeAttribute('disabled');
+      }
+    }
+    applyDisabledTitles();
+  }
+
+  function isB64writeDropzoneEnabled() {
+    return !fsB64writeDropzoneLocked && !fsB64writeUploading;
+  }
+
+  function clearB64writeControls(options = {}) {
+    const { disableInputs = false, resetPath = false } = options;
+    fsB64writeSelectedFile = null;
+    if (fsElements?.b64writeFileInput) {
+      fsElements.b64writeFileInput.value = '';
+    }
+    if (fsElements?.b64writeChunkInput) {
+      fsElements.b64writeChunkInput.value = '';
+    }
+    if (resetPath && fsElements?.b64writePathInput) {
+      delete fsElements.b64writePathInput.dataset.basePath;
+      fsElements.b64writePathInput.value = '';
+      fsElements.b64writePathInput.disabled = true;
+      fsElements.b64writePathInput.setAttribute('disabled', '');
+    }
+    if (fsElements?.b64writeDropzone) {
+      fsElements.b64writeDropzone.classList.remove('is-active');
+    }
+    setB64writeStatus('filesystem.actions.b64write.noFile');
+    setB64writeDropzoneLocked(disableInputs);
+    setB64writeUploadingState(false);
+  }
+
   const applyAttributeTranslations = (element) => {
     const attrMap = [
       { datasetKey: 'i18nTitle', attr: 'title' },
@@ -2568,6 +2763,10 @@ OK fs ls
     refreshConnectionLabel();
     applyDisabledTitles();
     refreshLanguageSensitiveUI();
+    refreshB64writeStatus();
+    refreshB64writeUploadButtonLabel();
+    updateB64writeDropzoneState();
+    updateB64writeUploadAvailability();
     if (languageSelect && languageSelect.value !== normalized) {
       languageSelect.value = normalized;
     }
@@ -2616,6 +2815,11 @@ OK fs ls
     b64writeSection: document.querySelector('[data-fs-action-section="b64write"]'),
     b64writePathInput: document.querySelector('#fs-b64write-path'),
     b64writeChunkInput: document.querySelector('#fs-b64write-chunk'),
+    b64writeFileInput: document.querySelector('#fs-b64write-file'),
+    b64writeDropzone: document.querySelector('[data-fs-b64write-dropzone]'),
+    b64writeSelectButton: document.querySelector('#fs-b64write-select'),
+    b64writeUploadButton: document.querySelector('#fs-b64write-upload'),
+    b64writeFilename: document.querySelector('[data-fs-b64write-filename]'),
     b64writeFirstButton: document.querySelector('#fs-b64write-first'),
     b64writeAppendButton: document.querySelector('#fs-b64write-append'),
     deleteSection: document.querySelector('[data-fs-action-section="delete"]'),
@@ -3974,12 +4178,7 @@ OK fs ls
     if (fsElements.b64writeSection) {
       fsElements.b64writeSection.hidden = true;
     }
-    if (fsElements.b64writePathInput) {
-      fsElements.b64writePathInput.value = '';
-    }
-    if (fsElements.b64writeChunkInput) {
-      fsElements.b64writeChunkInput.value = '';
-    }
+    clearB64writeControls({ disableInputs: true, resetPath: true });
     if (fsElements.deleteSection) {
       fsElements.deleteSection.hidden = true;
     }
@@ -4235,6 +4434,251 @@ OK fs ls
     return `${base}/${child}`;
   };
 
+  const handleB64writeFileSelection = (file) => {
+    if (!file || !fsElements?.b64writePathInput) {
+      return;
+    }
+    if (fsB64writeUploading) {
+      return;
+    }
+    let basePath = fsElements.b64writePathInput.dataset.basePath;
+    if (!basePath && currentFsSelection) {
+      const selectionNode = fsPathMap.get(currentFsSelection);
+      if (selectionNode?.type === 'dir') {
+        basePath = selectionNode.path || '/';
+        fsElements.b64writePathInput.dataset.basePath = basePath;
+      }
+    }
+    if (!basePath) {
+      basePath = '/';
+    }
+    const sanitizedName = (file.name || 'upload.bin').replace(/[\\/]/g, '_');
+    const targetPath = joinFsPath(basePath, sanitizedName);
+    fsElements.b64writePathInput.disabled = false;
+    fsElements.b64writePathInput.removeAttribute('disabled');
+    fsElements.b64writePathInput.value = targetPath;
+    fsB64writeSelectedFile = file;
+    if (fsElements.b64writeChunkInput) {
+      fsElements.b64writeChunkInput.value = '';
+    }
+    setB64writeStatus('filesystem.actions.b64write.selectedFile', {
+      name: sanitizedName,
+      size: formatFileSize(file.size)
+    });
+    updateB64writeUploadAvailability();
+    if (fsElements.b64writeFileInput) {
+      fsElements.b64writeFileInput.value = '';
+    }
+    appendLogEntry('debug', `UI: fs b64write select -> ${targetPath}`);
+  };
+
+  const handleFsB64writeUpload = async () => {
+    if (!fsElements) {
+      return;
+    }
+    if (fsB64writeUploading) {
+      appendLogEntry('info', translate('filesystem.actions.b64write.errors.busy'));
+      return;
+    }
+    if (!isSerialReady()) {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    if (!currentStorageId) {
+      appendLogEntry('error', translate('filesystem.messages.selectStorage'));
+      return;
+    }
+    const selectionNode = currentFsSelection ? fsPathMap.get(currentFsSelection) : null;
+    if (!selectionNode || selectionNode.type !== 'dir') {
+      appendLogEntry('error', translate('filesystem.messages.noDetail'));
+      return;
+    }
+    if (!fsB64writeSelectedFile) {
+      appendLogEntry('error', translate('filesystem.actions.b64write.errors.noFile'));
+      return;
+    }
+    if (activeCommand) {
+      appendLogEntry('error', translate('filesystem.actions.b64write.errors.busy'));
+      return;
+    }
+    const pathInput = fsElements.b64writePathInput;
+    const rawPath = (pathInput?.value || '').trim();
+    if (!rawPath) {
+      appendLogEntry('error', translate('filesystem.actions.b64write.errors.noPath'));
+      return;
+    }
+    const basePath = pathInput?.dataset.basePath || selectionNode.path || '/';
+    let targetPath = rawPath.startsWith('/') ? rawPath : joinFsPath(basePath, rawPath);
+    targetPath = targetPath.replace(/\/+/, '/');
+    if (pathInput) {
+      pathInput.value = targetPath;
+    }
+
+    setB64writeUploadingState(true);
+
+    const file = fsB64writeSelectedFile;
+    const sizeText = formatFileSize(file.size);
+    try {
+      let base64Data;
+      try {
+        base64Data = await readFileAsBase64(file);
+      } catch {
+        throw new Error(translate('filesystem.actions.b64write.errors.readFailed'));
+      }
+      const normalizedBase64 = base64Data.replace(/\s+/g, '');
+      if (!normalizedBase64) {
+        throw new Error(translate('filesystem.actions.b64write.errors.encodeFailed'));
+      }
+      const chunks = chunkBase64String(normalizedBase64, FS_B64WRITE_CHUNK_LENGTH);
+      if (!chunks.length) {
+        throw new Error(translate('filesystem.actions.b64write.errors.encodeFailed'));
+      }
+      if (fsElements.b64writeChunkInput) {
+        fsElements.b64writeChunkInput.value = chunks[0] || '';
+      }
+      const totalChunks = chunks.length;
+      const logStartTemplate = translate('filesystem.actions.b64write.logStart');
+      if (logStartTemplate) {
+        appendLogEntry(
+          'info',
+          interpolate(logStartTemplate, { path: targetPath, chunks: totalChunks, size: sizeText })
+        );
+      } else {
+        appendLogEntry('info', `UI: fs b64write upload -> ${targetPath} (${totalChunks} chunks)`);
+      }
+
+      for (let index = 0; index < totalChunks; index += 1) {
+        const chunk = chunks[index];
+        const appendFlag = index === 0 ? '' : ' --append';
+        const command = `fs b64write ${quoteArgument(targetPath)} ${quoteArgument(chunk)}${appendFlag}`;
+        try {
+          await runSerialCommand(command, { id: `fs-b64write-${targetPath}-${index}` });
+        } catch (error) {
+          throw error instanceof Error ? error : new Error(String(error));
+        }
+        setB64writeStatus('filesystem.actions.b64write.progress', {
+          name: file.name,
+          sent: index + 1,
+          total: totalChunks
+        });
+      }
+
+      setB64writeStatus('filesystem.actions.b64write.success', {
+        name: file.name,
+        size: sizeText,
+        chunks: chunks.length
+      });
+      const logDoneTemplate = translate('filesystem.actions.b64write.logDone');
+      if (logDoneTemplate) {
+        appendLogEntry('info', interpolate(logDoneTemplate, { path: targetPath }));
+      } else {
+        appendLogEntry('info', `Upload finished: ${targetPath}`);
+      }
+      requestFsAutoRefresh(500);
+    } catch (error) {
+      const message = error?.message || translate('filesystem.actions.b64write.error');
+      setB64writeStatus('filesystem.actions.b64write.error', { message });
+      const logErrorTemplate = translate('filesystem.actions.b64write.logError');
+      if (logErrorTemplate) {
+        appendLogEntry('error', interpolate(logErrorTemplate, { path: targetPath, message }));
+      } else {
+        appendLogEntry('error', `Upload failed for ${targetPath}: ${message}`);
+      }
+    } finally {
+      setB64writeUploadingState(false);
+      updateB64writeUploadAvailability();
+    }
+  };
+
+  const setupB64writeUploader = () => {
+    if (!fsElements) {
+      return;
+    }
+    clearB64writeControls({ disableInputs: true, resetPath: true });
+
+    const fileInput = fsElements.b64writeFileInput;
+    if (fileInput) {
+      fileInput.addEventListener('change', (event) => {
+        const input = event.target;
+        const files = input?.files;
+        if (files && files.length) {
+          handleB64writeFileSelection(files[0]);
+        }
+        input.value = '';
+      });
+    }
+
+    const selectButton = fsElements.b64writeSelectButton;
+    if (selectButton && fileInput) {
+      selectButton.addEventListener('click', () => {
+        if (!isB64writeDropzoneEnabled()) {
+          return;
+        }
+        fileInput.click();
+      });
+    }
+
+    const dropzone = fsElements.b64writeDropzone;
+    if (dropzone) {
+      const preventDefaults = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+      ['dragenter', 'dragover'].forEach((type) => {
+        dropzone.addEventListener(type, (event) => {
+          preventDefaults(event);
+          if (!isB64writeDropzoneEnabled()) {
+            return;
+          }
+          dropzone.classList.add('is-active');
+        });
+      });
+      ['dragleave', 'dragend'].forEach((type) => {
+        dropzone.addEventListener(type, (event) => {
+          preventDefaults(event);
+          dropzone.classList.remove('is-active');
+        });
+      });
+      dropzone.addEventListener('drop', (event) => {
+        preventDefaults(event);
+        dropzone.classList.remove('is-active');
+        if (!isB64writeDropzoneEnabled()) {
+          return;
+        }
+        const files = event.dataTransfer?.files;
+        if (files && files.length) {
+          handleB64writeFileSelection(files[0]);
+        }
+      });
+      dropzone.addEventListener('click', () => {
+        if (!isB64writeDropzoneEnabled()) {
+          return;
+        }
+        fileInput?.click();
+      });
+      dropzone.addEventListener('keydown', (event) => {
+        if (!isB64writeDropzoneEnabled()) {
+          return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          fileInput?.click();
+        }
+      });
+    }
+
+    if (fsElements.b64writePathInput) {
+      fsElements.b64writePathInput.addEventListener('input', () => {
+        updateB64writeUploadAvailability();
+      });
+    }
+
+    refreshB64writeStatus();
+    refreshB64writeUploadButtonLabel();
+    updateB64writeDropzoneState();
+    updateB64writeUploadAvailability();
+  };
+
   const parseFsLsOutput = (raw) => {
     const result = {
       path: '/',
@@ -4477,12 +4921,7 @@ OK fs ls
         fsElements.writeRunButton.disabled = true;
         fsElements.writeRunButton.setAttribute('disabled', '');
       }
-      if (fsElements.b64writePathInput) {
-        fsElements.b64writePathInput.value = '';
-      }
-      if (fsElements.b64writeChunkInput) {
-        fsElements.b64writeChunkInput.value = '';
-      }
+      clearB64writeControls({ disableInputs: true, resetPath: true });
       applyDisabledTitles();
       return;
     }
@@ -4526,12 +4965,13 @@ OK fs ls
       fsElements.writeRunButton.removeAttribute('disabled');
     }
     if (fsElements.b64writePathInput) {
+      fsElements.b64writePathInput.disabled = false;
+      fsElements.b64writePathInput.removeAttribute('disabled');
+      fsElements.b64writePathInput.dataset.basePath = basePath;
       const placeholder = translate('filesystem.actions.b64write.pathPlaceholder') || '/image.bin';
       fsElements.b64writePathInput.value = joinFsPath(basePath, placeholder);
     }
-    if (fsElements.b64writeChunkInput) {
-      fsElements.b64writeChunkInput.value = '';
-    }
+    clearB64writeControls({ disableInputs: false });
 
     applyDisabledTitles();
   };
@@ -4657,6 +5097,60 @@ OK fs ls
         return null;
       }
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value < 0) {
+      return '0 B';
+    }
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = value;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex += 1;
+    }
+    const decimals = unitIndex === 0 ? 0 : size < 10 ? 2 : size < 100 ? 1 : 0;
+    return `${size.toFixed(decimals)} ${units[unitIndex]}`;
+  };
+
+  const chunkBase64String = (value, length = FS_B64WRITE_CHUNK_LENGTH) => {
+    if (!value) {
+      return [];
+    }
+    const normalized = String(value).replace(/\s+/g, '');
+    if (!normalized) {
+      return [];
+    }
+    const chunkSize = Number.isFinite(length) && length > 0 ? Math.floor(length) : FS_B64WRITE_CHUNK_LENGTH;
+    const chunks = [];
+    for (let index = 0; index < normalized.length; index += chunkSize) {
+      chunks.push(normalized.slice(index, index + chunkSize));
+    }
+    return chunks;
+  };
+
+  const readFileAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      if (!file) {
+        reject(new Error('No file'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result || '');
+      reader.onerror = () => reject(reader.error || new Error('File read failed'));
+      reader.readAsDataURL(file);
+    });
+
+  const readFileAsBase64 = async (file) => {
+    const dataUrl = await readFileAsDataUrl(file);
+    const text = typeof dataUrl === 'string' ? dataUrl : String(dataUrl || '');
+    const separatorIndex = text.indexOf(',');
+    if (separatorIndex === -1) {
+      return '';
+    }
+    return text.slice(separatorIndex + 1);
   };
 
   const updateFsPreview = (node) => {
@@ -5060,6 +5554,7 @@ OK fs ls
   const FS_B64READ_TIMEOUT_BASE_MS = 14000;
   const FS_B64READ_TIMEOUT_PER_KIB_MS = 70;
   const FS_B64READ_TIMEOUT_MAX_MS = 60000;
+  const FS_B64WRITE_CHUNK_LENGTH = 60;
 
   const estimateFsB64Timeout = (node) => {
     if (!node) {
@@ -6382,6 +6877,8 @@ OK fs ls
     );
   };
 
+  setupB64writeUploader();
+
   attachCommandButtonHandler(sysTimeUseBrowserButton, fillSysTimeWithBrowserNow);
   attachCommandButtonHandler(sysTimeSetButton, handleSysTimeSet);
   attachCommandButtonHandler(sysTimezoneUseBrowserButton, fillSysTimezoneWithBrowser);
@@ -6397,6 +6894,7 @@ OK fs ls
   attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
   attachCommandButtonHandler(fsElements.mkdirRunButton, handleFsMkdirRun);
   attachCommandButtonHandler(fsElements.writeRunButton, handleFsWriteRun);
+  attachCommandButtonHandler(fsElements.b64writeUploadButton, handleFsB64writeUpload);
   attachCommandButtonHandler(fsElements.deleteButton, handleFsDeleteRun);
 
   commandPanels.forEach(({ button }, commandId) => {
