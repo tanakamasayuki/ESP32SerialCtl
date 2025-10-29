@@ -8,6 +8,14 @@ text protocol that is convenient for both human operators and automation.
 Library sources follow the Arduino layout (`src/ESP32SerialCtl.h`) so the
 project can be dropped straight into your `libraries` folder.
 
+## WebSerial Console
+
+A WebSerial-powered control surface is available on GitHub Pages. You can open
+it in a supported browser, connect to an ESP32 running ESP32SerialCtl, and run
+commands or manage the filesystem without installing additional tools.
+
+- URL: https://tanakamasayuki.github.io/ESP32SerialCtl/
+
 ## Features
 - Header-only: just include `ESP32SerialCtl.h`
 - Minimal RAM usage, user-provided buffers with configurable limits

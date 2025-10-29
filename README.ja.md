@@ -7,6 +7,13 @@ ESP32SerialCtl は Arduino 互換 ESP32 プロジェクト向けのヘッダー�
 テキストプロトコルを目指しています。ライブラリ本体は `src/ESP32SerialCtl.h`
 に配置されており、Arduino ライブラリフォルダへコピーするだけで利用できます。
 
+## WebSerial コントロールパネル
+
+GitHub Pages 上で WebSerial を利用した Web UI を公開しています。ブラウザから
+ESP32SerialCtl を組み込んだ ESP32 デバイスへ接続し、コマンド送信やファイル操作を行えます。
+
+- URL: https://tanakamasayuki.github.io/ESP32SerialCtl/
+
 ## 特長
 - ヘッダーオンリー。`#include <ESP32SerialCtl.h>` だけで利用開始
 - 可変長バッファをテンプレートで指定でき、最小限の RAM 消費
