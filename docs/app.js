@@ -2847,6 +2847,13 @@ OK fs ls
   let currentStorageId = null;
   let currentTab = 'system';
   let currentFsSelection = null;
+  let fsPendingB64Path = null;
+  let fsActiveB64Path = null;
+  let requestFsFileB64 = () => {};
+  let cancelPendingFsFileFetch = () => {
+    fsPendingB64Path = null;
+  };
+  let pumpFsB64FetchQueue = () => {};
   let fsPathMap = new Map();
   let fsFetching = false;
   let fsAutoRefreshTimer = null;
@@ -3882,6 +3889,8 @@ OK fs ls
   };
 
   const resetFsDetails = () => {
+    cancelPendingFsFileFetch();
+    fsActiveB64Path = null;
     if (fsElements.selectedPath) {
       fsElements.selectedPath.textContent = '--';
     }
@@ -4193,6 +4202,11 @@ OK fs ls
     }
     currentFsSelection = path;
     updateFsDetail(node);
+    if (node.type === 'file') {
+      requestFsFileB64(node);
+    } else {
+      cancelPendingFsFileFetch();
+    }
   };
 
   const normalizeFsDirPath = (value) => {
@@ -5477,6 +5491,7 @@ OK fs ls
         resolveCommand(output);
       }
     }
+    pumpFsB64FetchQueue();
   };
 
   const preparePanelForCommand = (panel) => {
@@ -5883,6 +5898,112 @@ OK fs ls
       'fs wipe'
     ];
     return refreshPrefixes.some((prefix) => normalized.startsWith(prefix));
+  };
+
+  const markFsB64Pending = (path) => {
+    if (!path || currentFsSelection !== path) {
+      return;
+    }
+    if (fsElements.b64Section) {
+      fsElements.b64Section.hidden = false;
+    }
+    if (fsElements.b64Raw) {
+      fsElements.b64Raw.textContent = translate('results.pending');
+    }
+    if (fsElements.previewSection) {
+      fsElements.previewSection.hidden = false;
+    }
+    if (fsElements.previewEmpty) {
+      fsElements.previewEmpty.hidden = false;
+      fsElements.previewEmpty.textContent = translate('filesystem.messages.previewPlaceholder');
+    }
+    if (fsElements.previewText) {
+      fsElements.previewText.hidden = true;
+      fsElements.previewText.textContent = '';
+    }
+    if (fsElements.previewImage) {
+      fsElements.previewImage.hidden = true;
+      fsElements.previewImage.removeAttribute('src');
+      fsElements.previewImage.removeAttribute('alt');
+    }
+  };
+
+  cancelPendingFsFileFetch = (path = null) => {
+    if (!path || fsPendingB64Path === path) {
+      fsPendingB64Path = null;
+    }
+  };
+
+  pumpFsB64FetchQueue = () => {
+    if (fsActiveB64Path || !fsPendingB64Path) {
+      return;
+    }
+    if (!isSerialReady() || activeCommand) {
+      return;
+    }
+    if (!currentStorageId) {
+      fsPendingB64Path = null;
+      return;
+    }
+    const targetPath = fsPendingB64Path;
+    fsPendingB64Path = null;
+    const node = fsPathMap.get(targetPath);
+    if (!node || node.type !== 'file') {
+      return;
+    }
+    if (node.b64read) {
+      return;
+    }
+    fsActiveB64Path = targetPath;
+    markFsB64Pending(targetPath);
+    runSerialCommand(`fs b64read ${quoteArgument(targetPath)}`, {
+      id: `fs-b64read-${targetPath}`,
+      onFinalize: ({ output, error }) => {
+        const refreshedNode = fsPathMap.get(targetPath);
+        if (!error && refreshedNode) {
+          refreshedNode.b64read = output;
+        }
+        if (currentFsSelection === targetPath) {
+          if (!error && refreshedNode) {
+            updateFsDetail(refreshedNode);
+          } else if (fsElements.b64Section && fsElements.b64Raw) {
+            fsElements.b64Section.hidden = false;
+            fsElements.b64Raw.textContent =
+              output || translate('filesystem.messages.b64Placeholder');
+          }
+        }
+        fsActiveB64Path = null;
+        window.setTimeout(pumpFsB64FetchQueue, 0);
+      }
+    }).catch(() => {
+      fsActiveB64Path = null;
+      window.setTimeout(pumpFsB64FetchQueue, 0);
+    });
+  };
+
+  requestFsFileB64 = (node, { force = false } = {}) => {
+    if (!node || node.type !== 'file') {
+      return;
+    }
+    if (!currentStorageId) {
+      return;
+    }
+    if (!isSerialReady()) {
+      return;
+    }
+    if (!force && node.b64read) {
+      return;
+    }
+    if (force) {
+      node.b64read = null;
+    }
+    if (fsActiveB64Path === node.path) {
+      markFsB64Pending(node.path);
+      return;
+    }
+    fsPendingB64Path = node.path;
+    markFsB64Pending(node.path);
+    pumpFsB64FetchQueue();
   };
 
   const handleFsMkdirRun = () => {
