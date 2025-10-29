@@ -602,6 +602,13 @@ p {
   background: white;
 }
 
+.fs-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .fs-b64write-uploader {
   display: flex;
   flex-direction: column;

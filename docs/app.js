@@ -483,7 +483,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "b64Placeholder": "Base64 形式の読み出し結果がここに表示されます",
           "hashPlaceholder": "ハッシュ結果がここに表示されます",
           "previewPlaceholder": "プレビュー可能なデータがまだありません。fs cat または fs b64read の結果が表示されると自動で更新されます。",
-          "previewBinary": "バイナリファイルのプレビューには対応していません。Base64 データをダウンロードして確認してください。"
+          "previewBinary": "バイナリファイルのプレビューには対応していません。Base64 データをダウンロードして確認してください。",
+          "previewLoading": "プレビューを取得中...",
+          "previewLarge": "{limit} を超えるファイルは自動プレビューしません。「プレビューを取得」を押して読み込みます。"
         },
         "table": {
           "type": "タイプ",
@@ -517,6 +519,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "errors": {
               "nameRequired": "ファイル名を入力してください。"
             }
+          },
+          "preview": {
+            "run": "プレビューを取得",
+            "loading": "プレビュー取得中..."
           },
           "b64write": {
             "title": "ファイルをアップロード (fs b64write)",
@@ -1136,7 +1142,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "b64Placeholder": "Base64 read results will appear here.",
           "hashPlaceholder": "Hash results will appear here.",
           "previewPlaceholder": "No preview available yet. fs cat or fs b64read output will show up here automatically.",
-          "previewBinary": "Binary preview is not supported. Please download the Base64 data instead."
+          "previewBinary": "Binary preview is not supported. Please download the Base64 data instead.",
+          "previewLoading": "Fetching preview...",
+          "previewLarge": "Files larger than {limit} are not previewed automatically. Use “Fetch Preview” to load it manually."
         },
         "table": {
           "type": "Type",
@@ -1170,6 +1178,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "errors": {
               "nameRequired": "File name is required."
             }
+          },
+          "preview": {
+            "run": "Fetch Preview",
+            "loading": "Fetching Preview..."
           },
           "b64write": {
             "title": "Upload File (fs b64write)",
@@ -1789,7 +1801,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "b64Placeholder": "Base64 读取结果将在此显示。",
           "hashPlaceholder": "哈希结果将在此显示。",
           "previewPlaceholder": "暂时无法预览，等待 fs cat 或 fs b64read 的结果显示在此处。",
-          "previewBinary": "不支持二进制预览，请下载 Base64 数据。"
+          "previewBinary": "不支持二进制预览，请下载 Base64 数据。",
+          "previewLoading": "正在获取预览...",
+          "previewLarge": "超过 {limit} 的文件不会自动预览，请点击“获取预览”手动加载。"
         },
         "table": {
           "type": "类型",
@@ -1823,6 +1837,10 @@ document.addEventListener('DOMContentLoaded', () => {
             "errors": {
               "nameRequired": "请输入文件名。"
             }
+          },
+          "preview": {
+            "run": "获取预览",
+            "loading": "正在获取预览..."
           },
           "b64write": {
             "title": "上传文件 (fs b64write)",
@@ -2269,6 +2287,7 @@ OK fs ls
   let fsB64writeSelectedFile = null;
   let fsB64writeUploading = false;
   let fsB64writeDropzoneLocked = true;
+  let fsPreviewButtonState = { visible: false, disabled: true, loading: false };
 
   function refreshB64writeStatus() {
     if (!fsElements || !fsElements.b64writeFilename) {
@@ -2364,6 +2383,59 @@ OK fs ls
       }
     }
     applyDisabledTitles();
+  }
+
+  function refreshPreviewButtonState() {
+    if (!fsElements || !fsElements.previewButton) {
+      return;
+    }
+    const button = fsElements.previewButton;
+    const actions = fsElements.previewActions;
+    const { visible, disabled, loading } = fsPreviewButtonState;
+
+    if (actions) {
+      if (visible) {
+        actions.hidden = false;
+        actions.setAttribute('aria-hidden', 'false');
+      } else {
+        actions.hidden = true;
+        actions.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    button.hidden = !visible;
+    if (visible) {
+      button.removeAttribute('aria-hidden');
+      button.removeAttribute('tabindex');
+    } else {
+      button.setAttribute('aria-hidden', 'true');
+      button.setAttribute('tabindex', '-1');
+    }
+
+    if (disabled) {
+      button.disabled = true;
+      button.setAttribute('disabled', '');
+    } else {
+      button.disabled = false;
+      button.removeAttribute('disabled');
+    }
+
+    const labelKey = loading
+      ? 'filesystem.actions.preview.loading'
+      : 'filesystem.actions.preview.run';
+    const fallback = loading ? 'Fetching preview...' : 'Fetch Preview';
+    const label = translate(labelKey) || fallback;
+    button.textContent = label;
+
+    applyDisabledTitles();
+  }
+
+  function setPreviewButtonState(updates = {}) {
+    fsPreviewButtonState = {
+      ...fsPreviewButtonState,
+      ...updates
+    };
+    refreshPreviewButtonState();
   }
 
   function isB64writeDropzoneEnabled() {
@@ -2767,6 +2839,7 @@ OK fs ls
     refreshB64writeUploadButtonLabel();
     updateB64writeDropzoneState();
     updateB64writeUploadAvailability();
+    refreshPreviewButtonState();
     if (languageSelect && languageSelect.value !== normalized) {
       languageSelect.value = normalized;
     }
@@ -2805,6 +2878,8 @@ OK fs ls
     previewEmpty: document.querySelector('[data-fs-preview-empty]'),
     previewText: document.querySelector('[data-fs-preview-text]'),
     previewImage: document.querySelector('[data-fs-preview-image]'),
+    previewActions: document.querySelector('[data-fs-preview-actions]'),
+    previewButton: document.querySelector('#fs-preview-fetch'),
     mkdirSection: document.querySelector('[data-fs-action-section="mkdir"]'),
     mkdirPathInput: document.querySelector('#fs-mkdir-path'),
     mkdirRunButton: document.querySelector('#fs-mkdir-run'),
@@ -4144,6 +4219,7 @@ OK fs ls
       fsElements.previewEmpty.hidden = false;
       fsElements.previewEmpty.textContent = translate('filesystem.messages.previewPlaceholder');
     }
+    setPreviewButtonState({ visible: false, disabled: true, loading: false });
     if (fsElements.mkdirSection) {
       fsElements.mkdirSection.hidden = true;
     }
@@ -4399,10 +4475,15 @@ OK fs ls
     if (currentButton) {
       currentButton.classList.add('is-active');
     }
+    applyPreviewPreferences(node);
     currentFsSelection = path;
     updateFsDetail(node);
     if (node.type === 'file') {
-      requestFsFileB64(node);
+      if (node.previewAutoDisabled) {
+        cancelPendingFsFileFetch(node.path);
+      } else {
+        requestFsFileB64(node);
+      }
     } else {
       cancelPendingFsFileFetch();
     }
@@ -5122,6 +5203,84 @@ OK fs ls
     return `${size.toFixed(decimals)} ${units[unitIndex]}`;
   };
 
+  const parseSizeToBytes = (value) => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : NaN;
+    }
+    if (value == null) {
+      return NaN;
+    }
+    const text = String(value).trim();
+    if (!text) {
+      return NaN;
+    }
+    const normalized = text.replace(/,/g, '');
+    const match = normalized.match(/^([0-9]*\.?[0-9]+)\s*(bytes?|b|kb|kib|mb|mib|gb|gib)?/i);
+    if (!match) {
+      return NaN;
+    }
+    const amount = Number.parseFloat(match[1]);
+    if (!Number.isFinite(amount)) {
+      return NaN;
+    }
+    const unit = (match[2] || '').toLowerCase();
+    if (!unit || unit === 'b' || unit === 'byte' || unit === 'bytes') {
+      return Math.round(amount);
+    }
+    if (unit === 'kb' || unit === 'kib') {
+      return Math.round(amount * 1024);
+    }
+    if (unit === 'mb' || unit === 'mib') {
+      return Math.round(amount * 1024 * 1024);
+    }
+    if (unit === 'gb' || unit === 'gib') {
+      return Math.round(amount * 1024 * 1024 * 1024);
+    }
+    return Math.round(amount);
+  };
+
+  const getNodeSizeBytes = (node) => {
+    if (!node || node.type !== 'file') {
+      return NaN;
+    }
+    if (Number.isFinite(node.size)) {
+      return node.size;
+    }
+    const parsed = parseSizeToBytes(node.size);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+    if (node.stat && typeof node.stat === 'string') {
+      const match = node.stat.match(/size\s*[:=]\s*(\d+)/i);
+      if (match) {
+        return Number.parseInt(match[1], 10);
+      }
+    }
+    return NaN;
+  };
+
+  const shouldAutoPreviewFile = (node) => {
+    if (!node || node.type !== 'file') {
+      return false;
+    }
+    const sizeBytes = getNodeSizeBytes(node);
+    if (!Number.isFinite(sizeBytes)) {
+      return true;
+    }
+    return sizeBytes <= FS_PREVIEW_AUTO_LIMIT;
+  };
+
+  function applyPreviewPreferences(node) {
+    if (!node) {
+      return;
+    }
+    if (node.type === 'file') {
+      node.previewAutoDisabled = !shouldAutoPreviewFile(node);
+    } else if (Object.prototype.hasOwnProperty.call(node, 'previewAutoDisabled')) {
+      delete node.previewAutoDisabled;
+    }
+  }
+
   const chunkBase64String = (value, length = FS_B64WRITE_CHUNK_LENGTH) => {
     if (!value) {
       return [];
@@ -5178,9 +5337,12 @@ OK fs ls
       if (fsElements.previewEmpty) {
         fsElements.previewEmpty.hidden = true;
       }
+      setPreviewButtonState({ visible: false, disabled: true, loading: false });
       return;
     }
 
+    const manualRequired = Boolean(node.previewAutoDisabled);
+    const pendingPreview = isPreviewFetchPending(node.path);
     const base64Chunks = parseBase64Chunks(node.b64read);
     const base64Joined = base64Chunks.join('\n');
     let previewKind = 'none';
@@ -5201,7 +5363,6 @@ OK fs ls
           }
         }
         if (previewKind === 'none') {
-          // Fall back to showing the raw Base64 payload when we cannot decode it.
           previewKind = 'base64';
           previewText = base64Joined || base64Chunks.join('');
         }
@@ -5217,75 +5378,132 @@ OK fs ls
       }
     }
 
+    if (previewKind === 'none' && manualRequired) {
+      previewKind = pendingPreview ? 'loading' : 'manual';
+    }
+
     fsElements.previewSection.hidden = false;
 
-    if (previewKind === 'text') {
-      if (fsElements.previewText) {
-        fsElements.previewText.hidden = false;
-        fsElements.previewText.textContent = previewText;
-      }
-      if (fsElements.previewImage) {
-        fsElements.previewImage.hidden = true;
-        fsElements.previewImage.removeAttribute('src');
-        fsElements.previewImage.removeAttribute('alt');
-      }
-      if (fsElements.previewEmpty) {
-        fsElements.previewEmpty.hidden = true;
-      }
-    } else if (previewKind === 'base64') {
-      if (fsElements.previewText) {
-        fsElements.previewText.hidden = false;
-        fsElements.previewText.textContent = previewText;
-      }
-      if (fsElements.previewImage) {
-        fsElements.previewImage.hidden = true;
-        fsElements.previewImage.removeAttribute('src');
-        fsElements.previewImage.removeAttribute('alt');
-      }
-      if (fsElements.previewEmpty) {
-        fsElements.previewEmpty.hidden = true;
-      }
-    } else if (previewKind === 'image') {
-      if (fsElements.previewImage) {
-        fsElements.previewImage.hidden = false;
-        fsElements.previewImage.src = previewSrc;
-        fsElements.previewImage.alt = node.path || 'preview';
-      }
-      if (fsElements.previewText) {
-        fsElements.previewText.hidden = true;
-        fsElements.previewText.textContent = '';
-      }
-      if (fsElements.previewEmpty) {
-        fsElements.previewEmpty.hidden = true;
-      }
-    } else if (previewKind === 'binary') {
-      if (fsElements.previewEmpty) {
-        fsElements.previewEmpty.hidden = false;
-        fsElements.previewEmpty.textContent = translate('filesystem.messages.previewBinary');
-      }
-      if (fsElements.previewText) {
-        fsElements.previewText.hidden = true;
-        fsElements.previewText.textContent = '';
-      }
-      if (fsElements.previewImage) {
-        fsElements.previewImage.hidden = true;
-        fsElements.previewImage.removeAttribute('src');
-        fsElements.previewImage.removeAttribute('alt');
-      }
+    switch (previewKind) {
+      case 'text':
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = false;
+          fsElements.previewText.textContent = previewText;
+        }
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = true;
+          fsElements.previewImage.removeAttribute('src');
+          fsElements.previewImage.removeAttribute('alt');
+        }
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = true;
+        }
+        break;
+      case 'base64':
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = false;
+          fsElements.previewText.textContent = previewText;
+        }
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = true;
+          fsElements.previewImage.removeAttribute('src');
+          fsElements.previewImage.removeAttribute('alt');
+        }
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = true;
+        }
+        break;
+      case 'image':
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = false;
+          fsElements.previewImage.src = previewSrc;
+          fsElements.previewImage.alt = node.path || 'preview';
+        }
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = true;
+          fsElements.previewText.textContent = '';
+        }
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = true;
+        }
+        break;
+      case 'binary':
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = false;
+          fsElements.previewEmpty.textContent = translate('filesystem.messages.previewBinary');
+        }
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = true;
+          fsElements.previewText.textContent = '';
+        }
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = true;
+          fsElements.previewImage.removeAttribute('src');
+          fsElements.previewImage.removeAttribute('alt');
+        }
+        break;
+      case 'loading':
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = false;
+          fsElements.previewEmpty.textContent =
+            translate('filesystem.messages.previewLoading') || translate('results.pending');
+        }
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = true;
+          fsElements.previewText.textContent = '';
+        }
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = true;
+          fsElements.previewImage.removeAttribute('src');
+          fsElements.previewImage.removeAttribute('alt');
+        }
+        break;
+      case 'manual':
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = false;
+          const limit = formatFileSize(FS_PREVIEW_AUTO_LIMIT);
+          const template = translate('filesystem.messages.previewLarge');
+          fsElements.previewEmpty.textContent = template
+            ? interpolate(template, { limit })
+            : `Files larger than ${limit} are not previewed automatically.`;
+        }
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = true;
+          fsElements.previewText.textContent = '';
+        }
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = true;
+          fsElements.previewImage.removeAttribute('src');
+          fsElements.previewImage.removeAttribute('alt');
+        }
+        break;
+      default:
+        if (fsElements.previewEmpty) {
+          fsElements.previewEmpty.hidden = false;
+          fsElements.previewEmpty.textContent = translate('filesystem.messages.previewPlaceholder');
+        }
+        if (fsElements.previewText) {
+          fsElements.previewText.hidden = true;
+          fsElements.previewText.textContent = '';
+        }
+        if (fsElements.previewImage) {
+          fsElements.previewImage.hidden = true;
+          fsElements.previewImage.removeAttribute('src');
+          fsElements.previewImage.removeAttribute('alt');
+        }
+        break;
+    }
+
+    if (manualRequired) {
+      const canRequest =
+        connectionState === 'connected' &&
+        Boolean(currentStorageId) &&
+        isSerialReady() &&
+        !activeCommand &&
+        !pendingPreview;
+      setPreviewButtonState({ visible: true, disabled: !canRequest, loading: pendingPreview });
     } else {
-      if (fsElements.previewEmpty) {
-        fsElements.previewEmpty.hidden = false;
-        fsElements.previewEmpty.textContent = translate('filesystem.messages.previewPlaceholder');
-      }
-      if (fsElements.previewText) {
-        fsElements.previewText.hidden = true;
-        fsElements.previewText.textContent = '';
-      }
-      if (fsElements.previewImage) {
-        fsElements.previewImage.hidden = true;
-        fsElements.previewImage.removeAttribute('src');
-        fsElements.previewImage.removeAttribute('alt');
-      }
+      setPreviewButtonState({ visible: false, disabled: true, loading: false });
     }
   };
 
@@ -5294,6 +5512,8 @@ OK fs ls
       resetFsDetails();
       return;
     }
+
+    applyPreviewPreferences(node);
 
     if (fsElements.selectedPath) {
       fsElements.selectedPath.textContent = node.path;
@@ -5561,6 +5781,7 @@ OK fs ls
   const FS_B64READ_TIMEOUT_BASE_MS = 14000;
   const FS_B64READ_TIMEOUT_PER_KIB_MS = 70;
   const FS_B64READ_TIMEOUT_MAX_MS = 60000;
+  const FS_PREVIEW_AUTO_LIMIT = 50 * 1024;
   const FS_B64WRITE_CHUNK_LENGTH = 40;
 
   const estimateFsB64Timeout = (node) => {
@@ -5669,6 +5890,7 @@ OK fs ls
         const selectedNode = fsPathMap.get(currentFsSelection);
         if (selectedNode) {
           updateFsActionsForNode(selectedNode);
+          updateFsPreview(selectedNode);
         }
       }
       return;
@@ -5732,6 +5954,7 @@ OK fs ls
       const selectedNode = fsPathMap.get(currentFsSelection);
       if (selectedNode) {
         updateFsActionsForNode(selectedNode);
+        updateFsPreview(selectedNode);
       }
     }
     if (state === 'connected') {
@@ -6466,6 +6689,13 @@ OK fs ls
     }
   };
 
+  const isPreviewFetchPending = (path) => {
+    if (!path) {
+      return false;
+    }
+    return fsActiveB64Path === path || fsPendingB64Path === path;
+  };
+
   cancelPendingFsFileFetch = (path = null) => {
     if (!path || fsPendingB64Path === path) {
       fsPendingB64Path = null;
@@ -6675,6 +6905,28 @@ OK fs ls
     }).catch(() => {
       /* handled via log */
     });
+  };
+
+  const handleFsPreviewFetch = () => {
+    const node = currentFsSelection ? fsPathMap.get(currentFsSelection) : null;
+    if (!node || node.type !== 'file') {
+      return;
+    }
+    if (!node.previewAutoDisabled) {
+      return;
+    }
+    if (connectionState !== 'connected' || !currentStorageId || activeCommand) {
+      return;
+    }
+    if (!isSerialReady()) {
+      return;
+    }
+    if (isPreviewFetchPending(node.path)) {
+      return;
+    }
+    setPreviewButtonState({ loading: true, disabled: true });
+    requestFsFileB64(node, { force: true });
+    updateFsPreview(node);
   };
 
   const handleFsListRefresh = () => {
@@ -6898,6 +7150,7 @@ OK fs ls
   attachCommandButtonHandler(ntpSetRunButton, handleNtpSetRun);
   attachCommandButtonHandler(ntpEnableRunButton, handleNtpEnableRun);
   attachCommandButtonHandler(ntpDisableRunButton, handleNtpDisableRun);
+  attachCommandButtonHandler(fsElements.previewButton, handleFsPreviewFetch);
   attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
   attachCommandButtonHandler(fsElements.mkdirRunButton, handleFsMkdirRun);
   attachCommandButtonHandler(fsElements.writeRunButton, handleFsWriteRun);
