@@ -4134,7 +4134,11 @@ OK fs ls
     fsPathMap = new Map();
     fsElements.tree.innerHTML = '';
     const items = Array.isArray(data?.tree) ? data.tree : [];
-    if (!items.length) {
+    const rootRaw = data?.rootRaw || listRaw || null;
+    const successfulRootScan = typeof rootRaw === 'string' && /OK\s+fs\s+ls/i.test(rootRaw);
+    const shouldShowEmptyRoot = !items.length && successfulRootScan;
+
+    if (!items.length && !shouldShowEmptyRoot) {
       const p = document.createElement('p');
       p.className = 'fs-empty';
       p.textContent = translate('filesystem.messages.noDetail');
@@ -4144,7 +4148,8 @@ OK fs ls
       return;
     }
 
-    const treeWithRoot = includeFsRootNode(items, data?.rootRaw || listRaw || null);
+    const sourceItems = shouldShowEmptyRoot ? includeFsRootNode([], rootRaw) : items;
+    const treeWithRoot = includeFsRootNode(sourceItems, rootRaw);
     fsElements.tree.append(buildFsTree(treeWithRoot));
 
     let targetPath = null;
