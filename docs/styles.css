@@ -594,6 +594,7 @@ p {
 }
 
 .fs-preview-image {
+  align-self: flex-start;
   max-width: 100%;
   height: auto;
   border-radius: var(--radius-sm);

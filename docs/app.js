@@ -4545,7 +4545,10 @@ OK fs ls
     sanitized.split('\n').forEach((line) => {
       const match = line.match(/\|\s*data\[\d+\]:\s*(\S+)/i);
       if (match && match[1]) {
-        chunks.push(match[1].trim());
+        const chunk = match[1].trim().replace(/^"|"$/g, '');
+        if (chunk) {
+          chunks.push(chunk);
+        }
       }
     });
     return chunks;
@@ -4678,6 +4681,7 @@ OK fs ls
     }
 
     const base64Chunks = parseBase64Chunks(node.b64read);
+    const base64Joined = base64Chunks.join('\n');
     let previewKind = 'none';
     let previewText = '';
     let previewSrc = '';
@@ -4696,10 +4700,13 @@ OK fs ls
           }
         }
         if (previewKind === 'none') {
-          previewKind = 'binary';
+          // Fall back to showing the raw Base64 payload when we cannot decode it.
+          previewKind = 'base64';
+          previewText = base64Joined || base64Chunks.join('');
         }
       } else {
-        previewKind = 'binary';
+        previewKind = 'base64';
+        previewText = base64Joined || base64Chunks.join('');
       }
     } else {
       const catPayload = extractCatPayload(node.cat);
@@ -4712,6 +4719,19 @@ OK fs ls
     fsElements.previewSection.hidden = false;
 
     if (previewKind === 'text') {
+      if (fsElements.previewText) {
+        fsElements.previewText.hidden = false;
+        fsElements.previewText.textContent = previewText;
+      }
+      if (fsElements.previewImage) {
+        fsElements.previewImage.hidden = true;
+        fsElements.previewImage.removeAttribute('src');
+        fsElements.previewImage.removeAttribute('alt');
+      }
+      if (fsElements.previewEmpty) {
+        fsElements.previewEmpty.hidden = true;
+      }
+    } else if (previewKind === 'base64') {
       if (fsElements.previewText) {
         fsElements.previewText.hidden = false;
         fsElements.previewText.textContent = previewText;

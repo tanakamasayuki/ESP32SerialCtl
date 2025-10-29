@@ -849,6 +849,17 @@
                   data-i18n="filesystem.messages.catPlaceholder">ファイル内容がここに表示されます</pre>
               </div>
 
+              <div class="fs-detail-section" data-fs-preview-section hidden>
+                <h4 data-i18n="filesystem.detail.previewTitle">プレビュー</h4>
+                <div class="fs-preview" data-fs-preview>
+                  <p class="fs-empty" data-fs-preview-empty data-i18n="filesystem.messages.previewPlaceholder">
+                    プレビュー可能なデータがありません。fs cat または fs b64read の結果を待っています。
+                  </p>
+                  <pre class="result-raw fs-preview-text" data-fs-preview-text hidden></pre>
+                  <img class="fs-preview-image" data-fs-preview-image alt="" hidden />
+                </div>
+              </div>
+
               <div class="fs-detail-section" data-fs-b64-section hidden>
                 <h4 data-i18n="filesystem.detail.b64Title">fs b64read</h4>
                 <pre class="result-raw" data-fs-b64-raw
@@ -859,17 +870,6 @@
                 <h4 data-i18n="filesystem.detail.hashTitle">fs hash</h4>
                 <pre class="result-raw" data-fs-hash-raw
                   data-i18n="filesystem.messages.hashPlaceholder">ハッシュ結果がここに表示されます</pre>
-              </div>
-
-              <div class="fs-detail-section" data-fs-preview-section hidden>
-                <h4 data-i18n="filesystem.detail.previewTitle">プレビュー</h4>
-                <div class="fs-preview" data-fs-preview>
-                  <p class="fs-empty" data-fs-preview-empty data-i18n="filesystem.messages.previewPlaceholder">
-                    プレビュー可能なデータがありません。fs cat または fs b64read の結果を待っています。
-                  </p>
-                  <pre class="result-raw fs-preview-text" data-fs-preview-text hidden></pre>
-                  <img class="fs-preview-image" data-fs-preview-image alt="" hidden />
-                </div>
               </div>
 
               <div class="fs-detail-section" data-fs-action-section="mkdir" hidden>
