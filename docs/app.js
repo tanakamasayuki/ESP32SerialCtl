@@ -4610,10 +4610,13 @@ OK fs ls
 
     const selectButton = fsElements.b64writeSelectButton;
     if (selectButton && fileInput) {
-      selectButton.addEventListener('click', () => {
+      selectButton.addEventListener('click', (event) => {
         if (!isB64writeDropzoneEnabled()) {
+          event.preventDefault();
           return;
         }
+        event.preventDefault();
+        event.stopPropagation();
         fileInput.click();
       });
     }
@@ -4650,10 +4653,14 @@ OK fs ls
           handleB64writeFileSelection(files[0]);
         }
       });
-      dropzone.addEventListener('click', () => {
+      dropzone.addEventListener('click', (event) => {
         if (!isB64writeDropzoneEnabled()) {
           return;
         }
+        if (event.target && event.target.closest('button')) {
+          return;
+        }
+        event.preventDefault();
         fileInput?.click();
       });
       dropzone.addEventListener('keydown', (event) => {
@@ -5554,7 +5561,7 @@ OK fs ls
   const FS_B64READ_TIMEOUT_BASE_MS = 14000;
   const FS_B64READ_TIMEOUT_PER_KIB_MS = 70;
   const FS_B64READ_TIMEOUT_MAX_MS = 60000;
-  const FS_B64WRITE_CHUNK_LENGTH = 60;
+  const FS_B64WRITE_CHUNK_LENGTH = 40;
 
   const estimateFsB64Timeout = (node) => {
     if (!node) {

@@ -907,10 +907,6 @@
 
               <div class="fs-detail-section" data-fs-action-section="b64write" hidden>
                 <h4 data-i18n="filesystem.actions.b64write.title">ファイルをアップロード (fs b64write)</h4>
-                <p class="fs-hint" data-i18n-html="filesystem.actions.b64write.hint">
-                  シリアルの 1 行は最大 128 バイトのため、Base64 文字列は 60 バイト程度で分割し、
-                  2 行目以降は <code>fs b64write &lt;path&gt; &quot;&lt;chunk&gt;&quot; --append</code> を使用します。
-                </p>
                 <div class="fs-b64write-uploader">
                   <input id="fs-b64write-file" type="file" hidden />
                   <div class="fs-b64write-dropzone" data-fs-b64write-dropzone tabindex="-1" aria-disabled="true">
@@ -921,28 +917,11 @@
                       data-i18n="filesystem.actions.b64write.noFile">ファイルがまだ選択されていません。</p>
                   </div>
                   <div class="card-actions fs-b64write-upload-actions">
+                    <input id="fs-b64write-path" type="hidden" placeholder="" disabled
+                      data-i18n-placeholder="filesystem.actions.b64write.pathPlaceholder" />
                     <button class="btn btn-primary" id="fs-b64write-upload" disabled
                       data-i18n="filesystem.actions.b64write.uploadButton">ファイルを送信</button>
                   </div>
-                </div>
-                <div class="form-field">
-                  <label for="fs-b64write-path" data-i18n="filesystem.actions.b64write.pathLabel">パス</label>
-                  <input id="fs-b64write-path" type="text" placeholder="/image.bin" disabled
-                    data-i18n-placeholder="filesystem.actions.b64write.pathPlaceholder" />
-                </div>
-                <div class="form-field">
-                  <label for="fs-b64write-chunk" data-i18n="filesystem.actions.b64write.chunkLabel">Base64 チャンク (最大 60
-                    バイト程度)</label>
-                  <textarea id="fs-b64write-chunk" rows="4" placeholder="fs b64write /image.bin &quot;QUJD...&quot;"
-                    disabled data-i18n-placeholder="filesystem.actions.b64write.chunkPlaceholder"></textarea>
-                </div>
-                <div class="card-actions">
-                  <button class="btn btn-primary" id="fs-b64write-first" disabled
-                    data-i18n="filesystem.actions.b64write.firstButton">1 行目
-                    (append なし)</button>
-                  <button class="btn btn-primary" id="fs-b64write-append" disabled
-                    data-i18n="filesystem.actions.b64write.appendButton">2 行目以降
-                    (--append)</button>
                 </div>
               </div>
 
