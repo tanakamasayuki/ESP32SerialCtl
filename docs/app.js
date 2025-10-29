@@ -2849,11 +2849,11 @@ OK fs ls
   let currentFsSelection = null;
   let fsPendingB64Path = null;
   let fsActiveB64Path = null;
-  let requestFsFileB64 = () => {};
+  let requestFsFileB64 = () => { };
   let cancelPendingFsFileFetch = () => {
     fsPendingB64Path = null;
   };
-  let pumpFsB64FetchQueue = () => {};
+  let pumpFsB64FetchQueue = () => { };
   let fsPathMap = new Map();
   let fsFetching = false;
   let fsAutoRefreshTimer = null;
