@@ -2860,14 +2860,83 @@ OK fs ls
   const gpioWritePinSelect = document.querySelector('#gpio-write-pin');
   const gpioWriteValueSelect = document.querySelector('#gpio-write-value');
   const gpioWriteButton = document.querySelector('#command-peripherals-gpio-write .card-actions button');
+  const adcPinSelect = document.querySelector('#adc-pin');
+  const adcAverageInput = document.querySelector('#adc-average');
+  const adcReadButton = document.querySelector('#command-peripherals-adc-read .card-actions button');
+  const pwmPinSelect = document.querySelector('#pwm-pin');
+  const pwmFreqInput = document.querySelector('#pwm-freq');
+  const pwmDutyInput = document.querySelector('#pwm-duty');
+  const pwmSetButton = document.querySelector('#command-peripherals-pwm-set .card-actions button');
+  const pwmStopPinSelect = document.querySelector('#pwm-stop-pin');
+  const pwmStopButton = document.querySelector('#command-peripherals-pwm-stop .card-actions button');
+  const servoPinSelect = document.querySelector('#servo-pin');
+  const servoAngleInput = document.querySelector('#servo-angle');
+  const servoPulseMinInput = document.querySelector('#servo-pulse-min');
+  const servoPulseMaxInput = document.querySelector('#servo-pulse-max');
+  const servoSetButton = document.querySelector('#command-peripherals-servo-set .card-actions button');
+  const servoStopPinSelect = document.querySelector('#servo-stop-pin');
+  const servoStopButton = document.querySelector('#command-peripherals-servo-stop .card-actions button');
+  const rgbPinSelect = document.querySelector('#rgb-pin-input');
+  const rgbPinButton = document.querySelector('#command-peripherals-rgb-pin .card-actions button');
+  const rgbSetRedInput = document.querySelector('#rgb-set-r');
+  const rgbSetGreenInput = document.querySelector('#rgb-set-g');
+  const rgbSetBlueInput = document.querySelector('#rgb-set-b');
+  const rgbSetButton = document.querySelector('#command-peripherals-rgb-set .card-actions button');
+  const i2cScanBusSelect = document.querySelector('#i2c-scan-bus');
+  const i2cScanButton = document.querySelector('#command-peripherals-i2c-scan .card-actions button');
+  const i2cReadBusSelect = document.querySelector('#i2c-read-bus');
+  const i2cReadAddressInput = document.querySelector('#i2c-read-address');
+  const i2cReadRegisterInput = document.querySelector('#i2c-read-register');
+  const i2cReadLengthInput = document.querySelector('#i2c-read-length');
+  const i2cReadButton = document.querySelector('#command-peripherals-i2c-read .card-actions button');
+  const i2cWriteBusSelect = document.querySelector('#i2c-write-bus');
+  const i2cWriteAddressInput = document.querySelector('#i2c-write-address');
+  const i2cWriteRegisterInput = document.querySelector('#i2c-write-register');
+  const i2cWriteBytesInput = document.querySelector('#i2c-write-bytes');
+  const i2cWriteButton = document.querySelector('#command-peripherals-i2c-write .card-actions button');
 
   const peripheralCommandButtons = [
     gpioModeButton,
     gpioToggleButton,
     gpioReadButton,
-    gpioWriteButton
+    gpioWriteButton,
+    adcReadButton,
+    pwmSetButton,
+    pwmStopButton,
+    servoSetButton,
+    servoStopButton,
+    rgbPinButton
   ].filter(Boolean);
-  const gpioAuxiliaryControls = [gpioModeSelect, gpioWriteValueSelect].filter(Boolean);
+  const peripheralConnectionButtons = [
+    rgbSetButton,
+    i2cScanButton,
+    i2cReadButton,
+    i2cWriteButton
+  ].filter(Boolean);
+  const peripheralControlsRequirePins = [
+    gpioModeSelect,
+    gpioWriteValueSelect,
+    adcAverageInput,
+    pwmFreqInput,
+    pwmDutyInput,
+    servoAngleInput,
+    servoPulseMinInput,
+    servoPulseMaxInput
+  ].filter(Boolean);
+  const peripheralControlsConnectionOnly = [
+    rgbSetRedInput,
+    rgbSetGreenInput,
+    rgbSetBlueInput,
+    i2cScanBusSelect,
+    i2cReadBusSelect,
+    i2cReadAddressInput,
+    i2cReadRegisterInput,
+    i2cReadLengthInput,
+    i2cWriteBusSelect,
+    i2cWriteAddressInput,
+    i2cWriteRegisterInput,
+    i2cWriteBytesInput
+  ].filter(Boolean);
   const gpioModeCommandMap = {
     input: 'in',
     output: 'out',
@@ -2875,6 +2944,17 @@ OK fs ls
     input_pulldown: 'pulldown',
     opendrain: 'opendrain'
   };
+  const peripheralResultNodes = Array.from(document.querySelectorAll('[data-peripheral-result]'));
+  const peripheralResultMap = new Map();
+  peripheralResultNodes.forEach((node) => {
+    const key = node.dataset.peripheralResult;
+    if (!key || peripheralResultMap.has(key)) {
+      return;
+    }
+    node.dataset.peripheralState = 'placeholder';
+    node.dataset.peripheralRaw = '';
+    peripheralResultMap.set(key, node);
+  });
 
   const helpElements = {
     helpButton: document.querySelector('#command-help-help .card-actions button'),
@@ -3017,6 +3097,116 @@ OK fs ls
     }
     applyDisabledTitles();
   }
+
+  const applyPeripheralResultClasses = (node, state) => {
+    if (!node) {
+      return;
+    }
+    node.classList.toggle('is-pending', state === 'pending');
+    node.classList.toggle('is-error', state === 'error');
+    node.classList.toggle('is-content', state === 'content');
+  };
+
+  const setPeripheralResultState = (key, state, raw = '') => {
+    if (!key) {
+      return;
+    }
+    const node = peripheralResultMap.get(key);
+    if (!node) {
+      return;
+    }
+    const normalizedState = state || 'placeholder';
+    applyPeripheralResultClasses(node, normalizedState);
+    if (normalizedState === 'pending') {
+      node.textContent = translate('results.pending');
+      node.dataset.peripheralState = 'pending';
+      node.dataset.peripheralRaw = '';
+      return;
+    }
+    if (normalizedState === 'error') {
+      const sanitized = sanitizeSerialText(raw || '').trim();
+      const fallback = translate('results.placeholder');
+      node.textContent = sanitized || fallback;
+      node.dataset.peripheralRaw = sanitized;
+      if (sanitized) {
+        node.dataset.peripheralState = 'error';
+      } else {
+        node.dataset.peripheralState = 'placeholder';
+        applyPeripheralResultClasses(node, 'placeholder');
+      }
+      return;
+    }
+    if (normalizedState === 'content') {
+      const sanitized = sanitizeSerialText(raw || '').trim();
+      if (sanitized) {
+        node.textContent = sanitized;
+        node.dataset.peripheralRaw = sanitized;
+        node.dataset.peripheralState = 'content';
+      } else {
+        node.textContent = translate('results.placeholder');
+        node.dataset.peripheralRaw = '';
+        node.dataset.peripheralState = 'placeholder';
+        applyPeripheralResultClasses(node, 'placeholder');
+      }
+      return;
+    }
+    node.textContent = translate('results.placeholder');
+    node.dataset.peripheralRaw = '';
+    node.dataset.peripheralState = 'placeholder';
+    applyPeripheralResultClasses(node, 'placeholder');
+  };
+
+  const refreshPeripheralResultsLocale = () => {
+    peripheralResultMap.forEach((node) => {
+      const state = node.dataset.peripheralState || 'placeholder';
+      applyPeripheralResultClasses(node, state);
+      if (state === 'pending') {
+        node.textContent = translate('results.pending');
+        return;
+      }
+      if (state === 'placeholder') {
+        node.textContent = translate('results.placeholder');
+        node.dataset.peripheralRaw = '';
+        return;
+      }
+      const raw = node.dataset.peripheralRaw || '';
+      if (raw) {
+        node.textContent = raw;
+      } else {
+        node.textContent = translate('results.placeholder');
+        node.dataset.peripheralState = 'placeholder';
+        applyPeripheralResultClasses(node, 'placeholder');
+      }
+    });
+  };
+
+  const dispatchPeripheralCommand = (key, commandText, options = {}) => {
+    if (!key || !commandText) {
+      return;
+    }
+    const { id = commandText, button = null, onSuccess = null } = options;
+    setPeripheralResultState(key, 'pending');
+    runSerialCommand(commandText, {
+      id,
+      button,
+      onFinalize: ({ output, error }) => {
+        if (error) {
+          setPeripheralResultState(key, 'error', output);
+          return;
+        }
+        setPeripheralResultState(key, 'content', output);
+        if (typeof onSuccess === 'function') {
+          try {
+            onSuccess({ output });
+          } catch (callbackError) {
+            appendLogEntry('error', `Peripheral handler error: ${callbackError.message}`);
+          }
+        }
+      }
+    }).catch((runError) => {
+      setPeripheralResultState(key, 'error', runError?.message || '');
+    });
+  };
 
   let connectionState = 'disconnected';
   let refreshConnectionLabel = () => { };
@@ -3172,13 +3362,14 @@ OK fs ls
     const pinsAvailable = getSelectablePinValues().length > 0;
     const connected = connectionState === 'connected';
     const busy = Boolean(activeCommand);
-    const shouldEnableButtons = connected && !busy && pinsAvailable;
+    const enablePinsButtons = connected && !busy && pinsAvailable;
+    const enableConnectionButtons = connected && !busy;
 
-    peripheralCommandButtons.forEach((button) => {
+    const applyButtonState = (button, enabled) => {
       if (!button) {
         return;
       }
-      if (shouldEnableButtons) {
+      if (enabled) {
         button.disabled = false;
         button.removeAttribute('disabled');
         button.classList.remove('btn--inactive');
@@ -3189,14 +3380,36 @@ OK fs ls
         button.classList.add('btn--inactive');
         button.setAttribute('aria-disabled', 'true');
       }
+    };
+
+    peripheralCommandButtons.forEach((button) => {
+      applyButtonState(button, enablePinsButtons);
     });
 
-    const shouldEnableControls = connected && pinsAvailable;
-    gpioAuxiliaryControls.forEach((element) => {
+    peripheralConnectionButtons.forEach((button) => {
+      applyButtonState(button, enableConnectionButtons);
+    });
+
+    const shouldEnablePinControls = connected && pinsAvailable;
+    peripheralControlsRequirePins.forEach((element) => {
       if (!element) {
         return;
       }
-      if (shouldEnableControls) {
+      if (shouldEnablePinControls) {
+        element.disabled = false;
+        element.removeAttribute('disabled');
+      } else {
+        element.disabled = true;
+        element.setAttribute('disabled', '');
+      }
+    });
+
+    const shouldEnableConnectionControls = connected;
+    peripheralControlsConnectionOnly.forEach((element) => {
+      if (!element) {
+        return;
+      }
+      if (shouldEnableConnectionControls) {
         element.disabled = false;
         element.removeAttribute('disabled');
       } else {
@@ -3576,6 +3789,11 @@ OK fs ls
       gpioSettingsLastMessage = message;
       gpioSettingsLastUpdatedAt = null;
       updateGpioSettingsStatusLabel();
+      if (error) {
+        setPeripheralResultState('gpio-pins', 'error', message);
+      } else {
+        setPeripheralResultState('gpio-pins', trimmed ? 'error' : 'placeholder', message);
+      }
       return;
     }
     const parsed = parseGpioPinsOutput(output);
@@ -3583,6 +3801,7 @@ OK fs ls
     gpioSettingsLastUpdatedAt = new Date();
     gpioSettingsLastMessage = '';
     renderGpioSettings(parsed);
+    setPeripheralResultState('gpio-pins', 'content', output);
   };
 
   const runGpioPinsCommand = () => {
@@ -3593,6 +3812,7 @@ OK fs ls
       return;
     }
     setGpioSettingsLoading();
+    setPeripheralResultState('gpio-pins', 'pending');
     runSerialCommand('gpio pins', {
       id: 'gpio-pins',
       onFinalize: handleGpioPinsFinalize
@@ -3604,6 +3824,7 @@ OK fs ls
       gpioSettingsLastMessage = message;
       gpioSettingsLastUpdatedAt = null;
       updateGpioSettingsStatusLabel();
+      setPeripheralResultState('gpio-pins', 'error', message);
     });
   };
 
@@ -3633,6 +3854,7 @@ OK fs ls
     applyTranslations();
     refreshGpioSettingsLocale();
     refreshPeripheralPinSelects();
+  refreshPeripheralResultsLocale();
     refreshConnectionLabel();
     applyDisabledTitles();
     refreshLanguageSensitiveUI();
@@ -7971,16 +8193,12 @@ OK fs ls
     const normalizedMode = mode.toLowerCase();
     const commandMode = gpioModeCommandMap[normalizedMode] || normalizedMode;
     appendLogEntry('debug', `UI: gpio mode -> pin=${pin} mode=${commandMode}`);
-    runSerialCommand(`gpio mode ${pin} ${commandMode}`, {
+    dispatchPeripheralCommand('gpio-mode', `gpio mode ${pin} ${commandMode}`, {
       id: `gpio-mode-${pin}`,
       button: gpioModeButton,
-      onFinalize: ({ error }) => {
-        if (!error) {
-          enqueueAutoCommand('gpio-pins');
-        }
+      onSuccess: () => {
+        enqueueAutoCommand('gpio-pins');
       }
-    }).catch(() => {
-      /* handled via log */
     });
   };
 
@@ -7994,11 +8212,9 @@ OK fs ls
       return;
     }
     appendLogEntry('debug', `UI: gpio toggle -> pin=${pin}`);
-    runSerialCommand(`gpio toggle ${pin}`, {
+    dispatchPeripheralCommand('gpio-toggle', `gpio toggle ${pin}`, {
       id: `gpio-toggle-${pin}`,
       button: gpioToggleButton
-    }).catch(() => {
-      /* handled via log */
     });
   };
 
@@ -8012,11 +8228,9 @@ OK fs ls
       return;
     }
     appendLogEntry('debug', `UI: gpio read -> pin=${pin}`);
-    runSerialCommand(`gpio read ${pin}`, {
+    dispatchPeripheralCommand('gpio-read', `gpio read ${pin}`, {
       id: `gpio-read-${pin}`,
       button: gpioReadButton
-    }).catch(() => {
-      /* handled via log */
     });
   };
 
@@ -8036,11 +8250,350 @@ OK fs ls
       return;
     }
     appendLogEntry('debug', `UI: gpio write -> pin=${pin} value=${value}`);
-    runSerialCommand(`gpio write ${pin} ${value}`, {
+    dispatchPeripheralCommand('gpio-write', `gpio write ${pin} ${value}`, {
       id: `gpio-write-${pin}`,
       button: gpioWriteButton
-    }).catch(() => {
-      /* handled via log */
+    });
+  };
+
+  const handleAdcReadRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(adcPinSelect);
+    if (!pin) {
+      return;
+    }
+    const samplesRaw = (adcAverageInput?.value || '').trim();
+    let commandText = `adc read ${pin}`;
+    let samplesValue = 1;
+    if (samplesRaw) {
+      const parsed = Number(samplesRaw);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        appendLogEntry('error', 'Samples must be a positive integer.');
+        if (adcAverageInput) {
+          adcAverageInput.focus();
+        }
+        return;
+      }
+      samplesValue = parsed;
+    } else if (adcAverageInput) {
+      adcAverageInput.value = '1';
+    }
+    if (samplesValue !== 1) {
+      commandText += ` samples ${samplesValue}`;
+    }
+    const logSuffix = samplesValue !== 1 ? ` samples=${samplesValue}` : '';
+    appendLogEntry('debug', `UI: adc read -> pin=${pin}${logSuffix}`);
+    dispatchPeripheralCommand('adc-read', commandText, {
+      id: `adc-read-${pin}`,
+      button: adcReadButton
+    });
+  };
+
+  const handlePwmSetRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(pwmPinSelect);
+    if (!pin) {
+      return;
+    }
+    const freqRaw = (pwmFreqInput?.value || '').trim();
+    if (!freqRaw) {
+      appendLogEntry('error', 'Frequency is required.');
+      pwmFreqInput?.focus();
+      return;
+    }
+    const freqValue = Number(freqRaw);
+    if (!Number.isFinite(freqValue) || freqValue <= 0) {
+      appendLogEntry('error', 'Frequency must be a positive number.');
+      pwmFreqInput?.focus();
+      return;
+    }
+    const dutyRaw = (pwmDutyInput?.value || '').trim();
+    if (!dutyRaw) {
+      appendLogEntry('error', translate('peripherals.errors.valueRequired'));
+      pwmDutyInput?.focus();
+      return;
+    }
+    appendLogEntry('debug', `UI: pwm set -> pin=${pin} freq=${freqRaw} duty=${dutyRaw}`);
+    const commandText = `pwm set ${pin} ${freqRaw} ${dutyRaw}`;
+    dispatchPeripheralCommand('pwm-set', commandText, {
+      id: `pwm-set-${pin}`,
+      button: pwmSetButton,
+      onSuccess: () => {
+        enqueueAutoCommand('gpio-pins');
+      }
+    });
+  };
+
+  const handlePwmStopRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(pwmStopPinSelect);
+    if (!pin) {
+      return;
+    }
+    appendLogEntry('debug', `UI: pwm stop -> pin=${pin}`);
+    dispatchPeripheralCommand('pwm-stop', `pwm stop ${pin}`, {
+      id: `pwm-stop-${pin}`,
+      button: pwmStopButton,
+      onSuccess: () => {
+        enqueueAutoCommand('gpio-pins');
+      }
+    });
+  };
+
+  const handleServoSetRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(servoPinSelect);
+    if (!pin) {
+      return;
+    }
+    const angleRaw = (servoAngleInput?.value || '').trim();
+    let angleValue = 90;
+    if (angleRaw) {
+      const parsedAngle = Number(angleRaw);
+      if (!Number.isFinite(parsedAngle)) {
+        appendLogEntry('error', 'Angle must be a number between 0 and 180.');
+        servoAngleInput?.focus();
+        return;
+      }
+      angleValue = Math.min(180, Math.max(0, parsedAngle));
+    }
+    const pulseMinRaw = (servoPulseMinInput?.value || '').trim();
+    const pulseMaxRaw = (servoPulseMaxInput?.value || '').trim();
+    const defaultPulseMin = 500;
+    const defaultPulseMax = 2400;
+    const pulseMinValue = pulseMinRaw ? Number(pulseMinRaw) : defaultPulseMin;
+    if (!Number.isFinite(pulseMinValue) || pulseMinValue <= 0) {
+      appendLogEntry('error', 'Minimum pulse must be a positive number.');
+      servoPulseMinInput?.focus();
+      return;
+    }
+    const pulseMaxValue = pulseMaxRaw ? Number(pulseMaxRaw) : defaultPulseMax;
+    if (!Number.isFinite(pulseMaxValue) || pulseMaxValue <= 0) {
+      appendLogEntry('error', 'Maximum pulse must be a positive number.');
+      servoPulseMaxInput?.focus();
+      return;
+    }
+    if (pulseMaxValue <= pulseMinValue) {
+      appendLogEntry('error', 'Maximum pulse must be greater than minimum pulse.');
+      servoPulseMaxInput?.focus();
+      return;
+    }
+    const freqHz = 50;
+    const periodUs = 1000000 / freqHz;
+    const pulseWidthUs = pulseMinValue + ((pulseMaxValue - pulseMinValue) * (angleValue / 180));
+    const dutyPercent = (pulseWidthUs / periodUs) * 100;
+    const safeDutyPercent = Math.max(0, Math.min(100, dutyPercent));
+    const dutyPercentValue = Number.isFinite(safeDutyPercent)
+      ? Number(safeDutyPercent.toFixed(4))
+      : 0;
+    const dutyPercentText = `${dutyPercentValue}%`;
+    appendLogEntry(
+      'debug',
+      `UI: servo set -> pin=${pin} angle=${angleValue} pulse=${pulseMinValue}/${pulseMaxValue} duty=${dutyPercentText}`
+    );
+    const commandText = `pwm set ${pin} ${freqHz} ${dutyPercentText}`;
+    dispatchPeripheralCommand('servo-set', commandText, {
+      id: `servo-set-${pin}`,
+      button: servoSetButton,
+      onSuccess: () => {
+        enqueueAutoCommand('gpio-pins');
+      }
+    });
+  };
+
+  const handleServoStopRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(servoStopPinSelect);
+    if (!pin) {
+      return;
+    }
+    appendLogEntry('debug', `UI: servo stop -> pin=${pin}`);
+    dispatchPeripheralCommand('servo-stop', `pwm stop ${pin}`, {
+      id: `servo-stop-${pin}`,
+      button: servoStopButton,
+      onSuccess: () => {
+        enqueueAutoCommand('gpio-pins');
+      }
+    });
+  };
+
+  const handleRgbPinRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(rgbPinSelect);
+    if (!pin) {
+      return;
+    }
+    appendLogEntry('debug', `UI: rgb pin -> pin=${pin}`);
+    dispatchPeripheralCommand('rgb-pin', `rgb pin ${pin}`, {
+      id: `rgb-pin-${pin}`,
+      button: rgbPinButton,
+      onSuccess: () => {
+        enqueueAutoCommand('gpio-pins');
+      }
+    });
+  };
+
+  const handleRgbSetRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const parseComponent = (input, label) => {
+      if (!input) {
+        return null;
+      }
+      const raw = (input.value || '').trim();
+      if (!raw) {
+        appendLogEntry('error', `${label} value is required (0-255).`);
+        input.focus();
+        return null;
+      }
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value < 0 || value > 255) {
+        appendLogEntry('error', `${label} must be an integer between 0 and 255.`);
+        input.focus();
+        return null;
+      }
+      return value;
+    };
+    const r = parseComponent(rgbSetRedInput, 'R');
+    if (r === null) {
+      return;
+    }
+    const g = parseComponent(rgbSetGreenInput, 'G');
+    if (g === null) {
+      return;
+    }
+    const b = parseComponent(rgbSetBlueInput, 'B');
+    if (b === null) {
+      return;
+    }
+    appendLogEntry('debug', `UI: rgb set -> rgb=${r},${g},${b}`);
+    const commandText = `rgb set ${r} ${g} ${b}`;
+    dispatchPeripheralCommand('rgb-set', commandText, {
+      id: `rgb-set-${r}-${g}-${b}`,
+      button: rgbSetButton
+    });
+  };
+
+  const handleI2cScanRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const bus = (i2cScanBusSelect?.value || '').trim();
+    const busSuffix = bus ? ` --bus ${bus}` : '';
+    appendLogEntry('debug', `UI: i2c scan -> bus=${bus || 'auto'}`);
+    dispatchPeripheralCommand('i2c-scan', `i2c scan${busSuffix}`, {
+      id: bus ? `i2c-scan-${bus}` : 'i2c-scan',
+      button: i2cScanButton
+    });
+  };
+
+  const handleI2cReadRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const bus = (i2cReadBusSelect?.value || '').trim();
+    const addressRaw = (i2cReadAddressInput?.value || '').trim();
+    if (!addressRaw) {
+      appendLogEntry('error', 'I2C address is required.');
+      i2cReadAddressInput?.focus();
+      return;
+    }
+    const registerRaw = (i2cReadRegisterInput?.value || '').trim();
+    if (!registerRaw) {
+      appendLogEntry('error', 'Register is required.');
+      i2cReadRegisterInput?.focus();
+      return;
+    }
+    const lengthRaw = (i2cReadLengthInput?.value || '').trim();
+    let lengthArgument = '';
+    if (lengthRaw) {
+      const lengthValue = Number(lengthRaw);
+      if (!Number.isInteger(lengthValue) || lengthValue <= 0 || lengthValue > 32) {
+        appendLogEntry('error', 'Length must be an integer between 1 and 32.');
+        i2cReadLengthInput?.focus();
+        return;
+      }
+      lengthArgument = ` ${lengthValue}`;
+    }
+    const busPrefix = bus ? ` --bus ${bus}` : '';
+    const lengthSuffix = lengthRaw ? ` len=${lengthRaw}` : '';
+    appendLogEntry(
+      'debug',
+      `UI: i2c read -> bus=${bus || 'default'} addr=${addressRaw} reg=${registerRaw}${lengthSuffix}`
+    );
+    const commandText = `i2c read${busPrefix} ${addressRaw} ${registerRaw}${lengthArgument}`;
+    dispatchPeripheralCommand('i2c-read', commandText, {
+      id: `i2c-read-${bus || 'default'}-${addressRaw}-${registerRaw}`,
+      button: i2cReadButton
+    });
+  };
+
+  const handleI2cWriteRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const bus = (i2cWriteBusSelect?.value || '').trim();
+    const addressRaw = (i2cWriteAddressInput?.value || '').trim();
+    if (!addressRaw) {
+      appendLogEntry('error', 'I2C address is required.');
+      i2cWriteAddressInput?.focus();
+      return;
+    }
+    const registerRaw = (i2cWriteRegisterInput?.value || '').trim();
+    if (!registerRaw) {
+      appendLogEntry('error', 'Register is required.');
+      i2cWriteRegisterInput?.focus();
+      return;
+    }
+    const bytesRaw = (i2cWriteBytesInput?.value || '').trim();
+    if (!bytesRaw) {
+      appendLogEntry('error', 'Provide one or more data bytes.');
+      i2cWriteBytesInput?.focus();
+      return;
+    }
+    const byteTokens = bytesRaw.split(/[\s,]+/).filter(Boolean);
+    if (!byteTokens.length) {
+      appendLogEntry('error', 'Provide one or more data bytes.');
+      i2cWriteBytesInput?.focus();
+      return;
+    }
+    if (byteTokens.length > 32) {
+      appendLogEntry('error', 'I2C write supports up to 32 bytes.');
+      i2cWriteBytesInput?.focus();
+      return;
+    }
+    const busPrefix = bus ? ` --bus ${bus}` : '';
+    appendLogEntry(
+      'debug',
+      `UI: i2c write -> bus=${bus || 'default'} addr=${addressRaw} reg=${registerRaw} bytes=${byteTokens.length}`
+    );
+    const commandText = `i2c write${busPrefix} ${addressRaw} ${registerRaw} ${byteTokens.join(' ')}`;
+    dispatchPeripheralCommand('i2c-write', commandText, {
+      id: `i2c-write-${bus || 'default'}-${addressRaw}-${registerRaw}`,
+      button: i2cWriteButton
     });
   };
 
@@ -8078,6 +8631,16 @@ OK fs ls
   attachCommandButtonHandler(gpioToggleButton, handleGpioToggleRun);
   attachCommandButtonHandler(gpioReadButton, handleGpioReadRun);
   attachCommandButtonHandler(gpioWriteButton, handleGpioWriteRun);
+  attachCommandButtonHandler(adcReadButton, handleAdcReadRun);
+  attachCommandButtonHandler(pwmSetButton, handlePwmSetRun);
+  attachCommandButtonHandler(pwmStopButton, handlePwmStopRun);
+  attachCommandButtonHandler(servoSetButton, handleServoSetRun);
+  attachCommandButtonHandler(servoStopButton, handleServoStopRun);
+  attachCommandButtonHandler(rgbPinButton, handleRgbPinRun);
+  attachCommandButtonHandler(rgbSetButton, handleRgbSetRun);
+  attachCommandButtonHandler(i2cScanButton, handleI2cScanRun);
+  attachCommandButtonHandler(i2cReadButton, handleI2cReadRun);
+  attachCommandButtonHandler(i2cWriteButton, handleI2cWriteRun);
   attachCommandButtonHandler(fsElements.previewButton, handleFsPreviewFetch);
   attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
   attachCommandButtonHandler(fsElements.mkdirRunButton, handleFsMkdirRun);
@@ -8092,6 +8655,12 @@ OK fs ls
     button.addEventListener('click', () => {
       if (connectionState !== 'connected') {
         appendLogEntry('error', translate('connection.info.connectFirst'));
+        return;
+      }
+      const key = commandId.replace(/^peripherals-/, '');
+      if (peripheralResultMap.has(key)) {
+        const commandText = commandId.replace(/-/g, ' ');
+        dispatchPeripheralCommand(key, commandText, { id: commandId, button });
         return;
       }
       sendSystemCommand(commandId);

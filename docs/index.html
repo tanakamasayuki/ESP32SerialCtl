@@ -999,6 +999,7 @@
                       gpio pins を送信
                     </button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="gpio-pins" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card">
                   <h4 data-i18n="peripherals.groups.settings.allowedHeading">許可済みピン</h4>
@@ -1051,6 +1052,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioMode">gpio mode
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="gpio-mode" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-gpio-toggle">
                   <h4>gpio toggle &lt;pin&gt;</h4>
@@ -1066,6 +1068,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="gpio-toggle" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-gpio-read">
                   <h4>gpio read &lt;pin&gt;</h4>
@@ -1081,6 +1084,7 @@
                     <button class="btn btn-outline" disabled data-i18n="peripherals.actions.gpioRead">gpio read
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="gpio-read" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-gpio-write">
                   <h4>gpio write &lt;pin&gt; &lt;value&gt;</h4>
@@ -1105,6 +1109,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioWrite">gpio write
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="gpio-write" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
               </div>
             </article>
@@ -1127,7 +1132,7 @@
                     </div>
                     <div class="form-field">
                       <label for="adc-average" data-i18n="peripherals.labels.average">平均回数</label>
-                      <input id="adc-average" type="number" placeholder="例: 8" disabled
+                      <input id="adc-average" type="number" value="1" placeholder="例: 8" disabled
                         data-i18n-placeholder="peripherals.placeholders.average" />
                     </div>
                   </div>
@@ -1135,6 +1140,7 @@
                     <button class="btn btn-outline" disabled data-i18n="peripherals.actions.adcRead">adc read
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="adc-read" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
               </div>
             </article>
@@ -1170,6 +1176,7 @@
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmSet">pwm set を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="pwm-set" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-pwm-stop">
                   <h4>pwm stop &lt;pin&gt;</h4>
@@ -1185,6 +1192,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="pwm-stop" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
               </div>
             </article>
@@ -1226,6 +1234,7 @@
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmSet">pwm set を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="servo-set" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-servo-stop">
                   <h4 data-i18n="peripherals.groups.servo.stopHeading">サーボを停止 (pwm stop)</h4>
@@ -1241,6 +1250,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="servo-stop" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
               </div>
             </article>
@@ -1263,6 +1273,7 @@
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbPin">rgb pin を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="rgb-pin" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-rgb-set">
                   <h4>rgb set &lt;r&gt; &lt;g&gt; &lt;b&gt;</h4>
@@ -1287,6 +1298,7 @@
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbSet">rgb set を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="rgb-set" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-rgb-stream">
                   <h4>rgb stream</h4>
@@ -1298,6 +1310,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbStreamStart">rgb stream
                       を開始</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="rgb-stream" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
               </div>
             </article>
@@ -1320,6 +1333,7 @@
                   <div class="card-actions">
                     <button class="btn btn-outline" disabled data-i18n="peripherals.actions.scan">i2c scan を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="i2c-scan" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-i2c-read">
                   <h4>i2c read &lt;addr&gt; [len]</h4>
@@ -1353,6 +1367,7 @@
                   <div class="card-actions">
                     <button class="btn btn-outline" disabled data-i18n="peripherals.actions.read">i2c read を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="i2c-read" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
                 <section class="peripherals-card" id="command-peripherals-i2c-write">
                   <h4>i2c write &lt;addr&gt; &lt;bytes...&gt;</h4>
@@ -1385,6 +1400,7 @@
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.write">i2c write
                       を送信</button>
                   </div>
+                  <pre class="peripherals-result" data-peripheral-result="i2c-write" data-i18n="results.placeholder">結果がここに表示されます</pre>
                 </section>
               </div>
             </article>
