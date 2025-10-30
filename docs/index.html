@@ -987,42 +987,34 @@
               <div class="peripherals-settings-grid">
                 <section class="peripherals-card">
                   <h4 data-i18n="peripherals.groups.settings.modeHeading">アクセスモード</h4>
-                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.modePlaceholder">
+                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.modePlaceholder"
+                    data-gpio-mode-placeholder>
                     接続後に gpio pins を実行するとここにモードが表示されます。
                   </p>
-                  <pre class="peripherals-sample" aria-hidden="true">&gt; gpio pins
-OK gpio pins
-| mode: all
-| allowed pins: all
-&gt;</pre>
+                  <p class="peripherals-value" data-gpio-mode-value hidden></p>
+                  <p class="peripherals-meta" data-gpio-updated hidden></p>
+                  <div class="card-actions">
+                    <button class="btn btn-outline" type="button" id="gpio-pins-refresh" disabled
+                      data-i18n="peripherals.actions.gpioPins">
+                      gpio pins を送信
+                    </button>
+                  </div>
                 </section>
                 <section class="peripherals-card">
                   <h4 data-i18n="peripherals.groups.settings.allowedHeading">許可済みピン</h4>
-                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.allowedPlaceholder">
+                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.allowedPlaceholder"
+                    data-gpio-allowed-placeholder>
                     制限モードでは許可済みピンの一覧が表示されます。
                   </p>
-                  <div class="peripherals-chip-list" aria-hidden="true">
-                    <span class="chip chip--muted">all</span>
-                    <span class="chip">2</span>
-                    <span class="chip">16</span>
-                  </div>
-                  <pre class="peripherals-sample" aria-hidden="true">| allowed pins: 2, 16</pre>
+                  <div class="peripherals-chip-list" data-gpio-allowed-list hidden></div>
                 </section>
                 <section class="peripherals-card">
                   <h4 data-i18n="peripherals.groups.settings.aliasHeading">別名一覧</h4>
-                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.aliasPlaceholder">
+                  <p class="peripherals-placeholder" data-i18n="peripherals.groups.settings.aliasPlaceholder"
+                    data-gpio-alias-placeholder>
                     ピンへ別名を付けるとここに表示されます。
                   </p>
-                  <div class="peripherals-alias-list" aria-hidden="true">
-                    <div class="peripherals-alias-row">
-                      <span class="alias-pin">2</span>
-                      <span class="alias-name">LED</span>
-                    </div>
-                    <div class="peripherals-alias-row">
-                      <span class="alias-pin">16</span>
-                      <span class="alias-name">RGB LED</span>
-                    </div>
-                  </div>
+                  <div class="peripherals-alias-list" data-gpio-alias-list hidden></div>
                 </section>
               </div>
             </article>

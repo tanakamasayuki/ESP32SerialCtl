@@ -913,6 +913,19 @@ p {
   font-size: 13px;
 }
 
+.peripherals-value {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.peripherals-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
 .peripherals-chip-list {
   display: flex;
   flex-wrap: wrap;
@@ -922,19 +935,6 @@ p {
 .chip--muted {
   background: #e2e8f0;
   color: var(--color-muted);
-}
-
-.peripherals-sample {
-  margin: 0;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  background: #0f172a;
-  color: #f8fafc;
-  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular,
-    Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
 }
 
 .peripherals-alias-list {
@@ -953,6 +953,12 @@ p {
   font-size: 13px;
 }
 
+.peripherals-alias-row.is-deny {
+  border-style: solid;
+  border-color: rgba(220, 38, 38, 0.4);
+  background: rgba(254, 226, 226, 0.4);
+}
+
 .alias-pin {
   font-weight: 600;
   color: var(--color-text);
@@ -960,6 +966,10 @@ p {
 
 .alias-name {
   color: var(--color-muted);
+}
+
+.peripherals-alias-row.is-deny .alias-name {
+  color: var(--color-danger);
 }
 
 .command-list {

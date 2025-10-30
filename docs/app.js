@@ -586,7 +586,13 @@ document.addEventListener('DOMContentLoaded', () => {
             "allowedHeading": "許可済みピン",
             "allowedPlaceholder": "制限モードでは許可済みピンの一覧が表示されます。",
             "aliasHeading": "別名一覧",
-            "aliasPlaceholder": "ピンへ別名を付けるとここに表示されます。"
+            "aliasPlaceholder": "ピンへ別名を付けるとここに表示されます。",
+            "lastUpdated": "最終更新: {time}",
+            "allowedAll": "すべて",
+            "modeLabel": {
+              "all": "全ピン",
+              "restricted": "制限モード"
+            }
           },
           "gpio": {
             "title": "GPIO 操作",
@@ -625,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "gpioRead": "gpio read を送信",
           "gpioWrite": "gpio write を送信",
           "gpioToggle": "gpio toggle を送信",
+          "gpioPins": "gpio pins を送信",
           "adcRead": "adc read を送信",
           "pwmSet": "pwm set を送信",
           "pwmStop": "pwm stop を送信",
@@ -1301,7 +1308,13 @@ document.addEventListener('DOMContentLoaded', () => {
             "allowedHeading": "Allowed pins",
             "allowedPlaceholder": "Restricted mode will list the allowed pins here.",
             "aliasHeading": "Alias list",
-            "aliasPlaceholder": "Pin aliases appear here once they are assigned."
+            "aliasPlaceholder": "Pin aliases appear here once they are assigned.",
+            "lastUpdated": "Last updated: {time}",
+            "allowedAll": "All pins",
+            "modeLabel": {
+              "all": "All pins",
+              "restricted": "Restricted"
+            }
           },
           "gpio": {
             "title": "GPIO Controls",
@@ -1340,6 +1353,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "gpioRead": "Send gpio read",
           "gpioWrite": "Send gpio write",
           "gpioToggle": "Send gpio toggle",
+          "gpioPins": "Send gpio pins",
           "adcRead": "Send adc read",
           "pwmSet": "Send pwm set",
           "pwmStop": "Send pwm stop",
@@ -2016,7 +2030,13 @@ document.addEventListener('DOMContentLoaded', () => {
             "allowedHeading": "允许的引脚",
             "allowedPlaceholder": "在限制模式下会列出允许的引脚。",
             "aliasHeading": "别名列表",
-            "aliasPlaceholder": "为引脚设置别名后会显示在此。"
+            "aliasPlaceholder": "为引脚设置别名后会显示在此。",
+            "lastUpdated": "最近更新: {time}",
+            "allowedAll": "全部引脚",
+            "modeLabel": {
+              "all": "全部引脚",
+              "restricted": "限制模式"
+            }
           },
           "gpio": {
             "title": "GPIO 控制",
@@ -2055,6 +2075,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "gpioRead": "发送 gpio read",
           "gpioWrite": "发送 gpio write",
           "gpioToggle": "发送 gpio toggle",
+          "gpioPins": "发送 gpio pins",
           "adcRead": "发送 adc read",
           "pwmSet": "发送 pwm set",
           "pwmStop": "发送 pwm stop",
@@ -2727,6 +2748,10 @@ OK fs ls
       '#tab-wifi .command-panel .card-actions button:not([data-system-utility="true"])'
     )
   );
+  const gpioPinsRefreshButton = document.querySelector('#gpio-pins-refresh');
+  if (gpioPinsRefreshButton) {
+    commandButtons.push(gpioPinsRefreshButton);
+  }
   const commandPanels = new Map();
   commandButtons.forEach((button) => {
     const panel = button.closest('.command-panel');
@@ -2737,6 +2762,10 @@ OK fs ls
     button.disabled = false;
     button.removeAttribute('disabled');
   });
+
+  if (commandPanels.has('peripherals-settings')) {
+    commandPanels.delete('peripherals-settings');
+  }
 
   document
     .querySelectorAll('#tab-system .command-panel, #tab-wifi .command-panel')
@@ -2750,6 +2779,24 @@ OK fs ls
       );
       commandPanels.set(commandId, { panel, button: defaultButton || null });
     });
+
+  const gpioSettingsPanel = document.querySelector('#command-peripherals-settings');
+  const gpioSettingsElements = gpioSettingsPanel
+    ? {
+      modePlaceholder: gpioSettingsPanel.querySelector('[data-gpio-mode-placeholder]'),
+      modeValue: gpioSettingsPanel.querySelector('[data-gpio-mode-value]'),
+      updated: gpioSettingsPanel.querySelector('[data-gpio-updated]'),
+      allowedPlaceholder: gpioSettingsPanel.querySelector('[data-gpio-allowed-placeholder]'),
+      allowedList: gpioSettingsPanel.querySelector('[data-gpio-allowed-list]'),
+      aliasPlaceholder: gpioSettingsPanel.querySelector('[data-gpio-alias-placeholder]'),
+      aliasList: gpioSettingsPanel.querySelector('[data-gpio-alias-list]')
+    }
+    : null;
+
+  let gpioSettingsLastRaw = '';
+  let gpioSettingsLastParsed = null;
+  let gpioSettingsLastUpdatedAt = null;
+  let gpioSettingsLastMessage = '';
 
   const sysTimeInput = document.querySelector('#sys-time-input');
   const sysTimeSetButton = document.querySelector('#sys-time-set');
@@ -2934,8 +2981,10 @@ OK fs ls
     'sys-mem',
     'wifi-status',
     'wifi-list',
-    'ntp-status'
+    'ntp-status',
+    'gpio-pins'
   ]);
+  const autoCommandHandlers = new Map();
   let autoCommandQueue = [];
 
   const resetAutoCommandQueue = () => {
@@ -2954,7 +3003,19 @@ OK fs ls
     if (!nextCommand) {
       return;
     }
-    sendSystemCommand(nextCommand);
+    const handler = autoCommandHandlers.get(nextCommand);
+    if (handler) {
+      try {
+        handler();
+      } catch (error) {
+        console.error('Auto command handler failed:', error);
+        processAutoCommandQueue();
+      }
+      return;
+    }
+    if (commandPanels.has(nextCommand)) {
+      sendSystemCommand(nextCommand);
+    }
   };
 
   const enqueueAutoCommand = (commandId) => {
@@ -2964,7 +3025,7 @@ OK fs ls
     if (connectionState !== 'connected') {
       return;
     }
-    if (!commandPanels.has(commandId)) {
+    if (!commandPanels.has(commandId) && !autoCommandHandlers.has(commandId)) {
       return;
     }
     if (activeCommand && activeCommand.id === commandId) {
@@ -2989,6 +3050,338 @@ OK fs ls
     }
   };
 
+  const toggleHidden = (element, hidden) => {
+    if (!element) {
+      return;
+    }
+    if (hidden) {
+      element.hidden = true;
+      element.setAttribute('hidden', '');
+    } else {
+      element.hidden = false;
+      element.removeAttribute('hidden');
+    }
+  };
+
+  const isGpioSettingsActive = () => {
+    const activePanel = document.querySelector('#tab-peripherals .command-panel.is-active');
+    return activePanel?.dataset.command === 'peripherals-settings';
+  };
+
+  const clearElement = (element) => {
+    if (element) {
+      element.innerHTML = '';
+    }
+  };
+
+  const getGpioModeLabel = (value) => {
+    if (!value) {
+      return '';
+    }
+    const normalized = String(value).trim().toLowerCase();
+    const translated = translate(`peripherals.groups.settings.modeLabel.${normalized}`);
+    return translated || value;
+  };
+
+  const updateGpioSettingsStatusLabel = () => {
+    if (!gpioSettingsElements?.updated) {
+      return;
+    }
+    if (gpioSettingsLastMessage) {
+      gpioSettingsElements.updated.textContent = gpioSettingsLastMessage;
+      toggleHidden(gpioSettingsElements.updated, false);
+      return;
+    }
+    if (gpioSettingsLastUpdatedAt instanceof Date) {
+      const template = translate('peripherals.groups.settings.lastUpdated');
+      if (template) {
+        gpioSettingsElements.updated.textContent = interpolate(template, {
+          time: formatTimeStamp(gpioSettingsLastUpdatedAt)
+        });
+        toggleHidden(gpioSettingsElements.updated, false);
+        return;
+      }
+    }
+    gpioSettingsElements.updated.textContent = '';
+    toggleHidden(gpioSettingsElements.updated, true);
+  };
+
+  const clearGpioSettingsDisplay = () => {
+    if (!gpioSettingsElements) {
+      return;
+    }
+    if (gpioSettingsElements.modeValue) {
+      gpioSettingsElements.modeValue.textContent = '';
+    }
+    toggleHidden(gpioSettingsElements.modeValue, true);
+    toggleHidden(gpioSettingsElements.modePlaceholder, false);
+    clearElement(gpioSettingsElements.allowedList);
+    toggleHidden(gpioSettingsElements.allowedList, true);
+    toggleHidden(gpioSettingsElements.allowedPlaceholder, false);
+    clearElement(gpioSettingsElements.aliasList);
+    toggleHidden(gpioSettingsElements.aliasList, true);
+    toggleHidden(gpioSettingsElements.aliasPlaceholder, false);
+    gpioSettingsLastRaw = '';
+    gpioSettingsLastParsed = null;
+    gpioSettingsLastUpdatedAt = null;
+    gpioSettingsLastMessage = '';
+    updateGpioSettingsStatusLabel();
+  };
+
+  const setGpioSettingsLoading = () => {
+    if (!gpioSettingsElements) {
+      return;
+    }
+    if (gpioSettingsElements.modeValue) {
+      gpioSettingsElements.modeValue.textContent = '';
+    }
+    toggleHidden(gpioSettingsElements.modeValue, true);
+    toggleHidden(gpioSettingsElements.modePlaceholder, false);
+    toggleHidden(gpioSettingsElements.allowedList, true);
+    toggleHidden(gpioSettingsElements.allowedPlaceholder, false);
+    toggleHidden(gpioSettingsElements.aliasList, true);
+    toggleHidden(gpioSettingsElements.aliasPlaceholder, false);
+    gpioSettingsLastMessage = translate('results.pending');
+    gpioSettingsLastUpdatedAt = null;
+    updateGpioSettingsStatusLabel();
+  };
+
+  const parseGpioPinsOutput = (raw) => {
+    const result = {
+      raw: raw || '',
+      mode: '',
+      allowedAll: false,
+      allowedPins: [],
+      aliasEntries: []
+    };
+    if (!raw) {
+      return result;
+    }
+    const lines = raw.split(/\r?\n/);
+    let allowedLineSeen = false;
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed === '>' || trimmed === '<') {
+        return;
+      }
+      const content = trimmed.startsWith('|') ? trimmed.slice(1).trim() : trimmed;
+      if (!content) {
+        return;
+      }
+      const lower = content.toLowerCase();
+      if (lower.startsWith('ok ')) {
+        return;
+      }
+      if (lower.startsWith('mode:')) {
+        result.mode = content.slice(5).trim();
+        return;
+      }
+      if (lower.startsWith('allowed pins:')) {
+        allowedLineSeen = true;
+        const listText = content.slice('allowed pins:'.length).trim();
+        if (!listText || listText === '(none)') {
+          result.allowedPins = [];
+        } else if (listText.toLowerCase() === 'all') {
+          result.allowedAll = true;
+        } else {
+          result.allowedPins = listText
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+        }
+        return;
+      }
+      if (lower.startsWith('err ')) {
+        return;
+      }
+      const pinMatch = content.match(/^pin\s+(\d+):\s+(.+)$/i);
+      if (!pinMatch) {
+        return;
+      }
+      const pin = pinMatch[1];
+      const detail = pinMatch[2];
+      const aliasMatch = detail.match(/name:\s*(.+)$/i);
+      const alias = aliasMatch ? aliasMatch[1].trim() : '';
+      const stateText = aliasMatch ? detail.slice(0, aliasMatch.index).trim() : detail.trim();
+      const allowed = /^allow\b/i.test(stateText);
+      if (alias) {
+        result.aliasEntries.push({
+          pin,
+          alias,
+          stateText,
+          allowed,
+          explicit: /\(explicit\)/i.test(stateText)
+        });
+      }
+      if (!allowedLineSeen && allowed) {
+        result.allowedPins.push(pin);
+      }
+    });
+    result.allowedPins = Array.from(
+      new Set(result.allowedPins.map((value) => value.trim()).filter(Boolean))
+    ).sort((a, b) => Number(a) - Number(b));
+    result.aliasEntries.sort((a, b) => Number(a.pin) - Number(b.pin));
+    return result;
+  };
+
+  const renderGpioSettings = (data, { preserveMessage = false } = {}) => {
+    if (!gpioSettingsElements) {
+      return;
+    }
+    if (!data) {
+      clearGpioSettingsDisplay();
+      return;
+    }
+    gpioSettingsLastParsed = {
+      ...data,
+      allowedPins: Array.isArray(data.allowedPins) ? [...data.allowedPins] : [],
+      aliasEntries: Array.isArray(data.aliasEntries)
+        ? data.aliasEntries.map((entry) => ({ ...entry }))
+        : []
+    };
+    if (!preserveMessage) {
+      gpioSettingsLastMessage = '';
+    }
+
+    const hasMode = Boolean(data.mode);
+    if (gpioSettingsElements.modeValue) {
+      const modeLabel = getGpioModeLabel(data.mode);
+      gpioSettingsElements.modeValue.textContent = modeLabel || data.mode || '';
+    }
+    toggleHidden(gpioSettingsElements.modeValue, !hasMode);
+    toggleHidden(gpioSettingsElements.modePlaceholder, hasMode);
+
+    if (gpioSettingsElements.allowedList) {
+      clearElement(gpioSettingsElements.allowedList);
+    }
+    if (data.allowedAll) {
+      const label = translate('peripherals.groups.settings.allowedAll') || 'all';
+      if (gpioSettingsElements.allowedList) {
+        const chip = document.createElement('span');
+        chip.className = 'chip chip--muted';
+        chip.textContent = label;
+        gpioSettingsElements.allowedList.append(chip);
+      }
+      toggleHidden(gpioSettingsElements.allowedList, false);
+      toggleHidden(gpioSettingsElements.allowedPlaceholder, true);
+    } else if (data.allowedPins && data.allowedPins.length > 0) {
+      if (gpioSettingsElements.allowedList) {
+        data.allowedPins.forEach((value) => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = value;
+          gpioSettingsElements.allowedList.append(chip);
+        });
+      }
+      toggleHidden(gpioSettingsElements.allowedList, false);
+      toggleHidden(gpioSettingsElements.allowedPlaceholder, true);
+    } else {
+      toggleHidden(gpioSettingsElements.allowedList, true);
+      toggleHidden(gpioSettingsElements.allowedPlaceholder, false);
+    }
+
+    if (gpioSettingsElements.aliasList) {
+      clearElement(gpioSettingsElements.aliasList);
+    }
+    if (data.aliasEntries && data.aliasEntries.length > 0) {
+      if (gpioSettingsElements.aliasList) {
+        data.aliasEntries.forEach((entry) => {
+          const row = document.createElement('div');
+          row.className = 'peripherals-alias-row';
+          if (!entry.allowed) {
+            row.classList.add('is-deny');
+          }
+          const pinSpan = document.createElement('span');
+          pinSpan.className = 'alias-pin';
+          pinSpan.textContent = entry.pin;
+          const aliasSpan = document.createElement('span');
+          aliasSpan.className = 'alias-name';
+          const shouldShowState = Boolean(entry.stateText) && !entry.allowed;
+          aliasSpan.textContent = shouldShowState
+            ? `${entry.alias} (${entry.stateText})`
+            : entry.alias;
+          row.append(pinSpan, aliasSpan);
+          gpioSettingsElements.aliasList.append(row);
+        });
+      }
+      toggleHidden(gpioSettingsElements.aliasList, false);
+      toggleHidden(gpioSettingsElements.aliasPlaceholder, true);
+    } else {
+      toggleHidden(gpioSettingsElements.aliasList, true);
+      toggleHidden(gpioSettingsElements.aliasPlaceholder, false);
+    }
+
+    updateGpioSettingsStatusLabel();
+  };
+
+  const refreshGpioSettingsLocale = () => {
+    if (!gpioSettingsElements) {
+      return;
+    }
+    if (gpioSettingsLastParsed) {
+      renderGpioSettings(gpioSettingsLastParsed, { preserveMessage: true });
+    } else {
+      updateGpioSettingsStatusLabel();
+    }
+  };
+
+  const ensureGpioSettingsData = ({ force = false } = {}) => {
+    if (!gpioSettingsPanel || !isGpioSettingsActive()) {
+      return;
+    }
+    if (connectionState !== 'connected') {
+      return;
+    }
+    if (!force && gpioSettingsLastRaw) {
+      refreshGpioSettingsLocale();
+      return;
+    }
+    enqueueAutoCommand('gpio-pins');
+  };
+
+  const runGpioPinsCommand = () => {
+    if (!gpioSettingsPanel) {
+      return;
+    }
+    if (!isGpioSettingsActive()) {
+      return;
+    }
+    setGpioSettingsLoading();
+    runSerialCommand('gpio pins', {
+      id: 'gpio-pins',
+      onFinalize: ({ output, error }) => {
+        const trimmed = typeof output === 'string' ? output.trim() : '';
+        if (error || !trimmed || /^ERR\b/i.test(trimmed)) {
+          const message = trimmed || translate('results.placeholder');
+          if (!gpioSettingsLastParsed) {
+            clearGpioSettingsDisplay();
+          }
+          gpioSettingsLastMessage = message;
+          gpioSettingsLastUpdatedAt = null;
+          updateGpioSettingsStatusLabel();
+          return;
+        }
+        const parsed = parseGpioPinsOutput(output);
+        gpioSettingsLastRaw = output;
+        gpioSettingsLastUpdatedAt = new Date();
+        gpioSettingsLastMessage = '';
+        renderGpioSettings(parsed);
+      }
+    }).catch((commandError) => {
+      const message = commandError?.message || translate('results.placeholder');
+      if (!gpioSettingsLastParsed) {
+        clearGpioSettingsDisplay();
+      }
+      gpioSettingsLastMessage = message;
+      gpioSettingsLastUpdatedAt = null;
+      updateGpioSettingsStatusLabel();
+    });
+  };
+
+  if (gpioSettingsPanel) {
+    autoCommandHandlers.set('gpio-pins', runGpioPinsCommand);
+  }
+
   const setLanguage = (lang, { persist = true } = {}) => {
     const normalized = normalizeLanguage(lang);
     currentLanguage = normalized;
@@ -3000,6 +3393,7 @@ OK fs ls
       }
     }
     applyTranslations();
+    refreshGpioSettingsLocale();
     refreshConnectionLabel();
     applyDisabledTitles();
     refreshLanguageSensitiveUI();
@@ -3390,6 +3784,9 @@ OK fs ls
         renderConfigTable(configEntries);
       }
     }
+    if (currentTab === 'peripherals') {
+      ensureGpioSettingsData();
+    }
   };
 
   tabButtons.forEach((button) => {
@@ -3572,12 +3969,12 @@ OK fs ls
         };
       });
 
-  const formatTimeStamp = () =>
+  const formatTimeStamp = (value = new Date()) =>
     new Intl.DateTimeFormat(DATETIME_LOCALE[currentLanguage] || DATETIME_LOCALE[LANGUAGE_FALLBACK], {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
-    }).format(new Date());
+    }).format(value instanceof Date ? value : new Date(value));
 
   const updateResultSection = (panel, commandId) => {
     if (connectionState === 'connected') {
@@ -3648,6 +4045,9 @@ OK fs ls
         } else if (helpAutoIds.has(commandId) && connectionState === 'connected') {
           sendSystemCommand(commandId, { panel: activePanel });
         }
+      }
+      if (commandId === 'peripherals-settings') {
+        ensureGpioSettingsData();
       }
     };
 
@@ -6166,10 +6566,16 @@ OK fs ls
           /* handled via log */
         });
       }
+      if (currentTab === 'peripherals') {
+        ensureGpioSettingsData();
+      }
     } else {
       clearHelpAutoRetry();
       helpAutoRetryAttempts = 0;
       resetAutoCommandQueue();
+      if (gpioSettingsPanel) {
+        clearGpioSettingsDisplay();
+      }
     }
   };
 
@@ -7337,6 +7743,16 @@ OK fs ls
       sendSystemCommand(commandId);
     });
   });
+
+  if (gpioPinsRefreshButton) {
+    gpioPinsRefreshButton.addEventListener('click', () => {
+      if (connectionState !== 'connected') {
+        appendLogEntry('error', translate('connection.info.connectFirst'));
+        return;
+      }
+      enqueueAutoCommand('gpio-pins');
+    });
+  }
 
   if (connectButton) {
     connectButton.addEventListener('click', connectSerial);
