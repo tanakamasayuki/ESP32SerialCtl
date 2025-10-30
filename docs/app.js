@@ -694,6 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "labels": {
           "address": "アドレス (0x--)",
+          "register": "レジスタ (0x--)",
           "length": "読み取りバイト数 (省略可)",
           "payload": "送信データ (スペース区切り 0x)",
           "pin": "ピン",
@@ -714,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "placeholders": {
           "address": "例: 0x3C",
+          "register": "例: 0x10",
           "length": "例: 16",
           "payload": "例: 0x01 0x02",
           "pin": "ピンを選択してください",
@@ -1416,6 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "labels": {
           "address": "Address (0x--)",
+          "register": "Register (0x--)",
           "length": "Read length (optional)",
           "payload": "Payload (space-separated 0x)",
           "pin": "Pin",
@@ -1436,6 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "placeholders": {
           "address": "e.g. 0x3C",
+          "register": "e.g. 0x10",
           "length": "e.g. 16",
           "payload": "e.g. 0x01 0x02",
           "pin": "Select a pin",
@@ -2138,6 +2142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "labels": {
           "address": "地址 (0x--)",
+          "register": "寄存器 (0x--)",
           "length": "读取字节数（可选）",
           "payload": "发送数据（空格分隔 0x）",
           "pin": "引脚",
@@ -2158,6 +2163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "placeholders": {
           "address": "例如: 0x3C",
+          "register": "例如: 0x10",
           "length": "例如: 16",
           "payload": "例如: 0x01 0x02",
           "pin": "请选择引脚",

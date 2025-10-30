@@ -1338,10 +1338,17 @@
                         data-i18n-placeholder="peripherals.placeholders.address" />
                     </div>
                   </div>
-                  <div class="form-field">
-                    <label for="i2c-read-length" data-i18n="peripherals.labels.length">読み取りバイト数</label>
-                    <input id="i2c-read-length" type="number" placeholder="例: 16" disabled
-                      data-i18n-placeholder="peripherals.placeholders.length" />
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="i2c-read-register" data-i18n="peripherals.labels.register">レジスタ</label>
+                      <input id="i2c-read-register" type="text" placeholder="0x00" disabled
+                        data-i18n-placeholder="peripherals.placeholders.register" />
+                    </div>
+                    <div class="form-field">
+                      <label for="i2c-read-length" data-i18n="peripherals.labels.length">読み取りバイト数</label>
+                      <input id="i2c-read-length" type="number" placeholder="例: 16" disabled
+                        data-i18n-placeholder="peripherals.placeholders.length" />
+                    </div>
                   </div>
                   <div class="card-actions">
                     <button class="btn btn-outline" disabled data-i18n="peripherals.actions.read">i2c read を送信</button>
@@ -1363,6 +1370,11 @@
                       <input id="i2c-write-address" type="text" placeholder="0x3C" disabled
                         data-i18n-placeholder="peripherals.placeholders.address" />
                     </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="i2c-write-register" data-i18n="peripherals.labels.register">レジスタ</label>
+                    <input id="i2c-write-register" type="text" placeholder="0x00" disabled
+                      data-i18n-placeholder="peripherals.placeholders.register" />
                   </div>
                   <div class="form-field">
                     <label for="i2c-write-bytes" data-i18n="peripherals.labels.payload">送信バイト列</label>
