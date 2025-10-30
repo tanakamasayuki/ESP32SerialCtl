@@ -907,6 +907,10 @@ p {
   min-height: 0;
 }
 
+.peripherals-card .card-actions {
+  margin-top: 8px;
+}
+
 .peripherals-result {
   margin: 0;
   margin-top: 8px;

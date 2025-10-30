@@ -3854,7 +3854,7 @@ OK fs ls
     applyTranslations();
     refreshGpioSettingsLocale();
     refreshPeripheralPinSelects();
-  refreshPeripheralResultsLocale();
+    refreshPeripheralResultsLocale();
     refreshConnectionLabel();
     applyDisabledTitles();
     refreshLanguageSensitiveUI();
