@@ -1030,8 +1030,10 @@
                   <div class="dual-field">
                     <div class="form-field">
                       <label for="gpio-mode-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                      <input id="gpio-mode-pin" type="number" placeholder="例: 26" disabled
-                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                      <select id="gpio-mode-pin" disabled data-pin-select="true"
+                        data-pin-placeholder="peripherals.placeholders.pin">
+                        <option value="" data-placeholder="true" disabled selected></option>
+                      </select>
                     </div>
                     <div class="form-field">
                       <label for="gpio-mode-select" data-i18n="peripherals.labels.mode">モード</label>
@@ -1055,8 +1057,10 @@
                   <p data-i18n="peripherals.commands.gpio-read.description">入力ピンの状態を読み取ります。</p>
                   <div class="form-field">
                     <label for="gpio-read-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                    <input id="gpio-read-pin" type="number" placeholder="例: 34" disabled
-                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                    <select id="gpio-read-pin" disabled data-pin-select="true"
+                      data-pin-placeholder="peripherals.placeholders.pin">
+                      <option value="" data-placeholder="true" disabled selected></option>
+                    </select>
                   </div>
                   <div class="card-actions">
                     <button class="btn btn-outline" disabled data-i18n="peripherals.actions.gpioRead">gpio read
@@ -1069,8 +1073,10 @@
                   <div class="dual-field">
                     <div class="form-field">
                       <label for="gpio-write-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                      <input id="gpio-write-pin" type="number" placeholder="例: 25" disabled
-                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                      <select id="gpio-write-pin" disabled data-pin-select="true"
+                        data-pin-placeholder="peripherals.placeholders.pin">
+                        <option value="" data-placeholder="true" disabled selected></option>
+                      </select>
                     </div>
                     <div class="form-field">
                       <label for="gpio-write-value" data-i18n="peripherals.labels.value">値</label>
@@ -1090,8 +1096,10 @@
                   <p data-i18n="peripherals.commands.gpio-toggle.description">出力ピンの状態をトグルします。</p>
                   <div class="form-field">
                     <label for="gpio-toggle-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                    <input id="gpio-toggle-pin" type="number" placeholder="例: 2" disabled
-                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                    <select id="gpio-toggle-pin" disabled data-pin-select="true"
+                      data-pin-placeholder="peripherals.placeholders.pin">
+                      <option value="" data-placeholder="true" disabled selected></option>
+                    </select>
                   </div>
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
@@ -1141,8 +1149,10 @@
                   <div class="dual-field">
                     <div class="form-field">
                       <label for="pwm-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                      <input id="pwm-pin" type="number" placeholder="例: 4" disabled
-                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                      <select id="pwm-pin" disabled data-pin-select="true"
+                        data-pin-placeholder="peripherals.placeholders.pin">
+                        <option value="" data-placeholder="true" disabled selected></option>
+                      </select>
                     </div>
                     <div class="form-field">
                       <label for="pwm-freq" data-i18n="peripherals.labels.frequency">周波数 (Hz)</label>
@@ -1164,8 +1174,10 @@
                   <p data-i18n="peripherals.commands.pwm-stop.description">指定ピンの PWM を停止します。</p>
                   <div class="form-field">
                     <label for="pwm-stop-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                    <input id="pwm-stop-pin" type="number" placeholder="例: 4" disabled
-                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                    <select id="pwm-stop-pin" disabled data-pin-select="true"
+                      data-pin-placeholder="peripherals.placeholders.pin">
+                      <option value="" data-placeholder="true" disabled selected></option>
+                    </select>
                   </div>
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop
@@ -1186,8 +1198,10 @@
                   <div class="dual-field">
                     <div class="form-field">
                       <label for="servo-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                      <input id="servo-pin" type="number" placeholder="例: 16" disabled
-                        data-i18n-placeholder="peripherals.placeholders.pin" />
+                      <select id="servo-pin" disabled data-pin-select="true"
+                        data-pin-placeholder="peripherals.placeholders.pin">
+                        <option value="" data-placeholder="true" disabled selected></option>
+                      </select>
                     </div>
                     <div class="form-field">
                       <label for="servo-angle" data-i18n="peripherals.labels.angle">角度 (0-180)</label>
@@ -1216,8 +1230,10 @@
                   <p data-i18n="peripherals.groups.servo.stopDescription">サーボ駆動を停止して出力を無効化します。</p>
                   <div class="form-field">
                     <label for="servo-stop-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                    <input id="servo-stop-pin" type="number" placeholder="例: 16" disabled
-                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                    <select id="servo-stop-pin" disabled data-pin-select="true"
+                      data-pin-placeholder="peripherals.placeholders.pin">
+                      <option value="" data-placeholder="true" disabled selected></option>
+                    </select>
                   </div>
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.pwmStop">pwm stop
@@ -1237,8 +1253,10 @@
                   <p data-i18n="peripherals.commands.rgb-pin.description">デフォルトの RGB LED 出力ピンを設定します。</p>
                   <div class="form-field">
                     <label for="rgb-pin-input" data-i18n="peripherals.labels.pin">ピン</label>
-                    <input id="rgb-pin-input" type="number" placeholder="例: 16" disabled
-                      data-i18n-placeholder="peripherals.placeholders.pin" />
+                    <select id="rgb-pin-input" disabled data-pin-select="true"
+                      data-pin-placeholder="peripherals.placeholders.pin">
+                      <option value="" data-placeholder="true" disabled selected></option>
+                    </select>
                   </div>
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbPin">rgb pin を送信</button>
