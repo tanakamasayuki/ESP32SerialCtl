@@ -1052,6 +1052,21 @@
                       を送信</button>
                   </div>
                 </section>
+                <section class="peripherals-card" id="command-peripherals-gpio-toggle">
+                  <h4>gpio toggle &lt;pin&gt;</h4>
+                  <p data-i18n="peripherals.commands.gpio-toggle.description">出力ピンの状態をトグルします。</p>
+                  <div class="form-field">
+                    <label for="gpio-toggle-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                    <select id="gpio-toggle-pin" disabled data-pin-select="true"
+                      data-pin-placeholder="peripherals.placeholders.pin">
+                      <option value="" data-placeholder="true" disabled selected></option>
+                    </select>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
+                      を送信</button>
+                  </div>
+                </section>
                 <section class="peripherals-card" id="command-peripherals-gpio-read">
                   <h4>gpio read &lt;pin&gt;</h4>
                   <p data-i18n="peripherals.commands.gpio-read.description">入力ピンの状態を読み取ります。</p>
@@ -1091,37 +1106,24 @@
                       を送信</button>
                   </div>
                 </section>
-                <section class="peripherals-card" id="command-peripherals-gpio-toggle">
-                  <h4>gpio toggle &lt;pin&gt;</h4>
-                  <p data-i18n="peripherals.commands.gpio-toggle.description">出力ピンの状態をトグルします。</p>
-                  <div class="form-field">
-                    <label for="gpio-toggle-pin" data-i18n="peripherals.labels.pin">ピン</label>
-                    <select id="gpio-toggle-pin" disabled data-pin-select="true"
-                      data-pin-placeholder="peripherals.placeholders.pin">
-                      <option value="" data-placeholder="true" disabled selected></option>
-                    </select>
-                  </div>
-                  <div class="card-actions">
-                    <button class="btn btn-primary" disabled data-i18n="peripherals.actions.gpioToggle">gpio toggle
-                      を送信</button>
-                  </div>
-                </section>
               </div>
             </article>
 
             <article class="card command-panel" id="command-peripherals-adc" data-command="peripherals-adc"
               role="tabpanel" aria-labelledby="tab-peripherals-adc">
               <h3 data-i18n="peripherals.groups.adc.title">ADC 測定</h3>
-              <p data-i18n="peripherals.groups.adc.description">ADC チャンネルのサンプリングを行います。</p>
+              <p data-i18n="peripherals.groups.adc.description">ADC ピンのサンプリングを行います。</p>
               <div class="peripherals-grid">
                 <section class="peripherals-card" id="command-peripherals-adc-read">
-                  <h4>adc read &lt;channel&gt;</h4>
-                  <p data-i18n="peripherals.commands.adc-read.description">ADC チャンネルをサンプリングします。</p>
+                  <h4>adc read &lt;pin&gt;</h4>
+                  <p data-i18n="peripherals.commands.adc-read.description">ADC ピンをサンプリングします。</p>
                   <div class="dual-field">
                     <div class="form-field">
-                      <label for="adc-channel" data-i18n="peripherals.labels.channel">チャネル</label>
-                      <input id="adc-channel" type="number" placeholder="例: 34" disabled
-                        data-i18n-placeholder="peripherals.placeholders.channel" />
+                      <label for="adc-pin" data-i18n="peripherals.labels.pin">ピン</label>
+                      <select id="adc-pin" disabled data-pin-select="true"
+                        data-pin-placeholder="peripherals.placeholders.pin">
+                        <option value="" data-placeholder="true" disabled selected></option>
+                      </select>
                     </div>
                     <div class="form-field">
                       <label for="adc-average" data-i18n="peripherals.labels.average">平均回数</label>

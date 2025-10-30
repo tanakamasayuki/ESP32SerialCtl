@@ -600,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "adc": {
             "title": "ADC 測定",
-            "description": "ADC チャンネルのサンプリングを行います。"
+            "description": "ADC ピンのサンプリングを行います。"
           },
           "pwm": {
             "title": "PWM 制御",
@@ -662,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "出力ピンの状態をトグルします。"
           },
           "adc-read": {
-            "description": "ADC チャンネルをサンプリングします。"
+            "description": "ADC ピンをサンプリングします。"
           },
           "pwm-set": {
             "description": "LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。"
@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "address": "例: 0x3C",
           "length": "例: 16",
           "payload": "例: 0x01 0x02",
-          "pin": "例: 21",
+          "pin": "ピンを選択してください",
           "value": "例: high",
           "duty": "例: 2048 または 50%",
           "frequency": "例: 5000",
@@ -1384,7 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "Toggle the state of an output pin."
           },
           "adc-read": {
-            "description": "Sample an ADC channel."
+            "description": "Sample an ADC pin."
           },
           "pwm-set": {
             "description": "Configure the LEDC PWM signal (12-bit; duty accepts 0-4095 or %)."
@@ -1438,7 +1438,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "address": "e.g. 0x3C",
           "length": "e.g. 16",
           "payload": "e.g. 0x01 0x02",
-          "pin": "e.g. 21",
+          "pin": "Select a pin",
           "value": "e.g. high",
           "duty": "e.g. 2048 or 50%",
           "frequency": "e.g. 5000",
@@ -2044,7 +2044,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           "adc": {
             "title": "ADC 采样",
-            "description": "采样指定通道的模拟值。"
+            "description": "采样指定引脚的模拟值。"
           },
           "pwm": {
             "title": "PWM 控制",
@@ -2106,7 +2106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "切换输出引脚的状态。"
           },
           "adc-read": {
-            "description": "采样指定 ADC 通道。"
+            "description": "采样指定 ADC 引脚。"
           },
           "pwm-set": {
             "description": "配置 LEDC PWM 信号（12 位，占空比支持 0-4095 或 %）。"
@@ -2160,7 +2160,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "address": "例如: 0x3C",
           "length": "例如: 16",
           "payload": "例如: 0x01 0x02",
-          "pin": "例如: 21",
+          "pin": "请选择引脚",
           "value": "例如: high",
           "duty": "例如: 2048 或 50%",
           "frequency": "例如: 5000",
