@@ -735,6 +735,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "notes": {
           "stream": "チャンク送信の進捗やエラーを表示予定"
+        },
+        "errors": {
+          "pinRequired": "ピンを選択してください。",
+          "modeRequired": "モードを選択してください。",
+          "valueRequired": "値を選択してください。"
         }
       },
       "help": {
@@ -1459,6 +1464,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "notes": {
           "stream": "Progress and errors for chunk streaming will appear here."
+        },
+        "errors": {
+          "pinRequired": "Select a pin.",
+          "modeRequired": "Select a mode.",
+          "valueRequired": "Select a value."
         }
       },
       "help": {
@@ -2183,6 +2193,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "notes": {
           "stream": "分段传输的进度与错误将在此显示。"
+        },
+        "errors": {
+          "pinRequired": "请选择引脚。",
+          "modeRequired": "请选择模式。",
+          "valueRequired": "请选择值。"
         }
       },
       "help": {
@@ -2835,6 +2850,31 @@ OK fs ls
   const configRefreshButton = document.querySelector('#config-refresh-button');
   const configTableBody = document.querySelector('#config-table-body');
   const configEmptyState = document.querySelector('#config-empty-state');
+  const gpioModePinSelect = document.querySelector('#gpio-mode-pin');
+  const gpioModeSelect = document.querySelector('#gpio-mode-select');
+  const gpioModeButton = document.querySelector('#command-peripherals-gpio-mode .card-actions button');
+  const gpioTogglePinSelect = document.querySelector('#gpio-toggle-pin');
+  const gpioToggleButton = document.querySelector('#command-peripherals-gpio-toggle .card-actions button');
+  const gpioReadPinSelect = document.querySelector('#gpio-read-pin');
+  const gpioReadButton = document.querySelector('#command-peripherals-gpio-read .card-actions button');
+  const gpioWritePinSelect = document.querySelector('#gpio-write-pin');
+  const gpioWriteValueSelect = document.querySelector('#gpio-write-value');
+  const gpioWriteButton = document.querySelector('#command-peripherals-gpio-write .card-actions button');
+
+  const peripheralCommandButtons = [
+    gpioModeButton,
+    gpioToggleButton,
+    gpioReadButton,
+    gpioWriteButton
+  ].filter(Boolean);
+  const gpioAuxiliaryControls = [gpioModeSelect, gpioWriteValueSelect].filter(Boolean);
+  const gpioModeCommandMap = {
+    input: 'in',
+    output: 'out',
+    input_pullup: 'pullup',
+    input_pulldown: 'pulldown',
+    opendrain: 'opendrain'
+  };
 
   const helpElements = {
     helpButton: document.querySelector('#command-help-help .card-actions button'),
@@ -2995,6 +3035,7 @@ OK fs ls
   const autoCommandHandlers = new Map();
   let autoCommandQueue = [];
   const commandFinalizeObservers = new Map();
+  let activeCommand = null;
 
   const addCommandFinalizeObserver = (commandId, handler) => {
     if (!commandId || typeof handler !== 'function') {
@@ -3127,6 +3168,45 @@ OK fs ls
     return [];
   };
 
+  const updatePeripheralCommandButtonsState = () => {
+    const pinsAvailable = getSelectablePinValues().length > 0;
+    const connected = connectionState === 'connected';
+    const busy = Boolean(activeCommand);
+    const shouldEnableButtons = connected && !busy && pinsAvailable;
+
+    peripheralCommandButtons.forEach((button) => {
+      if (!button) {
+        return;
+      }
+      if (shouldEnableButtons) {
+        button.disabled = false;
+        button.removeAttribute('disabled');
+        button.classList.remove('btn--inactive');
+        button.removeAttribute('aria-disabled');
+      } else {
+        button.disabled = true;
+        button.setAttribute('disabled', '');
+        button.classList.add('btn--inactive');
+        button.setAttribute('aria-disabled', 'true');
+      }
+    });
+
+    const shouldEnableControls = connected && pinsAvailable;
+    gpioAuxiliaryControls.forEach((element) => {
+      if (!element) {
+        return;
+      }
+      if (shouldEnableControls) {
+        element.disabled = false;
+        element.removeAttribute('disabled');
+      } else {
+        element.disabled = true;
+        element.setAttribute('disabled', '');
+      }
+    });
+    applyDisabledTitles();
+  };
+
   const refreshPeripheralPinSelects = () => {
     if (!peripheralPinSelects.length) {
       return;
@@ -3189,7 +3269,7 @@ OK fs ls
         }
       }
     });
-    applyDisabledTitles();
+    updatePeripheralCommandButtonsState();
   };
 
   const parseGpioCountFromSysInfo = (raw) => {
@@ -6541,7 +6621,6 @@ OK fs ls
   let serialPort = null;
   let serialWriter = null;
   let serialReader = null;
-  let activeCommand = null;
   let logLineBuffer = '';
   let lastLogDownloadUrl = null;
   let isDisconnecting = false;
@@ -6605,6 +6684,7 @@ OK fs ls
         button.removeAttribute('title');
       }
     });
+    updatePeripheralCommandButtonsState();
   };
 
   const setConnectionState = (state) => {
@@ -7861,6 +7941,109 @@ OK fs ls
     });
   };
 
+  const ensureGpioPinSelected = (select) => {
+    const value = (select?.value || '').trim();
+    if (!value) {
+      appendLogEntry('error', translate('peripherals.errors.pinRequired'));
+      if (select) {
+        select.focus();
+      }
+      return null;
+    }
+    return value;
+  };
+
+  const handleGpioModeRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(gpioModePinSelect);
+    if (!pin) {
+      return;
+    }
+    const mode = (gpioModeSelect?.value || '').trim();
+    if (!mode) {
+      appendLogEntry('error', translate('peripherals.errors.modeRequired'));
+      gpioModeSelect?.focus();
+      return;
+    }
+  const normalizedMode = mode.toLowerCase();
+  const commandMode = gpioModeCommandMap[normalizedMode] || normalizedMode;
+    appendLogEntry('debug', `UI: gpio mode -> pin=${pin} mode=${commandMode}`);
+    runSerialCommand(`gpio mode ${pin} ${commandMode}`, {
+      id: `gpio-mode-${pin}`,
+      button: gpioModeButton,
+      onFinalize: ({ error }) => {
+        if (!error) {
+          enqueueAutoCommand('gpio-pins');
+        }
+      }
+    }).catch(() => {
+      /* handled via log */
+    });
+  };
+
+  const handleGpioToggleRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(gpioTogglePinSelect);
+    if (!pin) {
+      return;
+    }
+    appendLogEntry('debug', `UI: gpio toggle -> pin=${pin}`);
+    runSerialCommand(`gpio toggle ${pin}`, {
+      id: `gpio-toggle-${pin}`,
+      button: gpioToggleButton
+    }).catch(() => {
+      /* handled via log */
+    });
+  };
+
+  const handleGpioReadRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(gpioReadPinSelect);
+    if (!pin) {
+      return;
+    }
+    appendLogEntry('debug', `UI: gpio read -> pin=${pin}`);
+    runSerialCommand(`gpio read ${pin}`, {
+      id: `gpio-read-${pin}`,
+      button: gpioReadButton
+    }).catch(() => {
+      /* handled via log */
+    });
+  };
+
+  const handleGpioWriteRun = () => {
+    if (connectionState !== 'connected') {
+      appendLogEntry('error', translate('connection.info.connectFirst'));
+      return;
+    }
+    const pin = ensureGpioPinSelected(gpioWritePinSelect);
+    if (!pin) {
+      return;
+    }
+    const value = (gpioWriteValueSelect?.value || '').trim();
+    if (!value) {
+      appendLogEntry('error', translate('peripherals.errors.valueRequired'));
+      gpioWriteValueSelect?.focus();
+      return;
+    }
+    appendLogEntry('debug', `UI: gpio write -> pin=${pin} value=${value}`);
+    runSerialCommand(`gpio write ${pin} ${value}`, {
+      id: `gpio-write-${pin}`,
+      button: gpioWriteButton
+    }).catch(() => {
+      /* handled via log */
+    });
+  };
+
   const attachCommandButtonHandler = (button, handler) => {
     if (!button || typeof handler !== 'function') {
       return;
@@ -7891,6 +8074,10 @@ OK fs ls
   attachCommandButtonHandler(ntpSetRunButton, handleNtpSetRun);
   attachCommandButtonHandler(ntpEnableRunButton, handleNtpEnableRun);
   attachCommandButtonHandler(ntpDisableRunButton, handleNtpDisableRun);
+  attachCommandButtonHandler(gpioModeButton, handleGpioModeRun);
+  attachCommandButtonHandler(gpioToggleButton, handleGpioToggleRun);
+  attachCommandButtonHandler(gpioReadButton, handleGpioReadRun);
+  attachCommandButtonHandler(gpioWriteButton, handleGpioWriteRun);
   attachCommandButtonHandler(fsElements.previewButton, handleFsPreviewFetch);
   attachCommandButtonHandler(fsElements.listRefreshButton, handleFsListRefresh);
   attachCommandButtonHandler(fsElements.mkdirRunButton, handleFsMkdirRun);
