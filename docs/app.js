@@ -7968,8 +7968,8 @@ OK fs ls
       gpioModeSelect?.focus();
       return;
     }
-  const normalizedMode = mode.toLowerCase();
-  const commandMode = gpioModeCommandMap[normalizedMode] || normalizedMode;
+    const normalizedMode = mode.toLowerCase();
+    const commandMode = gpioModeCommandMap[normalizedMode] || normalizedMode;
     appendLogEntry('debug', `UI: gpio mode -> pin=${pin} mode=${commandMode}`);
     runSerialCommand(`gpio mode ${pin} ${commandMode}`, {
       id: `gpio-mode-${pin}`,
