@@ -5632,7 +5632,8 @@ namespace esp32serialctl
               strncpy(left, help, leftLen < sizeof(left) - 1 ? leftLen : sizeof(left) - 1);
               const char *right = colon + 1;
               // trim leading space from right
-              while (*right && isspace(static_cast<unsigned char>(*right))) ++right;
+              while (*right && isspace(static_cast<unsigned char>(*right)))
+                ++right;
               if (*left)
               {
                 snprintf(line, sizeof(line), "%s %s : %s", commandText, left, right);
@@ -5761,7 +5762,8 @@ namespace esp32serialctl
                 char left[128] = {0};
                 strncpy(left, help, leftLen < sizeof(left) - 1 ? leftLen : sizeof(left) - 1);
                 const char *right = colon + 1;
-                while (*right && isspace(static_cast<unsigned char>(*right))) ++right;
+                while (*right && isspace(static_cast<unsigned char>(*right)))
+                  ++right;
                 if (*left)
                 {
                   snprintf(line, sizeof(line), "%s %s : %s", commandText, left, right);
@@ -5801,12 +5803,14 @@ namespace esp32serialctl
         ctx.printError(404, "No user commands registered");
         return;
       }
+
       for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
       {
         const CommandEntry *entry = ESP32SerialCtl::commandEntryMap_[i];
         if (!entry)
           continue;
         const Command &cmd = ESP32SerialCtl::activeCommands_[i];
+
         char commandText[128];
         if (cmd.group && *cmd.group)
         {
@@ -5817,7 +5821,13 @@ namespace esp32serialctl
           snprintf(commandText, sizeof(commandText), "%s", cmd.name);
         }
 
-        // usage
+        // Print a machine-friendly block per command. Format:
+        // CMD:	<commandText>
+        // USAGE:	<usage>
+        // DESC:	<lang>	<description>   (one per locale, all locales printed)
+        // ARG:	<name>	<type>	<required 0|1>	<hint>  (one per arg)
+
+        // Build usage from args (<> for required, [] for optional)
         String usage = String(commandText);
         for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
         {
@@ -5839,42 +5849,65 @@ namespace esp32serialctl
           }
         }
 
-        // description (prefer en)
-        const char *desc = nullptr;
+        // CMD line
+        char line[384];
+        snprintf(line, sizeof(line), "CMD:\t%s", commandText);
+        ctx.printList(line);
+
+        // USAGE line
+        snprintf(line, sizeof(line), "USAGE:\t%s", usage.c_str());
+        ctx.printList(line);
+
+        // DESC lines: print all locales available
         for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
         {
           const LocalizedText &lt = entry->descriptions[l];
-          if (lt.lang && lt.description && lt.lang[0] && lt.description[0] && strcmp(lt.lang, "en") == 0)
+          if (!lt.lang || !lt.description)
+            continue;
+          // sanitize description: replace newlines/tabs with space
+          char descBuf[256] = {0};
+          size_t di = 0;
+          for (const char *p = lt.description; *p && di + 1 < sizeof(descBuf); ++p)
           {
-            desc = lt.description;
-            break;
+            char c = *p;
+            if (c == '\n' || c == '\r' || c == '\t')
+              c = ' ';
+            descBuf[di++] = c;
           }
-        }
-        if (!desc)
-        {
-          for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
-          {
-            const LocalizedText &lt = entry->descriptions[l];
-            if (lt.description && lt.description[0])
-            {
-              desc = lt.description;
-              break;
-            }
-          }
+          descBuf[di] = '\0';
+          snprintf(line, sizeof(line), "DESC:\t%s\t%s", lt.lang, descBuf);
+          ctx.printList(line);
         }
 
-        char line[256];
-        if (desc && *desc)
+        // ARG lines: print full arg specs
+        for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
         {
-          snprintf(line, sizeof(line), "%s : %s", usage.c_str(), desc);
+          const CmdArgSpec &aspec = entry->args[a];
+          if (!aspec.name || !*aspec.name)
+            break;
+          // sanitize hint
+          char hintBuf[192] = {0};
+          size_t hi = 0;
+          const char *hintSrc = aspec.hint ? aspec.hint : "";
+          for (const char *p = hintSrc; *p && hi + 1 < sizeof(hintBuf); ++p)
+          {
+            char c = *p;
+            if (c == '\n' || c == '\r' || c == '\t')
+              c = ' ';
+            hintBuf[hi++] = c;
+          }
+          hintBuf[hi] = '\0';
+
+          // type may be null
+          const char *typeStr = aspec.type ? aspec.type : "";
+          // required: print 1 or 0
+          const char *req = aspec.required ? "1" : "0";
+          snprintf(line, sizeof(line), "ARG:\t%s\t%s\t%s\t%s", aspec.name, typeStr, req, hintBuf);
+          ctx.printList(line);
         }
-        else
-        {
-          snprintf(line, sizeof(line), "%s", usage.c_str());
-        }
-        ctx.printList(line);
       }
     }
+
 
     static void handleGpioMode(Context &ctx)
     {
