@@ -4,43 +4,32 @@
 int handle_rgb(const char **argv, size_t argc, void *ctx)
 {
     auto ctl = reinterpret_cast<esp32serialctl::ESP32SerialCtl<> *>(ctx);
-    if (!ctl)
+
+    if (argc != 3)
     {
-        Serial.println("ERR 500 No context");
+        ctl->printError(400, "Expected 3 arguments for r, g, b");
         return -1;
     }
 
-    int r = argc > 0 ? atoi(argv[0]) : 0;
-    int g = argc > 1 ? atoi(argv[1]) : 0;
-    int b = argc > 2 ? atoi(argv[2]) : 0;
+    int r = atoi(argv[0]);
+    int g = atoi(argv[1]);
+    int b = atoi(argv[2]);
 
-    // (Perform any device-side action here, e.g. set PWM for an RGB LED)
-    char buf[64];
-    snprintf(buf, sizeof(buf), "rgb handler: r=%d g=%d b=%d", r, g, b);
-    ctl->printBody(buf);
-
-    snprintf(buf, sizeof(buf), "rgb %d %d %d", r, g, b);
-    ctl->printOK(buf);
+    ctl->printOK("rgb %d %d %d", r, g, b);
+    ctl->printBody("rgb handler: r=%d g=%d b=%d", r, g, b);
 
     return 0;
 }
 
 int handle_ping(const char **argv, size_t argc, void *ctx)
 {
-    // Cast ctx to the concrete controller type and require it.
     auto ctl = reinterpret_cast<esp32serialctl::ESP32SerialCtl<> *>(ctx);
-    if (!ctl)
-    {
-        Serial.println("ERR 500 No context");
-        return -1;
-    }
-    (void)argv;
-    (void)argc;
 
     String value = ctl->configGet("pong");
-    // Return the stored response, then an OK marker for success.
-    ctl->printBody(value.c_str());
+
     ctl->printOK("ping");
+    ctl->printBody(value.c_str());
+
     return 0;
 }
 

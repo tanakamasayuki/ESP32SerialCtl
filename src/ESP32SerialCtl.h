@@ -1816,24 +1816,44 @@ namespace esp32serialctl
 
     // Lightweight forwarding helpers so user handlers can emit standard
     // responses without reaching into cli_.emit* directly.
-    void printOK(const char *message = nullptr)
+    void printOK(const char *fmt, ...)
     {
-      cli_.emitOK(message);
+      char buf[256];
+      va_list ap;
+      va_start(ap, fmt);
+      vsnprintf(buf, sizeof(buf), fmt, ap);
+      va_end(ap);
+      cli_.emitOK(buf[0] ? buf : nullptr);
     }
 
-    void printError(uint16_t code, const char *reason)
+    void printError(uint16_t code, const char *fmt, ...)
     {
-      cli_.emitError(code, reason);
+      char buf[256];
+      va_list ap;
+      va_start(ap, fmt);
+      vsnprintf(buf, sizeof(buf), fmt, ap);
+      va_end(ap);
+      cli_.emitError(code, buf[0] ? buf : nullptr);
     }
 
-    void printBody(const char *text)
+    void printBody(const char *fmt, ...)
     {
-      cli_.emitBody(text);
+      char buf[256];
+      va_list ap;
+      va_start(ap, fmt);
+      vsnprintf(buf, sizeof(buf), fmt, ap);
+      va_end(ap);
+      cli_.emitBody(buf[0] ? buf : nullptr);
     }
 
-    void printList(const char *text)
+    void printList(const char *fmt, ...)
     {
-      cli_.emitList(text);
+      char buf[256];
+      va_list ap;
+      va_start(ap, fmt);
+      vsnprintf(buf, sizeof(buf), fmt, ap);
+      va_end(ap);
+      cli_.emitList(buf[0] ? buf : nullptr);
     }
 
     void setPinAllAccess(bool enable) { pinAllAccess_ = enable; }
