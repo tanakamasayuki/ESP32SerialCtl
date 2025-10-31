@@ -1306,6 +1306,18 @@
                     <input id="rgb-set-b" type="number" placeholder="例: 64" disabled
                       data-i18n-placeholder="peripherals.placeholders.blue" />
                   </div>
+                  <div class="dual-field">
+                    <div class="form-field">
+                      <label for="rgb-count">count (個数)</label>
+                      <input id="rgb-count" type="number" min="1" value="1" placeholder="1" disabled />
+                      <small>同じ色をセットする LED の個数（デフォルト 1）</small>
+                    </div>
+                    <div class="form-field">
+                      <label for="rgb-wait">wait (μs)</label>
+                      <input id="rgb-wait" type="number" min="0" value="100" placeholder="例: 1000" disabled />
+                      <small>隣接 LED 間のウェイト（マイクロ秒）</small>
+                    </div>
+                  </div>
                   <div class="card-actions">
                     <button class="btn btn-primary" disabled data-i18n="peripherals.actions.rgbSet">rgb set を送信</button>
                   </div>

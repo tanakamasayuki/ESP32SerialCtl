@@ -2881,6 +2881,8 @@ OK fs ls
   const rgbSetRedInput = document.querySelector('#rgb-set-r');
   const rgbSetGreenInput = document.querySelector('#rgb-set-g');
   const rgbSetBlueInput = document.querySelector('#rgb-set-b');
+  const rgbCountInput = document.querySelector('#rgb-count');
+  const rgbWaitInput = document.querySelector('#rgb-wait');
   const rgbSetButton = document.querySelector('#command-peripherals-rgb-set .card-actions button');
   const i2cScanBusSelect = document.querySelector('#i2c-scan-bus');
   const i2cScanButton = document.querySelector('#command-peripherals-i2c-scan .card-actions button');
@@ -2927,6 +2929,8 @@ OK fs ls
     rgbSetRedInput,
     rgbSetGreenInput,
     rgbSetBlueInput,
+    rgbCountInput,
+    rgbWaitInput,
     i2cScanBusSelect,
     i2cReadBusSelect,
     i2cReadAddressInput,
@@ -8534,8 +8538,38 @@ OK fs ls
     if (b === null) {
       return;
     }
-    appendLogEntry('debug', `UI: rgb set -> rgb=${r},${g},${b}`);
-    const commandText = `rgb set ${r} ${g} ${b}`;
+    // optional pin override (use rgbPinSelect if set)
+    const pinArg = (rgbPinSelect && (rgbPinSelect.value || '').trim()) ? `--pin ${rgbPinSelect.value.trim()} ` : '';
+    // count option (default 1)
+    let countArg = '';
+    if (rgbCountInput) {
+      const rawCount = (rgbCountInput.value || '').toString().trim();
+      const countVal = rawCount ? Number(rawCount) : 1;
+      if (!Number.isInteger(countVal) || countVal < 1) {
+        appendLogEntry('error', 'count must be an integer >= 1.');
+        rgbCountInput?.focus();
+        return;
+      }
+      if (countVal !== 1) {
+        countArg = `--count ${countVal} `;
+      }
+    }
+    // wait option (μs)
+    let waitArg = '';
+    if (rgbWaitInput) {
+      const rawWait = (rgbWaitInput.value || '').toString().trim();
+      if (rawWait) {
+        const waitVal = Number(rawWait);
+        if (!Number.isFinite(waitVal) || waitVal < 0) {
+          appendLogEntry('error', 'wait must be a non-negative number (μs).');
+          rgbWaitInput?.focus();
+          return;
+        }
+        waitArg = `--wait ${waitVal} `;
+      }
+    }
+    appendLogEntry('debug', `UI: rgb set -> rgb=${r},${g},${b} ${pinArg}${countArg}${waitArg}`);
+    const commandText = `rgb set ${pinArg}${countArg}${waitArg}${r} ${g} ${b}`;
     dispatchPeripheralCommand('rgb-set', commandText, {
       id: `rgb-set-${r}-${g}-${b}`,
       button: rgbSetButton
