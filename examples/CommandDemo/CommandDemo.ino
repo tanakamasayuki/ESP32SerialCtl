@@ -1,13 +1,8 @@
 #include <Arduino.h>
 #include <ESP32SerialCtl.h>
 
-// Simple handler signatures expected by the library (adapt if your handler
-// type differs). Here we implement a minimal handler that prints parsed args.
 int handle_rgb(const char **argv, size_t argc, void *ctx)
 {
-    // Expect the library to pass a pointer to the controller instance as ctx.
-    // Cast directly to the concrete class. If ctx is null, emit an error
-    // and return early (don't rely on the global instance).
     auto ctl = reinterpret_cast<esp32serialctl::ESP32SerialCtl<> *>(ctx);
     if (!ctl)
     {
@@ -20,11 +15,13 @@ int handle_rgb(const char **argv, size_t argc, void *ctx)
     int b = argc > 2 ? atoi(argv[2]) : 0;
 
     // (Perform any device-side action here, e.g. set PWM for an RGB LED)
-    Serial.printf("rgb handler: r=%d g=%d b=%d\n", r, g, b);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "rgb handler: r=%d g=%d b=%d", r, g, b);
+    ctl->printBody(buf);
 
-    // Return an OK-style response so the UI/parser can detect success.
-    Serial.printf("OK rgb %d %d %d\n", r, g, b);
-    (void)ctl; // kept for symmetry; ctl is used only when needed
+    snprintf(buf, sizeof(buf), "rgb %d %d %d", r, g, b);
+    ctl->printOK(buf);
+
     return 0;
 }
 
@@ -42,8 +39,8 @@ int handle_ping(const char **argv, size_t argc, void *ctx)
 
     String value = ctl->configGet("pong");
     // Return the stored response, then an OK marker for success.
-    Serial.println(value);
-    Serial.println("OK ping");
+    ctl->printBody(value.c_str());
+    ctl->printOK("ping");
     return 0;
 }
 

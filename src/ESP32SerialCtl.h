@@ -149,6 +149,11 @@
 namespace esp32serialctl
 {
 
+  // Forward-declare ESP32SerialCtl so SerialCtl can friend the matching
+  // instantiation and allow it to call emit*/queuePrompt internals.
+  template <size_t, size_t>
+  class ESP32SerialCtl;
+
   inline constexpr const char kPrefsNamespace[] = "serial_ctl";
   inline constexpr const char kPrefsTimezoneKey[] = "tz";
   inline constexpr const char kPrefsDefaultTimezone[] = ESP32SERIALCTL_DEFAULT_TIMEZONE;
@@ -227,6 +232,9 @@ namespace esp32serialctl
   {
   public:
     class Context;
+    // Allow ESP32SerialCtl instantiations with matching template params to
+    // access SerialCtl internals (emit*/queuePrompt) for forwarding helpers.
+    friend class ESP32SerialCtl<MaxLineLength, MaxTokens>;
 
     using Handler = void (*)(Context &);
 
@@ -1805,6 +1813,28 @@ namespace esp32serialctl
 
     Print &output() { return cli_.output(); }
     Stream &input() { return cli_.input(); }
+
+    // Lightweight forwarding helpers so user handlers can emit standard
+    // responses without reaching into cli_.emit* directly.
+    void printOK(const char *message = nullptr)
+    {
+      cli_.emitOK(message);
+    }
+
+    void printError(uint16_t code, const char *reason)
+    {
+      cli_.emitError(code, reason);
+    }
+
+    void printBody(const char *text)
+    {
+      cli_.emitBody(text);
+    }
+
+    void printList(const char *text)
+    {
+      cli_.emitList(text);
+    }
 
     void setPinAllAccess(bool enable) { pinAllAccess_ = enable; }
     bool pinAllAccess() const { return pinAllAccess_; }
