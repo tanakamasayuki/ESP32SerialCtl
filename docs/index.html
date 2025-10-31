@@ -67,6 +67,12 @@
             </button>
           </li>
           <li>
+            <button class="tab-button" role="tab" data-tab="usercmds">
+              <span class="tab-label">ユーザーコマンド</span>
+              <span class="tab-desc">user commands / execute</span>
+            </button>
+          </li>
+          <li>
             <button class="tab-button" role="tab" data-tab="storage">
               <span class="tab-label" data-i18n="nav.tabs.storage.label">ストレージ</span>
               <span class="tab-desc" data-i18n="nav.tabs.storage.desc">storage list / use / status</span>
@@ -718,6 +724,8 @@
             <p class="config-empty" id="config-empty-state" hidden data-i18n="sections.config.empty">
               設定が見つかりません。取得ボタンを押してください。</p>
           </div>
+
+          <!-- (ユーザーコマンド UI は専用タブ `tab-usercmds` に移動しました) -->
         </div>
 
         <div class="tab-content" id="tab-storage" role="tabpanel">
@@ -778,6 +786,31 @@
                 <pre class="result-raw" data-storage-status-raw data-i18n="results.placeholder">結果がここに表示されます</pre>
               </div>
             </article>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-usercmds" role="tabpanel">
+          <header class="tab-header">
+            <h2>ユーザーコマンド</h2>
+            <p>デバイスに登録されたユーザー定義コマンドを表示・実行するための UI です。</p>
+          </header>
+
+          <div class="user-commands-section">
+            <p>
+              下に <code>user commands</code> の出力を貼り付けるか、デバイスから取得して解析できます。
+            </p>
+
+            <div class="form-field">
+              <label for="user-commands-raw">user commands 出力 (貼り付け)</label>
+              <textarea id="user-commands-raw" rows="6" placeholder="Paste output of 'user commands' here"></textarea>
+            </div>
+
+            <div class="card-actions">
+              <button class="btn btn-outline" type="button" id="user-commands-parse-button">Parse</button>
+              <button class="btn btn-primary" type="button" id="user-commands-fetch-button">Fetch from device</button>
+            </div>
+
+            <div id="user-commands-area" class="user-commands-area"></div>
           </div>
         </div>
 

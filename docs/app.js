@@ -8844,4 +8844,267 @@ OK fs ls
   }
 
   updateCommandButtonsState();
+
+  // --- User commands parsing & interactive UI ------------------------------
+  // Elements: textarea for raw output, parse/fetch buttons, and render area
+  const userCommandsRawTextarea = document.querySelector('#user-commands-raw');
+  const userCommandsParseButton = document.querySelector('#user-commands-parse-button');
+  const userCommandsFetchButton = document.querySelector('#user-commands-fetch-button');
+  const userCommandsArea = document.querySelector('#user-commands-area');
+
+  const parseUserCommandsText = (raw) => {
+    const result = [];
+    if (!raw) return result;
+    try {
+      const normalized = String(raw).replace(/\r/g, '');
+      console.debug('parseUserCommandsText: raw length', normalized.length);
+      appendLogEntry && appendLogEntry('debug', `parseUserCommandsText: raw length ${normalized.length}`);
+      const lines = normalized.split('\n');
+      let current = null;
+
+      const pushCurrent = () => {
+        if (current && current.cmd) {
+          console.debug('parseUserCommandsText: pushing command', current.cmd, current);
+          appendLogEntry && appendLogEntry('debug', `parseUserCommandsText: parsed command ${current.cmd}`);
+          result.push(current);
+        }
+        current = null;
+      };
+
+      lines.forEach((ln) => {
+        let line = (ln || '').trim();
+        if (!line) {
+          // blank line separates blocks
+          pushCurrent();
+          return;
+        }
+        // strip common serial prefixes (e.g. "> ", ">> ")
+        line = line.replace(/^[>]+\s*/, '');
+        // strip leading list markers or pipe
+        line = line.replace(/^[-*]\s*/, '');
+        line = line.replace(/^\|\s*/, '');
+        if (!line) return;
+
+        let m;
+        if ((m = line.match(/^CMD\s*:\s*(.+)$/i))) {
+          // start a new command on CMD:
+          if (current && current.cmd) {
+            result.push(current);
+          }
+          console.debug('parseUserCommandsText: CMD found', m[1].trim());
+          appendLogEntry && appendLogEntry('debug', `parseUserCommandsText: CMD found ${m[1].trim()}`);
+          current = { cmd: m[1].trim(), usage: '', descs: [], args: [] };
+          return;
+        }
+        if (!current) {
+          // ignore lines until we see CMD:
+          return;
+        }
+        if ((m = line.match(/^USAGE\s*:\s*(.+)$/i))) {
+          current.usage = m[1].trim();
+          console.debug('parseUserCommandsText: USAGE', current.usage);
+          appendLogEntry && appendLogEntry('debug', `parseUserCommandsText: USAGE ${current.usage}`);
+          return;
+        }
+        if ((m = line.match(/^DESC(?:\[(.*?)\])?\s*:\s*(.+)$/i))) {
+          const lang = (m[1] || '').trim();
+          const text = m[2].trim();
+          current.descs.push({ lang, text });
+          console.debug('parseUserCommandsText: DESC', lang || '(none)', text);
+          appendLogEntry && appendLogEntry('debug', `parseUserCommandsText: DESC[${lang || 'default'}] ${text}`);
+          return;
+        }
+        if ((m = line.match(/^ARG\s*:\s*(.+)$/i))) {
+          const rest = m[1].trim();
+          const arg = { name: '', type: '', required: false, hint: '' };
+          if (rest.indexOf('=') !== -1 || rest.indexOf(';') !== -1) {
+            const parts = rest.split(';').map((p) => p.trim()).filter(Boolean);
+            parts.forEach((part) => {
+              const kv = part.split('=');
+              if (kv.length >= 2) {
+                const k = kv[0].trim();
+                const v = kv.slice(1).join('=').trim();
+                if (k === 'name') arg.name = v;
+                else if (k === 'type') arg.type = v;
+                else if (k === 'required') arg.required = !!(v === '1' || v.toLowerCase() === 'true');
+                else if (k === 'hint') arg.hint = v;
+              }
+            });
+          } else {
+            const toks = rest.split(/\s+/).filter(Boolean);
+            arg.name = toks[0] || '';
+            arg.type = toks[1] || '';
+            arg.required = !!(toks[2] === '1');
+            arg.hint = toks.slice(3).join(' ');
+          }
+          if (arg.name) current.args.push(arg);
+          console.debug('parseUserCommandsText: ARG', arg);
+          appendLogEntry && appendLogEntry('debug', `parseUserCommandsText: ARG ${arg.name} type=${arg.type} required=${arg.required}`);
+          return;
+        }
+      });
+      pushCurrent();
+    } catch (e) {
+      console.error('parseUserCommandsText:', e);
+      appendLogEntry && appendLogEntry('error', `parseUserCommandsText error: ${e?.message || String(e)}`);
+    }
+    return result;
+  };
+
+  const pickDescriptionText = (descs) => {
+    if (!Array.isArray(descs) || !descs.length) return '';
+    const tryLang = (lang) => descs.find((d) => (d.lang || '').toLowerCase() === (lang || '').toLowerCase());
+    const pick = tryLang(currentLanguage) || tryLang('en') || descs[0];
+    return pick ? pick.text : '';
+  };
+
+  const renderUserCommands = (commands) => {
+    if (!userCommandsArea) {
+      console.warn('renderUserCommands: #user-commands-area not found');
+      appendLogEntry && appendLogEntry('error', 'renderUserCommands: #user-commands-area not found');
+      return;
+    }
+    console.debug('renderUserCommands: start', { count: (commands || []).length });
+    appendLogEntry && appendLogEntry('debug', `renderUserCommands: start parsed=${(commands || []).length}`);
+    userCommandsArea.innerHTML = '';
+    if (!commands || !commands.length) {
+      const p = document.createElement('p');
+      p.textContent = 'No user commands parsed.';
+      userCommandsArea.append(p);
+      return;
+    }
+    const makeSafeId = (s) => (`ucmd-${String(s || '')}`).replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+
+    commands.forEach((entry, idx) => {
+      console.debug('renderUserCommands: rendering entry', idx, entry && entry.cmd);
+      appendLogEntry && appendLogEntry('debug', `renderUserCommands: rendering ${entry && entry.cmd || '(unknown)'} #${idx}`);
+  const card = document.createElement('article');
+  card.className = 'card command-panel';
+  // make dynamically-created command panels visible by default
+  card.classList.add('is-active');
+      const title = document.createElement('h4');
+      title.textContent = entry.usage || entry.cmd;
+      const desc = document.createElement('p');
+      desc.textContent = pickDescriptionText(entry.descs) || '';
+      card.append(title, desc);
+
+      const form = document.createElement('div');
+      form.className = 'user-cmd-form';
+      entry.args.forEach((arg, idx) => {
+        const field = document.createElement('div');
+        field.className = 'form-field';
+        const baseId = makeSafeId(`${entry.cmd}-${arg.name}-${idx}`);
+        const inputId = baseId;
+        const inputName = makeSafeId(`${entry.cmd}-${arg.name}`);
+        const label = document.createElement('label');
+        label.setAttribute('for', inputId);
+        const requiredText = arg.required ? ` (${translate ? translate('required') : 'required'})` : '';
+        const hint = arg.hint ? ` - ${arg.hint}` : '';
+        label.textContent = `${arg.name}${requiredText}${hint}`;
+
+        let input;
+        const t = (arg.type || '').toLowerCase();
+        if (t.includes('int') || t.includes('num') || t === 'number') {
+          input = document.createElement('input'); input.type = 'number';
+        } else if (t === 'bool' || t === 'boolean') {
+          input = document.createElement('input'); input.type = 'checkbox';
+        } else {
+          input = document.createElement('input'); input.type = 'text';
+        }
+        input.id = inputId; input.name = inputName; input.dataset.argName = arg.name;
+        if (arg.hint && input.type !== 'checkbox') input.placeholder = arg.hint;
+        if (input.type === 'checkbox') {
+          field.append(input, label);
+        } else {
+          field.append(label, input);
+        }
+        form.append(field);
+      });
+
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'btn btn-primary'; sendBtn.type = 'button'; sendBtn.textContent = 'Send';
+      actions.append(sendBtn);
+      card.append(form, actions);
+
+      const resultPre = document.createElement('pre');
+      resultPre.className = 'result-raw'; resultPre.textContent = '';
+      card.append(resultPre);
+
+      sendBtn.addEventListener('click', () => {
+        if (!entry.cmd) return;
+        const inputs = Array.from(form.querySelectorAll('[data-arg-name]'));
+        const parts = [];
+        for (const inp of inputs) {
+          const name = inp.dataset.argName;
+          const spec = entry.args.find((a) => a.name === name) || {};
+          let value;
+          if (inp.type === 'checkbox') value = inp.checked ? '1' : '0';
+          else value = (inp.value || '').toString().trim();
+          if (spec.required && !value) { appendLogEntry && appendLogEntry('error', `${entry.cmd}: ${name} is required`); return; }
+          if (value) parts.push(quoteArgument(value));
+        }
+        const commandText = `${entry.cmd} ${parts.join(' ')}`.trim();
+        appendLogEntry && appendLogEntry('debug', `UI: user command -> ${commandText}`);
+        runSerialCommand(commandText, {
+          id: `user-cmd-${entry.cmd}`,
+          onStart: () => { resultPre.textContent = translate('results.pending'); },
+          onFinalize: ({ output, error }) => { resultPre.textContent = error ? (output || (error && error.message) || 'Error') : (output || ''); }
+        }).catch((e) => { resultPre.textContent = e?.message || 'send failed'; });
+      });
+
+      userCommandsArea.append(card);
+      console.debug('renderUserCommands: appended card', entry && entry.cmd);
+      appendLogEntry && appendLogEntry('debug', `renderUserCommands: appended ${entry && entry.cmd}`);
+    });
+    console.debug('renderUserCommands: done');
+    appendLogEntry && appendLogEntry('debug', 'renderUserCommands: done');
+  };
+
+  if (userCommandsParseButton) {
+    userCommandsParseButton.addEventListener('click', () => {
+      const raw = userCommandsRawTextarea ? userCommandsRawTextarea.value : '';
+      console.debug('user-commands: Parse clicked, raw length', (raw || '').length);
+      appendLogEntry && appendLogEntry('debug', `user-commands: Parse clicked, raw length ${(raw || '').length}`);
+      const parsed = parseUserCommandsText(raw);
+      console.debug('user-commands: parsed count', parsed.length);
+      appendLogEntry && appendLogEntry('debug', `user-commands: parsed ${parsed.length} commands`);
+      renderUserCommands(parsed);
+    });
+  }
+
+  if (userCommandsFetchButton) {
+    userCommandsFetchButton.addEventListener('click', () => {
+      console.debug('user-commands: Fetch clicked');
+      appendLogEntry && appendLogEntry('debug', 'user-commands: Fetch clicked');
+      if (!isSerialReady()) {
+        appendLogEntry('error', translate('connection.info.connectFirst'));
+        return;
+      }
+      runSerialCommand('user commands', {
+        id: 'user-commands-fetch',
+        onStart: () => {
+          console.debug('user-commands: fetch onStart');
+          appendLogEntry && appendLogEntry('debug', 'user-commands: fetch onStart');
+          if (userCommandsRawTextarea) userCommandsRawTextarea.value = translate('results.pending');
+        },
+        onFinalize: ({ output, error }) => {
+          console.debug('user-commands: fetch onFinalize', { hasOutput: !!output, error: !!error });
+          appendLogEntry && appendLogEntry('debug', `user-commands: fetch onFinalize error=${!!error}`);
+          const raw = output || '';
+          if (userCommandsRawTextarea) userCommandsRawTextarea.value = raw;
+          if (!error) {
+            const parsed = parseUserCommandsText(raw);
+            console.debug('user-commands: fetch parsed count', parsed.length);
+            appendLogEntry && appendLogEntry('debug', `user-commands: fetch parsed ${parsed.length} commands`);
+            renderUserCommands(parsed);
+          } else {
+            appendLogEntry && appendLogEntry('error', 'user-commands: fetch returned error');
+          }
+        }
+      }).catch((e) => { console.error('user-commands: fetch failed', e); appendLogEntry('error', e?.message || 'user commands fetch failed'); });
+    });
+  }
+
 });
