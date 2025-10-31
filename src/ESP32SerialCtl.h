@@ -180,7 +180,8 @@ namespace esp32serialctl
 #define ESP32SERIALCTL_CONFIG_MAX_LOCALES 8
 #endif
 
-  struct ConfigLocalizedText
+  // 汎用の多言語説明型（Config や Command 両方で使えるように名称を変更）
+  struct LocalizedText
   {
     const char *lang;
     const char *description;
@@ -190,7 +191,7 @@ namespace esp32serialctl
   {
     const char *name;
     const char *defaultValue;
-    ConfigLocalizedText descriptions[ESP32SERIALCTL_CONFIG_MAX_LOCALES];
+    LocalizedText descriptions[ESP32SERIALCTL_CONFIG_MAX_LOCALES];
   };
 
   inline constexpr const char kPrefsConfigDefaultNamespace[] = "serial_ctl_cfg";
@@ -2217,7 +2218,7 @@ namespace esp32serialctl
 #endif
     }
 
-    static const ConfigLocalizedText *
+    static const LocalizedText *
     findConfigDescriptionForLang(const ConfigEntry &entry, const char *lang)
     {
       if (!lang || !*lang)
@@ -2226,7 +2227,7 @@ namespace esp32serialctl
       }
       for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
       {
-        const ConfigLocalizedText &text = entry.descriptions[i];
+        const LocalizedText &text = entry.descriptions[i];
         if (text.lang && text.description && *text.description &&
             Base::equalsIgnoreCase(text.lang, lang))
         {
@@ -2240,12 +2241,12 @@ namespace esp32serialctl
       return nullptr;
     }
 
-    static const ConfigLocalizedText *
+    static const LocalizedText *
     firstConfigDescription(const ConfigEntry &entry)
     {
       for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
       {
-        const ConfigLocalizedText &text = entry.descriptions[i];
+        const LocalizedText &text = entry.descriptions[i];
         if (text.description && *text.description)
         {
           return &text;
@@ -2264,7 +2265,7 @@ namespace esp32serialctl
       char line[192];
       if (lang && *lang)
       {
-        const ConfigLocalizedText *match =
+        const LocalizedText *match =
             findConfigDescriptionForLang(entry, lang);
         if (!match)
         {
@@ -2289,7 +2290,7 @@ namespace esp32serialctl
       unsigned printed = 0;
       for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
       {
-        const ConfigLocalizedText &text = entry.descriptions[i];
+        const LocalizedText &text = entry.descriptions[i];
         if (!text.description || !*text.description)
         {
           if (!text.lang && !text.description)
@@ -2308,7 +2309,7 @@ namespace esp32serialctl
       }
       for (size_t i = 0; i < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++i)
       {
-        const ConfigLocalizedText &text = entry.descriptions[i];
+        const LocalizedText &text = entry.descriptions[i];
         if (!text.description || !*text.description)
         {
           if (!text.lang && !text.description)
