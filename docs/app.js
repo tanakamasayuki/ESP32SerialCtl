@@ -2937,6 +2937,48 @@ OK fs ls
     i2cWriteRegisterInput,
     i2cWriteBytesInput
   ].filter(Boolean);
+  // --- Pin / Bus sync helpers -------------------------------------------------
+  const makeSyncHandler = (selects) => {
+    // ensure array of DOM elements
+    const els = (selects || []).filter(Boolean);
+    if (!els.length) return;
+    const handler = (evt) => {
+      const src = evt && evt.target ? evt.target : null;
+      const value = src ? src.value : null;
+      if (value === null) return;
+      els.forEach((el) => {
+        if (el !== src && el.value !== value) {
+          el.value = value;
+          // fire a change event for any other listeners that rely on it
+          try {
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          } catch (e) {
+            // ignore
+          }
+        }
+      });
+    };
+    els.forEach((el) => el.addEventListener('change', handler));
+  };
+
+  // GPIO: sync pins inside GPIO controls (mode/toggle/read/write)
+  makeSyncHandler([gpioModePinSelect, gpioTogglePinSelect, gpioReadPinSelect, gpioWritePinSelect]);
+
+  // ADC: if there are multiple adc selects in future, they will be synced; currently single
+  // makeSyncHandler([adcPinSelect]); // no-op with single element
+
+  // PWM: sync pwm pin selectors
+  makeSyncHandler([pwmPinSelect, pwmStopPinSelect]);
+
+  // Servo: sync servo pin selectors
+  makeSyncHandler([servoPinSelect, servoStopPinSelect]);
+
+  // RGB: sync rgb pin within RGB controls (currently single element, kept for future)
+  // makeSyncHandler([rgbPinSelect]);
+
+  // I2C: sync bus selectors inside I2C controls
+  makeSyncHandler([i2cScanBusSelect, i2cReadBusSelect, i2cWriteBusSelect]);
+
   const gpioModeCommandMap = {
     input: 'in',
     output: 'out',
