@@ -9015,9 +9015,11 @@ OK fs ls
         const inputName = makeSafeId(`${entry.cmd}-${arg.name}`);
         const label = document.createElement('label');
         label.setAttribute('for', inputId);
-        const requiredText = arg.required ? ` (${translate ? translate('required') : 'required'})` : '';
+        const reqLabel = translate ? (translate('required') || 'required') : 'required';
+        const requiredText = arg.required ? ` (${reqLabel})` : '';
+        const typeText = arg.type ? ` (${arg.type})` : '';
         const hint = arg.hint ? ` - ${arg.hint}` : '';
-        label.textContent = `${arg.name}${requiredText}${hint}`;
+        label.textContent = `${arg.name}${typeText}${requiredText}${hint}`;
 
         let input;
         const t = (arg.type || '').toLowerCase();
