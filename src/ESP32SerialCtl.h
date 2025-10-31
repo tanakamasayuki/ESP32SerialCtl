@@ -1962,10 +1962,41 @@ namespace esp32serialctl
       const size_t baseCount = ESP32SerialCtl::kCommandCount;
       const size_t total = baseCount + count;
 
-      // allocate raw storage for Commands and the mapping array
-      void *raw = ::operator new[](sizeof(Command) * total);
+      // If we previously allocated a combined array, destruct and free it
+      // before allocating a new one. Built-in kCommands must not be freed.
+      if (ESP32SerialCtl::activeCommandsRaw_)
+      {
+        // call destructors for previously-constructed Commands
+        for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
+        {
+          ESP32SerialCtl::activeCommands_[i].~Command();
+        }
+        ::operator delete[](ESP32SerialCtl::activeCommandsRaw_);
+        ESP32SerialCtl::activeCommandsRaw_ = nullptr;
+
+        // free previous mapping if present
+        delete[] ESP32SerialCtl::commandEntryMap_;
+        ESP32SerialCtl::commandEntryMap_ = nullptr;
+
+        // reset to built-in defaults
+        ESP32SerialCtl::activeCommands_ = ESP32SerialCtl::kCommands;
+        ESP32SerialCtl::activeCommandCount_ = ESP32SerialCtl::kCommandCount;
+      }
+
+      // allocate raw storage for Commands (nothrow) and the mapping array
+      void *raw = ::operator new[](sizeof(Command) * total, std::nothrow);
+      if (!raw)
+      {
+        // allocation failed; leave active commands unchanged
+        return;
+      }
       Command *combined = static_cast<Command *>(raw);
-      const CommandEntry **map = new const CommandEntry *[total];
+      const CommandEntry **map = new (std::nothrow) const CommandEntry *[total];
+      if (!map)
+      {
+        ::operator delete[](raw);
+        return;
+      }
 
       // copy-construct built-ins into the raw storage
       for (size_t i = 0; i < baseCount; ++i)
@@ -2001,10 +2032,11 @@ namespace esp32serialctl
         map[dst] = &entries[i];
       }
 
-      // set active pointers
-      activeCommands_ = combined;
-      activeCommandCount_ = total;
-      commandEntryMap_ = map;
+      // set active pointers and record raw allocation so we can free later
+      ESP32SerialCtl::activeCommandsRaw_ = raw;
+      ESP32SerialCtl::activeCommands_ = combined;
+      ESP32SerialCtl::activeCommandCount_ = total;
+      ESP32SerialCtl::commandEntryMap_ = map;
     }
 
     // Helper used by constructors to allocate+activate commands and return
@@ -6028,6 +6060,12 @@ namespace esp32serialctl
     static const Command *activeCommands_;
     static size_t activeCommandCount_;
 
+    // If we allocated a combined Command array via operator new[], the
+    // raw pointer is stored here so we can properly destruct and free it
+    // on re-registration. If nullptr, activeCommands_ points to static
+    // kCommands and must not be freed.
+    static void *activeCommandsRaw_;
+
     // Map from activeCommands_ index to CommandEntry (nullptr for built-ins)
     static const CommandEntry **commandEntryMap_;
 
@@ -6174,6 +6212,9 @@ namespace esp32serialctl
 
   template <size_t MaxLineLength, size_t MaxTokens>
   const CommandEntry **ESP32SerialCtl<MaxLineLength, MaxTokens>::commandEntryMap_ = nullptr;
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  void *ESP32SerialCtl<MaxLineLength, MaxTokens>::activeCommandsRaw_ = nullptr;
 
 #if defined(ESP32SERIALCTL_HAS_STORAGE)
   template <size_t MaxLineLength, size_t MaxTokens>

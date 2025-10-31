@@ -45,7 +45,51 @@ void setup() {
 }
 
 void loop() {
+```
+
+### Static command registration (CommandEntry)
   esp32SerialCtl.service();
+As an alternative to building a `SerialCtl::Command` table by hand, the
+library now accepts user-defined `CommandEntry` arrays that are declared as
+static data in your sketch and passed to `ESP32SerialCtl` at construction
+time. This mirrors how `ConfigEntry` arrays are registered and is convenient
+for keeping command metadata (names, localized descriptions, argument
+specs) close to the code that implements the handlers.
+
+Key types and constants (in `ESP32SerialCtl.h`):
+
+- `struct CmdArgSpec` — argument name/type/required/hint
+- `using CmdHandlerFn = int (*)(const char **argv, size_t argc, void *ctx)` —
+  user handler signature
+- `struct CommandEntry` — `{ const char *name; LocalizedText descriptions[...] ; CmdArgSpec args[...] ; CmdHandlerFn handler; }`
+- `ESP32SERIALCTL_CMD_ARG_MAX` — max number of args per command (default 8)
+
+Usage example (see `examples/CommandDemo` for a complete demo):
+
+```cpp
+static const esp32serialctl::CommandEntry kAppCommands[] = {
+  {"ping", {{"en","Reply with pong"}}, {{"", "", false, ""}}, handle_ping},
+  {"rgb",  {{"en","Set RGB"}},               {/* arg specs */},   handle_rgb},
+};
+
+static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, kAppCommands);
+```
+
+Lifecycle and ownership notes:
+
+- When you register a `CommandEntry` array (either by passing it to the
+  constructor or calling the registration helper), the library allocates an
+  internal combined `Command` array that contains the built-in commands plus
+  your entries. That allocation is owned by the library.
+- If you re-register commands later, the library will destruct and free the
+  previously-allocated combined array automatically. The built-in `kCommands`
+  (static table shipped with the library) is never freed.
+- Registration is not thread-safe; avoid calling the registration API from
+  multiple contexts concurrently.
+
+If you need to inspect or debug, consult `examples/CommandDemo` which shows a
+minimal working sketch using `CommandEntry` and a pair of example handlers.
+
 }
 ```
 

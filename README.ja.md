@@ -83,6 +83,42 @@ void loop() {
 }
 ```
 
+### 静的コマンド登録（CommandEntry）
+
+`SerialCtl::Command` を手作業で作る代わりに、スケッチ内で静的に定義した
+`CommandEntry` 配列を `ESP32SerialCtl` のコンストラクタに渡して登録する方法を
+サポートしています。`ConfigEntry` と同様の扱いで、名前や多言語説明、引数
+仕様をソース上にまとめられます。
+
+主な型と定数（`ESP32SerialCtl.h` 内）:
+
+- `struct CmdArgSpec` — 引数名/型/必須フラグ/ヒント
+- `using CmdHandlerFn = int (*)(const char **argv, size_t argc, void *ctx)` — ユーザーハンドラの型
+- `struct CommandEntry` — `{ const char *name; LocalizedText descriptions[...] ; CmdArgSpec args[...] ; CmdHandlerFn handler; }`
+- `ESP32SERIALCTL_CMD_ARG_MAX` — コマンドあたりの最大引数数（デフォルト 8）
+
+使用例（完全なデモは `examples/CommandDemo` を参照）:
+
+```cpp
+static const esp32serialctl::CommandEntry kAppCommands[] = {
+  {"ping", {{"ja","pong を返す"}}, {{"", "", false, ""}}, handle_ping},
+  {"rgb",  {{"ja","RGB 設定"}},               {/* arg specs */},   handle_rgb},
+};
+
+static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, kAppCommands);
+```
+
+ライフサイクルと所有権について:
+
+- 登録時、ライブラリはビルトインコマンドとユーザーコマンドを結合した
+  内部 `Command` 配列を確保します。確保した配列の所有権はライブラリが持ちます。
+- 再登録が行われた場合、ライブラリは以前確保した配列のデストラクトと解放を
+  自動的に行います。組み込みの `kCommands`（静的テーブル）は解放されません。
+- 登録 API はスレッドセーフではありません。複数のコンテキストから同時に呼ぶ
+  のは避けてください。
+
+デバッグや参照が必要な場合は、`examples/CommandDemo` をご参照ください。
+
 ### 引数のパース
 - `ctx.arg(index).toBool(value)` で `on` や `false` といった真偽値を取得
 - `ctx.arg(index).toNumber(parsed)` で 10 進 / 16 進数値や単位付き数値を取得
