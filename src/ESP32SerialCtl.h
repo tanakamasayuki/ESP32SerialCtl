@@ -1931,7 +1931,7 @@ namespace esp32serialctl
         return;
       }
 
-  const size_t argc = ctx.argc();
+      const size_t argc = ctx.argc();
       const char *argvBuf[ESP32SERIALCTL_CMD_ARG_MAX > 16 ? ESP32SERIALCTL_CMD_ARG_MAX : 16];
       for (size_t i = 0; i < argc; ++i)
       {
