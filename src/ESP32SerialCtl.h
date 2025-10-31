@@ -5562,7 +5562,6 @@ namespace esp32serialctl
           {
             // build usage from args
             String usage = String(commandText);
-            bool firstArg = true;
             for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
             {
               const CmdArgSpec &aspec = entry->args[a];
@@ -5581,7 +5580,6 @@ namespace esp32serialctl
                 usage += aspec.name;
                 usage += "]";
               }
-              firstArg = false;
             }
 
             // select localized description: prefer 'en'
@@ -5636,11 +5634,21 @@ namespace esp32serialctl
                 ++right;
               if (*left)
               {
-                snprintf(line, sizeof(line), "%s %s : %s", commandText, left, right);
+                String out = String(commandText);
+                out += " ";
+                out += left;
+                out += " : ";
+                out += right;
+                strncpy(line, out.c_str(), sizeof(line) - 1);
+                line[sizeof(line) - 1] = '\0';
               }
               else
               {
-                snprintf(line, sizeof(line), "%s : %s", commandText, right);
+                String out = String(commandText);
+                out += " : ";
+                out += right;
+                strncpy(line, out.c_str(), sizeof(line) - 1);
+                line[sizeof(line) - 1] = '\0';
               }
             }
             else if (help && *help)
@@ -5766,11 +5774,21 @@ namespace esp32serialctl
                   ++right;
                 if (*left)
                 {
-                  snprintf(line, sizeof(line), "%s %s : %s", commandText, left, right);
+                  String out = String(commandText);
+                  out += " ";
+                  out += left;
+                  out += " : ";
+                  out += right;
+                  strncpy(line, out.c_str(), sizeof(line) - 1);
+                  line[sizeof(line) - 1] = '\0';
                 }
                 else
                 {
-                  snprintf(line, sizeof(line), "%s : %s", commandText, right);
+                  String out = String(commandText);
+                  out += " : ";
+                  out += right;
+                  strncpy(line, out.c_str(), sizeof(line) - 1);
+                  line[sizeof(line) - 1] = '\0';
                 }
               }
               else if (help && *help)
@@ -5849,16 +5867,26 @@ namespace esp32serialctl
           }
         }
 
-        // CMD line
+        // CMD line (single field per line, no tabs)
         char line[384];
-        snprintf(line, sizeof(line), "CMD:\t%s", commandText);
-        ctx.printList(line);
+        {
+          String out = String("CMD: ");
+          out += commandText;
+          strncpy(line, out.c_str(), sizeof(line) - 1);
+          line[sizeof(line) - 1] = '\0';
+          ctx.printList(line);
+        }
 
         // USAGE line
-        snprintf(line, sizeof(line), "USAGE:\t%s", usage.c_str());
-        ctx.printList(line);
+        {
+          String out = String("USAGE: ");
+          out += usage.c_str();
+          strncpy(line, out.c_str(), sizeof(line) - 1);
+          line[sizeof(line) - 1] = '\0';
+          ctx.printList(line);
+        }
 
-        // DESC lines: print all locales available
+        // DESC lines: print all locales available, each on its own line
         for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
         {
           const LocalizedText &lt = entry->descriptions[l];
@@ -5875,11 +5903,16 @@ namespace esp32serialctl
             descBuf[di++] = c;
           }
           descBuf[di] = '\0';
-          snprintf(line, sizeof(line), "DESC:\t%s\t%s", lt.lang, descBuf);
+          String out = String("DESC[");
+          out += lt.lang;
+          out += "]: ";
+          out += descBuf;
+          strncpy(line, out.c_str(), sizeof(line) - 1);
+          line[sizeof(line) - 1] = '\0';
           ctx.printList(line);
         }
 
-        // ARG lines: print full arg specs
+        // ARG lines: print full arg specs, one per line with clear separators
         for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
         {
           const CmdArgSpec &aspec = entry->args[a];
@@ -5898,16 +5931,25 @@ namespace esp32serialctl
           }
           hintBuf[hi] = '\0';
 
-          // type may be null
           const char *typeStr = aspec.type ? aspec.type : "";
-          // required: print 1 or 0
           const char *req = aspec.required ? "1" : "0";
-          snprintf(line, sizeof(line), "ARG:\t%s\t%s\t%s\t%s", aspec.name, typeStr, req, hintBuf);
+          String out = String("ARG: name=");
+          out += aspec.name;
+          out += "; type=";
+          out += typeStr;
+          out += "; required=";
+          out += req;
+          out += "; hint=";
+          out += hintBuf;
+          strncpy(line, out.c_str(), sizeof(line) - 1);
+          line[sizeof(line) - 1] = '\0';
           ctx.printList(line);
         }
+
+        // Separator line for easier parsing (empty list entry)
+        ctx.printList("");
       }
     }
-
 
     static void handleGpioMode(Context &ctx)
     {
