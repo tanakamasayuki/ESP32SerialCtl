@@ -45,6 +45,20 @@
 #include <soc/soc.h>
 #include <soc/gpio_reg.h>
 
+/* Optional auto-generated version header created by tools/bump_version.py.
+  If present, it defines <LIB>_VERSION_STR and related macros. Use
+  __has_include to avoid a hard error when the file isn't present. */
+#if defined(__has_include)
+#  if __has_include("esp32serialctl_version.h")
+#    include "esp32serialctl_version.h"
+#    define ESP32SERIALCTL_HAS_VERSION 1
+#  else
+#    define ESP32SERIALCTL_HAS_VERSION 0
+#  endif
+#else
+#  define ESP32SERIALCTL_HAS_VERSION 0
+#endif
+
 #if defined(ESP32SERIALCTL_ENABLE_WIFI) || defined(WiFi_h) || defined(_WIFI_H_) || \
     defined(_WIFI_H) || defined(WiFiClient_h) || defined(_WIFICLIENT_H_) ||        \
     defined(WiFiServer_h) || defined(_WIFISERVER_H_) || defined(WIFI_STA)
@@ -4730,6 +4744,12 @@ namespace esp32serialctl
 
       snprintf(buffer, sizeof(buffer), "Build: %s %s", __DATE__, __TIME__);
       ctx.printBody(buffer);
+
+#if ESP32SERIALCTL_HAS_VERSION
+  /* Print library version from generated header */
+  snprintf(buffer, sizeof(buffer), "Library Version: %s", ESP32SERIALCTL_VERSION_STR);
+  ctx.printBody(buffer);
+#endif
     }
 
     static void handleSysUptime(Context &ctx)
