@@ -53,21 +53,35 @@ static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfigEntries, kAppCo
 // type differs). Here we implement a minimal handler that prints parsed args.
 int handle_rgb(const char **argv, size_t argc, void *ctx)
 {
-    (void)ctx;
+    // Example of using the ctx pointer if the framework provides one.
+    // If ctx is non-null it may point to the controller instance; otherwise
+    // fall back to the global instance. This keeps the handler flexible.
+    auto ctl = ctx ? reinterpret_cast<decltype(esp32SerialCtl) *>(ctx) : &esp32SerialCtl;
+
     int r = argc > 0 ? atoi(argv[0]) : 0;
     int g = argc > 1 ? atoi(argv[1]) : 0;
     int b = argc > 2 ? atoi(argv[2]) : 0;
+
+    // (Perform any device-side action here, e.g. set PWM for an RGB LED)
     Serial.printf("rgb handler: r=%d g=%d b=%d\n", r, g, b);
+
+    // Return an OK-style response so the UI/parser can detect success.
+    Serial.printf("OK rgb %d %d %d\n", r, g, b);
+    (void)ctl; // suppress unused-warning if not used further
     return 0;
 }
 
 int handle_ping(const char **argv, size_t argc, void *ctx)
 {
+    // Demonstrate reading config via ctx (if provided) or global controller.
+    auto ctl = ctx ? reinterpret_cast<decltype(esp32SerialCtl) *>(ctx) : &esp32SerialCtl;
     (void)argv;
     (void)argc;
-    (void)ctx;
-    String value = esp32SerialCtl.configGet("pong");
+
+    String value = ctl->configGet("pong");
+    // Return the stored response, then an OK marker for success.
     Serial.println(value);
+    Serial.println("OK ping");
     return 0;
 }
 
