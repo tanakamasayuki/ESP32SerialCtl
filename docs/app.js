@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
       "meta": {
         "title": "ESP32 WebSerial Control"
       },
+      "required": "必須",
       "header": {
         "title": "ESP32 Serial Control",
         "subtitle": "WebSerial を利用して ESP32 の標準コマンドとユーザー定義コマンドを管理する Web コンソールです。"
@@ -757,6 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
       "meta": {
         "title": "ESP32 WebSerial Control"
       },
+      "required": "required",
       "header": {
         "title": "ESP32 Serial Control",
         "subtitle": "Web console for managing ESP32 built-in and user-defined commands via WebSerial."
@@ -1486,6 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
       "meta": {
         "title": "ESP32 WebSerial 控制台"
       },
+      "required": "必填",
       "header": {
         "title": "ESP32 串口控制台",
         "subtitle": "通过 WebSerial 管理 ESP32 内置命令与用户自定义命令的 Web 控制台。"
