@@ -1740,7 +1740,7 @@ namespace esp32serialctl
     explicit ESP32SerialCtl(const ConfigEntry (&entries)[EntryCount],
                             const CommandEntry (&commands)[CmdCount],
                             const char *configNamespace = nullptr)
-        : cli_(Serial, ESP32SerialCtl::allocateAndActivateCommands(commands, CmdCount),
+        : cli_(Serial, ESP32SerialCtl::allocateAndActivateCommands(commands, CmdCount, this),
                activeCommandCount_)
     {
       configureConfig(entries, EntryCount, configNamespace);
@@ -1905,7 +1905,7 @@ namespace esp32serialctl
     // Generic dispatcher invoked for user-registered commands. It looks up
     // the CommandEntry associated with the invoked Command and calls the
     // user handler with argv/argc.
-    static void dispatchToUserHandler(Context &ctx)
+  static void dispatchToUserHandler(Context &ctx)
     {
       const Command &cmd = ctx.command();
       const Command *commands = ESP32SerialCtl::activeCommands_;
@@ -1938,8 +1938,15 @@ namespace esp32serialctl
         argvBuf[i] = ctx.arg(i).c_str();
       }
 
-      // call user handler
-      int rc = entry->handler(argvBuf, argc, nullptr);
+      // look up owner pointer for this command (nullptr for built-ins)
+      void *owner = nullptr;
+      if (ESP32SerialCtl::commandOwnerMap_ && index < ESP32SerialCtl::activeCommandCount_)
+      {
+        owner = ESP32SerialCtl::commandOwnerMap_[index];
+      }
+
+      // call user handler, passing owner as ctx (may be nullptr for built-ins)
+      int rc = entry->handler(argvBuf, argc, owner);
       if (rc != 0)
       {
         ctx.printError(500, "Command handler error");
@@ -1955,7 +1962,7 @@ namespace esp32serialctl
     // assignable. To avoid assignment (which fails to compile), we
     // allocate raw storage and placement-new each Command element
     // (copy-construct built-ins, aggregate-construct user entries).
-    static void registerCommands(const CommandEntry *entries, size_t count)
+  static void registerCommands(const CommandEntry *entries, size_t count, ESP32SerialCtl *owner = nullptr)
     {
       // base built-in commands
       const Command *base = ESP32SerialCtl::kCommands;
@@ -1964,7 +1971,7 @@ namespace esp32serialctl
 
       // If we previously allocated a combined array, destruct and free it
       // before allocating a new one. Built-in kCommands must not be freed.
-      if (ESP32SerialCtl::activeCommandsRaw_)
+  if (ESP32SerialCtl::activeCommandsRaw_)
       {
         // call destructors for previously-constructed Commands
         for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
@@ -1974,9 +1981,13 @@ namespace esp32serialctl
         ::operator delete[](ESP32SerialCtl::activeCommandsRaw_);
         ESP32SerialCtl::activeCommandsRaw_ = nullptr;
 
-        // free previous mapping if present
-        delete[] ESP32SerialCtl::commandEntryMap_;
-        ESP32SerialCtl::commandEntryMap_ = nullptr;
+  // free previous mapping if present
+  delete[] ESP32SerialCtl::commandEntryMap_;
+  ESP32SerialCtl::commandEntryMap_ = nullptr;
+
+  // free previous owner mapping if present
+  delete[] ESP32SerialCtl::commandOwnerMap_;
+  ESP32SerialCtl::commandOwnerMap_ = nullptr;
 
         // reset to built-in defaults
         ESP32SerialCtl::activeCommands_ = ESP32SerialCtl::kCommands;
@@ -1997,12 +2008,20 @@ namespace esp32serialctl
         ::operator delete[](raw);
         return;
       }
+      ESP32SerialCtl **ownerMap = new (std::nothrow) ESP32SerialCtl *[total];
+      if (!ownerMap)
+      {
+        ::operator delete[](raw);
+        delete[] map;
+        return;
+      }
 
       // copy-construct built-ins into the raw storage
       for (size_t i = 0; i < baseCount; ++i)
       {
         new (&combined[i]) Command(base[i]);
         map[i] = nullptr;
+        ownerMap[i] = nullptr;
       }
 
       // construct user entries via aggregate initialization
@@ -2030,6 +2049,7 @@ namespace esp32serialctl
                                      &ESP32SerialCtl::dispatchToUserHandler,
                                      helpStr};
         map[dst] = &entries[i];
+        ownerMap[dst] = owner;
       }
 
       // set active pointers and record raw allocation so we can free later
@@ -2037,13 +2057,14 @@ namespace esp32serialctl
       ESP32SerialCtl::activeCommands_ = combined;
       ESP32SerialCtl::activeCommandCount_ = total;
       ESP32SerialCtl::commandEntryMap_ = map;
+      ESP32SerialCtl::commandOwnerMap_ = ownerMap;
     }
 
     // Helper used by constructors to allocate+activate commands and return
     // the pointer suitable for SerialCtl initialization.
-    static Command *allocateAndActivateCommands(const CommandEntry *entries, size_t count)
+    static Command *allocateAndActivateCommands(const CommandEntry *entries, size_t count, ESP32SerialCtl *owner = nullptr)
     {
-      registerCommands(entries, count);
+      registerCommands(entries, count, owner);
       // activeCommands_ now points to newly allocated combined array
       return const_cast<Command *>(activeCommands_);
     }
@@ -6497,6 +6518,9 @@ namespace esp32serialctl
 
     // Map from activeCommands_ index to CommandEntry (nullptr for built-ins)
     static const CommandEntry **commandEntryMap_;
+  // Map from activeCommands_ index to owner ESP32SerialCtl instance
+  // (nullptr for built-ins). Stored per-template instantiation.
+  static ESP32SerialCtl **commandOwnerMap_;
 
     static bool pinAllAccess_;
     static bool pinAllowed_[GPIO_PIN_COUNT];
@@ -6643,6 +6667,10 @@ namespace esp32serialctl
 
   template <size_t MaxLineLength, size_t MaxTokens>
   const CommandEntry **ESP32SerialCtl<MaxLineLength, MaxTokens>::commandEntryMap_ = nullptr;
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  ESP32SerialCtl<MaxLineLength, MaxTokens> **
+    ESP32SerialCtl<MaxLineLength, MaxTokens>::commandOwnerMap_ = nullptr;
 
   template <size_t MaxLineLength, size_t MaxTokens>
   void *ESP32SerialCtl<MaxLineLength, MaxTokens>::activeCommandsRaw_ = nullptr;
