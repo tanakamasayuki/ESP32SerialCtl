@@ -5092,6 +5092,16 @@ OK fs ls
     valueInput.placeholder = entry.default || translate('sections.config.labels.empty');
     valueInput.dataset.originalValue = entry.value || '';
     valueInput.dataset.configName = entry.name || '';
+    // Ensure accessibility: provide id and name attributes so form fields are
+    // properly associated and do not trigger 'should have an id or name' warnings.
+    try {
+      const rawName = entry.name || '';
+      const safeId = `conf-${String(rawName).replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase()}`;
+      valueInput.id = safeId;
+      valueInput.name = rawName;
+    } catch (e) {
+      /* ignore */
+    }
     valueCell.append(valueInput);
 
     const defaultValue = typeof entry.default === 'string' ? entry.default : '';
