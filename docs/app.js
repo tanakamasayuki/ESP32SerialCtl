@@ -2883,6 +2883,7 @@ OK fs ls
   const rgbSetBlueInput = document.querySelector('#rgb-set-b');
   const rgbCountInput = document.querySelector('#rgb-count');
   const rgbWaitInput = document.querySelector('#rgb-wait');
+  const rgbColorInput = document.querySelector('#rgb-color');
   const rgbSetButton = document.querySelector('#command-peripherals-rgb-set .card-actions button');
   const i2cScanBusSelect = document.querySelector('#i2c-scan-bus');
   const i2cScanButton = document.querySelector('#command-peripherals-i2c-scan .card-actions button');
@@ -2931,6 +2932,7 @@ OK fs ls
     rgbSetBlueInput,
     rgbCountInput,
     rgbWaitInput,
+    rgbColorInput,
     i2cScanBusSelect,
     i2cReadBusSelect,
     i2cReadAddressInput,
@@ -2941,6 +2943,58 @@ OK fs ls
     i2cWriteRegisterInput,
     i2cWriteBytesInput
   ].filter(Boolean);
+
+  // --- RGB color picker <-> numeric sync ------------------------------------
+  const toHex2 = (v) => {
+    const n = Math.max(0, Math.min(255, Number(v) || 0));
+    const s = n.toString(16).toUpperCase();
+    return s.length === 1 ? `0${s}` : s;
+  };
+  const rgbToHex = (r, g, b) => `#${toHex2(r)}${toHex2(g)}${toHex2(b)}`;
+
+  if (rgbColorInput) {
+    rgbColorInput.addEventListener('input', () => {
+      const hex = (rgbColorInput.value || '').trim();
+      if (!hex || hex[0] !== '#' || hex.length < 7) return;
+      try {
+        const r = parseInt(hex.substring(1, 3), 16);
+        const g = parseInt(hex.substring(3, 5), 16);
+        const b = parseInt(hex.substring(5, 7), 16);
+        if (Number.isFinite(r)) {
+          if (rgbSetRedInput) {
+            rgbSetRedInput.value = String(r);
+            rgbSetRedInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+        if (Number.isFinite(g)) {
+          if (rgbSetGreenInput) {
+            rgbSetGreenInput.value = String(g);
+            rgbSetGreenInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+        if (Number.isFinite(b)) {
+          if (rgbSetBlueInput) {
+            rgbSetBlueInput.value = String(b);
+            rgbSetBlueInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }, { passive: true });
+
+    const syncColorFromNumeric = () => {
+      if (!rgbColorInput) return;
+      const r = Number(rgbSetRedInput?.value || 0);
+      const g = Number(rgbSetGreenInput?.value || 0);
+      const b = Number(rgbSetBlueInput?.value || 0);
+      rgbColorInput.value = rgbToHex(r, g, b);
+    };
+
+    rgbSetRedInput?.addEventListener('change', syncColorFromNumeric);
+    rgbSetGreenInput?.addEventListener('change', syncColorFromNumeric);
+    rgbSetBlueInput?.addEventListener('change', syncColorFromNumeric);
+  }
   // --- Pin / Bus sync helpers -------------------------------------------------
   const makeSyncHandler = (selects) => {
     // ensure array of DOM elements
