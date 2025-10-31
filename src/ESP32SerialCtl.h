@@ -5510,16 +5510,370 @@ namespace esp32serialctl
         return;
       }
 
+      const char *topic = nullptr;
       if (!ctx.arg(0).empty())
       {
-        if (!ctx.controller().printHelp(ctx.arg(0).c_str()))
-        {
-          ctx.printError(404, "Unknown help topic");
-        }
-        return;
+        topic = ctx.arg(0).c_str();
       }
 
-      ctx.controller().printHelp();
+      if (!ESP32SerialCtl::printAppHelp(ctx, topic))
+      {
+        ctx.printError(404, "Unknown help topic");
+      }
+    }
+
+    // Print help using the application's activeCommands_ and
+    // commandEntryMap_. Prefers localized 'en' description when
+    // available; otherwise uses the first non-empty description.
+    static bool printAppHelp(Context &ctx, const char *topic = nullptr)
+    {
+      const bool hasTopic = topic && *topic;
+
+      if (!hasTopic)
+      {
+        ctx.printOK("help");
+        for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
+        {
+          const Command &cmd = ESP32SerialCtl::activeCommands_[i];
+          if (!cmd.name)
+            continue;
+          if (!Base::commandSupported(cmd))
+            continue;
+
+          // Determine whether this entry is a user-registered CommandEntry
+          const CommandEntry *entry = nullptr;
+          if (ESP32SerialCtl::commandEntryMap_ && i < ESP32SerialCtl::activeCommandCount_)
+          {
+            entry = ESP32SerialCtl::commandEntryMap_[i];
+          }
+
+          char commandText[128];
+          if (cmd.group && *cmd.group)
+          {
+            snprintf(commandText, sizeof(commandText), "%s %s", cmd.group, cmd.name);
+          }
+          else
+          {
+            snprintf(commandText, sizeof(commandText), "%s", cmd.name);
+          }
+
+          // Build help line depending on whether we have a CommandEntry
+          if (entry)
+          {
+            // build usage from args
+            String usage = String(commandText);
+            bool firstArg = true;
+            for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
+            {
+              const CmdArgSpec &aspec = entry->args[a];
+              if (!aspec.name || !*aspec.name)
+                break;
+              usage += " ";
+              if (aspec.required)
+              {
+                usage += "<";
+                usage += aspec.name;
+                usage += ">";
+              }
+              else
+              {
+                usage += "[";
+                usage += aspec.name;
+                usage += "]";
+              }
+              firstArg = false;
+            }
+
+            // select localized description: prefer 'en'
+            const char *desc = nullptr;
+            for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
+            {
+              const LocalizedText &lt = entry->descriptions[l];
+              if (lt.lang && lt.description && lt.lang[0] && lt.description[0] && strcmp(lt.lang, "en") == 0)
+              {
+                desc = lt.description;
+                break;
+              }
+            }
+            if (!desc)
+            {
+              for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
+              {
+                const LocalizedText &lt = entry->descriptions[l];
+                if (lt.description && lt.description[0])
+                {
+                  desc = lt.description;
+                  break;
+                }
+              }
+            }
+            char line[256];
+            if (desc && *desc)
+            {
+              snprintf(line, sizeof(line), "%s : %s", usage.c_str(), desc);
+            }
+            else
+            {
+              snprintf(line, sizeof(line), "%s", usage.c_str());
+            }
+            ctx.printList(line);
+          }
+          else
+          {
+            // built-in: try to split existing help into usage and description
+            const char *help = cmd.help ? cmd.help : "";
+            const char *colon = strchr(help, ':');
+            char line[256];
+            if (colon)
+            {
+              // left part (usage) and right part (description)
+              size_t leftLen = colon - help;
+              char left[128] = {0};
+              strncpy(left, help, leftLen < sizeof(left) - 1 ? leftLen : sizeof(left) - 1);
+              const char *right = colon + 1;
+              // trim leading space from right
+              while (*right && isspace(static_cast<unsigned char>(*right))) ++right;
+              if (*left)
+              {
+                snprintf(line, sizeof(line), "%s %s : %s", commandText, left, right);
+              }
+              else
+              {
+                snprintf(line, sizeof(line), "%s : %s", commandText, right);
+              }
+            }
+            else if (help && *help)
+            {
+              snprintf(line, sizeof(line), "%s %s", commandText, help);
+            }
+            else
+            {
+              snprintf(line, sizeof(line), "%s", commandText);
+            }
+            ctx.printList(line);
+          }
+        }
+        return true;
+      }
+
+      // If a topic was provided, try to print details for matching group or command
+      const char *topicText = topic;
+      bool any = false;
+      // group match
+      for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
+      {
+        const Command &cmd = ESP32SerialCtl::activeCommands_[i];
+        if (cmd.group && Base::equalsIgnoreCase(cmd.group, topicText) && Base::commandSupported(cmd))
+        {
+          any = true;
+          // print header once
+          break;
+        }
+      }
+
+      if (any)
+      {
+        char header[64];
+        snprintf(header, sizeof(header), "help %s", topicText);
+        ctx.printOK(header);
+        for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
+        {
+          const Command &cmd = ESP32SerialCtl::activeCommands_[i];
+          if (cmd.group && Base::equalsIgnoreCase(cmd.group, topicText) && Base::commandSupported(cmd))
+          {
+            // reuse above logic by calling printAppHelp with single-item behavior
+            // (we'll duplicate minimal formatting here)
+            const CommandEntry *entry = nullptr;
+            if (ESP32SerialCtl::commandEntryMap_ && i < ESP32SerialCtl::activeCommandCount_)
+            {
+              entry = ESP32SerialCtl::commandEntryMap_[i];
+            }
+            char commandText[128];
+            if (cmd.group && *cmd.group)
+            {
+              snprintf(commandText, sizeof(commandText), "%s %s", cmd.group, cmd.name);
+            }
+            else
+            {
+              snprintf(commandText, sizeof(commandText), "%s", cmd.name);
+            }
+            char line[256] = {0};
+            if (entry)
+            {
+              String usage = String(commandText);
+              for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
+              {
+                const CmdArgSpec &aspec = entry->args[a];
+                if (!aspec.name || !*aspec.name)
+                  break;
+                usage += " ";
+                if (aspec.required)
+                {
+                  usage += "<";
+                  usage += aspec.name;
+                  usage += ">";
+                }
+                else
+                {
+                  usage += "[";
+                  usage += aspec.name;
+                  usage += "]";
+                }
+              }
+              const char *desc = nullptr;
+              for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
+              {
+                const LocalizedText &lt = entry->descriptions[l];
+                if (lt.lang && lt.description && lt.lang[0] && lt.description[0] && strcmp(lt.lang, "en") == 0)
+                {
+                  desc = lt.description;
+                  break;
+                }
+              }
+              if (!desc)
+              {
+                for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
+                {
+                  const LocalizedText &lt = entry->descriptions[l];
+                  if (lt.description && lt.description[0])
+                  {
+                    desc = lt.description;
+                    break;
+                  }
+                }
+              }
+              if (desc && *desc)
+              {
+                snprintf(line, sizeof(line), "%s : %s", usage.c_str(), desc);
+              }
+              else
+              {
+                snprintf(line, sizeof(line), "%s", usage.c_str());
+              }
+            }
+            else
+            {
+              const char *help = cmd.help ? cmd.help : "";
+              const char *colon = strchr(help, ':');
+              if (colon)
+              {
+                size_t leftLen = colon - help;
+                char left[128] = {0};
+                strncpy(left, help, leftLen < sizeof(left) - 1 ? leftLen : sizeof(left) - 1);
+                const char *right = colon + 1;
+                while (*right && isspace(static_cast<unsigned char>(*right))) ++right;
+                if (*left)
+                {
+                  snprintf(line, sizeof(line), "%s %s : %s", commandText, left, right);
+                }
+                else
+                {
+                  snprintf(line, sizeof(line), "%s : %s", commandText, right);
+                }
+              }
+              else if (help && *help)
+              {
+                snprintf(line, sizeof(line), "%s %s", commandText, help);
+              }
+              else
+              {
+                snprintf(line, sizeof(line), "%s", commandText);
+              }
+            }
+            ctx.printList(line);
+          }
+        }
+        return true;
+      }
+
+      // Not found
+      return false;
+    }
+
+    // Print a detailed list of only user-registered commands (those that
+    // came from CommandEntry arrays). Shows usage and localized
+    // descriptions (prefers 'en').
+    static void handleUserCommandsList(Context &ctx)
+    {
+      ctx.printOK("user commands");
+      if (!ESP32SerialCtl::commandEntryMap_)
+      {
+        ctx.printError(404, "No user commands registered");
+        return;
+      }
+      for (size_t i = 0; i < ESP32SerialCtl::activeCommandCount_; ++i)
+      {
+        const CommandEntry *entry = ESP32SerialCtl::commandEntryMap_[i];
+        if (!entry)
+          continue;
+        const Command &cmd = ESP32SerialCtl::activeCommands_[i];
+        char commandText[128];
+        if (cmd.group && *cmd.group)
+        {
+          snprintf(commandText, sizeof(commandText), "%s %s", cmd.group, cmd.name);
+        }
+        else
+        {
+          snprintf(commandText, sizeof(commandText), "%s", cmd.name);
+        }
+
+        // usage
+        String usage = String(commandText);
+        for (size_t a = 0; a < ESP32SERIALCTL_CMD_ARG_MAX; ++a)
+        {
+          const CmdArgSpec &aspec = entry->args[a];
+          if (!aspec.name || !*aspec.name)
+            break;
+          usage += " ";
+          if (aspec.required)
+          {
+            usage += "<";
+            usage += aspec.name;
+            usage += ">";
+          }
+          else
+          {
+            usage += "[";
+            usage += aspec.name;
+            usage += "]";
+          }
+        }
+
+        // description (prefer en)
+        const char *desc = nullptr;
+        for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
+        {
+          const LocalizedText &lt = entry->descriptions[l];
+          if (lt.lang && lt.description && lt.lang[0] && lt.description[0] && strcmp(lt.lang, "en") == 0)
+          {
+            desc = lt.description;
+            break;
+          }
+        }
+        if (!desc)
+        {
+          for (size_t l = 0; l < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++l)
+          {
+            const LocalizedText &lt = entry->descriptions[l];
+            if (lt.description && lt.description[0])
+            {
+              desc = lt.description;
+              break;
+            }
+          }
+        }
+
+        char line[256];
+        if (desc && *desc)
+        {
+          snprintf(line, sizeof(line), "%s : %s", usage.c_str(), desc);
+        }
+        else
+        {
+          snprintf(line, sizeof(line), "%s", usage.c_str());
+        }
+        ctx.printList(line);
+      }
     }
 
     static void handleGpioMode(Context &ctx)
@@ -6197,6 +6551,8 @@ namespace esp32serialctl
            ": Show help for commands"},
           {nullptr, "?", &ESP32SerialCtl::handleHelp,
            ": Shortcut for help"},
+          {"user", "commands", &ESP32SerialCtl::handleUserCommandsList,
+           ": List user-registered commands with details"},
   };
 
   // Initialize activeCommands_ to point to built-in kCommands by default.
