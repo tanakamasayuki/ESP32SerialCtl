@@ -9073,7 +9073,7 @@ OK fs ls
         form.append(field);
       });
 
-  const actions = document.createElement('div');
+      const actions = document.createElement('div');
       actions.className = 'card-actions';
       const sendBtn = document.createElement('button');
       sendBtn.className = 'btn btn-primary'; sendBtn.type = 'button'; sendBtn.textContent = 'Send';
