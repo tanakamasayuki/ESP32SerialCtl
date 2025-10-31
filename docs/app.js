@@ -8996,6 +8996,19 @@ OK fs ls
     }
     console.debug('renderUserCommands: start', { count: (commands || []).length });
     appendLogEntry && appendLogEntry('debug', `renderUserCommands: start parsed=${(commands || []).length}`);
+    // prepare tablist (create if missing)
+    let tablist = document.querySelector('#tab-usercmds .command-tablist');
+    if (!tablist) {
+      const layout = document.querySelector('#tab-usercmds .command-layout');
+      if (layout) {
+        tablist = document.createElement('div');
+        tablist.className = 'command-tablist';
+        tablist.setAttribute('role', 'tablist');
+        tablist.setAttribute('aria-label', 'ユーザーコマンド');
+        layout.insertBefore(tablist, layout.firstChild);
+      }
+    }
+    if (tablist) tablist.innerHTML = '';
     userCommandsArea.innerHTML = '';
     if (!commands || !commands.length) {
       const p = document.createElement('p');
@@ -9010,8 +9023,15 @@ OK fs ls
       appendLogEntry && appendLogEntry('debug', `renderUserCommands: rendering ${entry && entry.cmd || '(unknown)'} #${idx}`);
       const card = document.createElement('article');
       card.className = 'card command-panel';
-      // make dynamically-created command panels visible by default
-      card.classList.add('is-active');
+      // set id/aria attributes matching the tab pattern used elsewhere
+      const panelId = `command-usercmds-${makeSafeId(entry.cmd || ('cmd' + idx))}`;
+      const tabId = `tab-usercmds-${makeSafeId(entry.cmd || ('cmd' + idx))}`;
+      card.id = panelId;
+      card.dataset.command = entry.cmd || '';
+      card.setAttribute('role', 'tabpanel');
+      card.setAttribute('aria-labelledby', tabId);
+      // only the first becomes active by default
+      if (idx === 0) card.classList.add('is-active');
       const title = document.createElement('h4');
       title.textContent = entry.usage || entry.cmd;
       const desc = document.createElement('p');
@@ -9053,7 +9073,7 @@ OK fs ls
         form.append(field);
       });
 
-      const actions = document.createElement('div');
+  const actions = document.createElement('div');
       actions.className = 'card-actions';
       const sendBtn = document.createElement('button');
       sendBtn.className = 'btn btn-primary'; sendBtn.type = 'button'; sendBtn.textContent = 'Send';
@@ -9087,9 +9107,44 @@ OK fs ls
       });
 
       userCommandsArea.append(card);
+      // create tab button
+      if (tablist) {
+        const btn = document.createElement('button');
+        btn.className = 'command-tab';
+        if (idx === 0) btn.classList.add('is-active');
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+        btn.id = tabId;
+        btn.dataset.command = entry.cmd || '';
+        btn.setAttribute('aria-controls', panelId);
+        btn.textContent = entry.cmd || entry.usage || `cmd-${idx}`;
+        tablist.append(btn);
+      }
       console.debug('renderUserCommands: appended card', entry && entry.cmd);
       appendLogEntry && appendLogEntry('debug', `renderUserCommands: appended ${entry && entry.cmd}`);
     });
+    // wire up tab clicks for user commands
+    try {
+      const tabs = document.querySelectorAll('#tab-usercmds .command-tablist .command-tab');
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          const cmd = tab.dataset.command;
+          // deactivate all tabs/panels
+          tabs.forEach((t) => { t.classList.remove('is-active'); t.setAttribute('aria-selected', 'false'); });
+          const panels = document.querySelectorAll('#tab-usercmds .command-panel');
+          panels.forEach((p) => p.classList.remove('is-active'));
+          // activate selected
+          tab.classList.add('is-active');
+          tab.setAttribute('aria-selected', 'true');
+          const targetPanel = document.querySelector(tab.getAttribute('aria-controls')) || document.getElementById(tab.getAttribute('aria-controls'));
+          if (targetPanel) {
+            targetPanel.classList.add('is-active');
+          }
+        });
+      });
+    } catch (e) {
+      console.error('renderUserCommands: failed to wire tabs', e);
+    }
     console.debug('renderUserCommands: done');
     appendLogEntry && appendLogEntry('debug', 'renderUserCommands: done');
   };
