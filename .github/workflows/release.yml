@@ -36,8 +36,11 @@ jobs:
         id: version
         run: |
           LEVEL="${{ github.event.inputs.version_level || 'patch' }}"
-          VERSION=$(python tools/bump_version.py --level "$LEVEL")
+          OUT=$(python tools/bump_version.py --level "$LEVEL")
+          VERSION=$(printf '%s\n' "$OUT" | sed -n '1p')
+          HEADER=$(printf '%s\n' "$OUT" | sed -n '2p')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_header=$HEADER" >> "$GITHUB_OUTPUT"
 
       - name: Stage files
         run: |
@@ -45,6 +48,10 @@ jobs:
           git ls-files --modified --others --exclude-standard -- 'examples/**/sketch.yaml' | while read -r file; do
             git add "$file"
           done
+          # If bump_version.py created a version header, include it in the commit
+          if [ -n "${{ steps.version.outputs.version_header }}" ] && [ -f "${{ steps.version.outputs.version_header }}" ]; then
+            git add "${{ steps.version.outputs.version_header }}"
+          fi
 
       - name: Commit changes
         run: |
