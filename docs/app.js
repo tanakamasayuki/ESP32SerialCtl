@@ -665,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "ADC ピンをサンプリングします。"
           },
           "pwm-set": {
-            "description": "LEDC PWM 信号を設定します（12bit、duty は 0-4095 または %）。"
+            "description": "LEDC PWM 信号を設定します（12bit、duty は 0-4096 または %）。"
           },
           "pwm-stop": {
             "description": "指定ピンの PWM を停止します。"
@@ -700,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "pin": "ピン",
           "mode": "モード",
           "value": "値",
-          "duty": "デューティ (0-4095 または %)",
+          "duty": "デューティ (0-4096 または %)",
           "frequency": "周波数 (Hz)",
           "channel": "チャネル",
           "atten": "減衰モード",
@@ -1394,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "Sample an ADC pin."
           },
           "pwm-set": {
-            "description": "Configure the LEDC PWM signal (12-bit; duty accepts 0-4095 or %)."
+            "description": "Configure the LEDC PWM signal (12-bit; duty accepts 0-4096 or %)."
           },
           "pwm-stop": {
             "description": "Stop PWM output on the specified pin."
@@ -1429,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "pin": "Pin",
           "mode": "Mode",
           "value": "Value",
-          "duty": "Duty (0-4095 or %)",
+          "duty": "Duty (0-4096 or %)",
           "frequency": "Frequency (Hz)",
           "channel": "Channel",
           "atten": "Attenuation",
@@ -2123,7 +2123,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "description": "采样指定 ADC 引脚。"
           },
           "pwm-set": {
-            "description": "配置 LEDC PWM 信号（12 位，占空比支持 0-4095 或 %）。"
+            "description": "配置 LEDC PWM 信号（12 位，占空比支持 0-4096 或 %）。"
           },
           "pwm-stop": {
             "description": "停止指定引脚的 PWM 输出。"
@@ -2158,7 +2158,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "pin": "引脚",
           "mode": "模式",
           "value": "值",
-          "duty": "占空比 (0-4095 或 %)",
+          "duty": "占空比 (0-4096 或 %)",
           "frequency": "频率 (Hz)",
           "channel": "通道",
           "atten": "衰减模式",
@@ -8390,20 +8390,26 @@ OK fs ls
       servoPulseMaxInput?.focus();
       return;
     }
+    // Use 12-bit LEDC resolution. Map angle -> pulse width (μs), then convert
+    // to a duty count based on a 12-bit scale. We treat 4096 as the full-scale
+    // ratio (as requested) but clamp the actual sent value to 0..4095 which is
+    // the usable range for 12-bit hardware.
     const freqHz = 50;
     const periodUs = 1000000 / freqHz;
     const pulseWidthUs = pulseMinValue + ((pulseMaxValue - pulseMinValue) * (angleValue / 180));
-    const dutyPercent = (pulseWidthUs / periodUs) * 100;
-    const safeDutyPercent = Math.max(0, Math.min(100, dutyPercent));
-    const dutyPercentValue = Number.isFinite(safeDutyPercent)
-      ? Number(safeDutyPercent.toFixed(4))
-      : 0;
-    const dutyPercentText = `${dutyPercentValue}%`;
+    // Calculate duty using 4096 as the full-scale factor, then clamp to 0..4095
+    let dutyCount = Math.round((pulseWidthUs / periodUs) * 4096);
+    if (!Number.isFinite(dutyCount) || dutyCount < 0) {
+      dutyCount = 0;
+    }
+    if (dutyCount >= 4096) {
+      dutyCount = 4095; // clamp to max usable value for 12-bit
+    }
     appendLogEntry(
       'debug',
-      `UI: servo set -> pin=${pin} angle=${angleValue} pulse=${pulseMinValue}/${pulseMaxValue} duty=${dutyPercentText}`
+      `UI: servo set -> pin=${pin} angle=${angleValue} pulse=${pulseMinValue}/${pulseMaxValue} duty=${dutyCount} bits=12`
     );
-    const commandText = `pwm set ${pin} ${freqHz} ${dutyPercentText}`;
+    const commandText = `pwm set ${pin} ${freqHz} ${dutyCount} 12`;
     dispatchPeripheralCommand('servo-set', commandText, {
       id: `servo-set-${pin}`,
       button: servoSetButton,
