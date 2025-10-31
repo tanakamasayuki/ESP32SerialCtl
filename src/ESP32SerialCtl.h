@@ -41,6 +41,7 @@
 #if !defined(_WIN32)
 #include <sys/time.h>
 #endif
+#include <new>
 #include <soc/soc.h>
 #include <soc/gpio_reg.h>
 
@@ -185,6 +186,31 @@ namespace esp32serialctl
   {
     const char *lang;
     const char *description;
+  };
+
+#if !defined(ESP32SERIALCTL_CMD_ARG_MAX)
+#define ESP32SERIALCTL_CMD_ARG_MAX 8
+#endif
+
+  // 引数仕様
+  struct CmdArgSpec
+  {
+    const char *name; // 引数名
+    const char *type; // 表示用型名（"int"/"string" 等）
+    bool required;    // 必須か
+    const char *hint; // 補助説明
+  };
+
+  // ユーザー定義ハンドラ型（CommandEntry が保持する）
+  using CmdHandlerFn = int (*)(const char **argv, size_t argc, void *ctx);
+
+  // CommandEntry: 設定と同様に静的配列で定義できることを想定
+  struct CommandEntry
+  {
+    const char *name;
+    LocalizedText descriptions[ESP32SERIALCTL_CONFIG_MAX_LOCALES];
+    CmdArgSpec args[ESP32SERIALCTL_CMD_ARG_MAX];
+    CmdHandlerFn handler;
   };
 
   struct ConfigEntry
@@ -1694,7 +1720,7 @@ namespace esp32serialctl
     using Context = typename Base::Context;
 
     ESP32SerialCtl()
-        : cli_(Serial, kCommands, kCommandCount)
+        : cli_(Serial, activeCommands_, activeCommandCount_)
     {
       configureConfig(nullptr, 0, nullptr);
     }
@@ -1702,20 +1728,33 @@ namespace esp32serialctl
     template <size_t EntryCount>
     explicit ESP32SerialCtl(const ConfigEntry (&entries)[EntryCount],
                             const char *configNamespace = nullptr)
-        : cli_(Serial, kCommands, kCommandCount)
+        : cli_(Serial, activeCommands_, activeCommandCount_)
+    {
+      configureConfig(entries, EntryCount, configNamespace);
+    }
+
+    // Constructor that accepts both config entries and command entries as
+    // static arrays. It activates the provided commands before constructing
+    // the CLI internals so they are used from the start.
+    template <size_t EntryCount, size_t CmdCount>
+    explicit ESP32SerialCtl(const ConfigEntry (&entries)[EntryCount],
+                            const CommandEntry (&commands)[CmdCount],
+                            const char *configNamespace = nullptr)
+        : cli_(Serial, ESP32SerialCtl::allocateAndActivateCommands(commands, CmdCount),
+               activeCommandCount_)
     {
       configureConfig(entries, EntryCount, configNamespace);
     }
 
     ESP32SerialCtl(const ConfigEntry *entries, size_t count,
                    const char *configNamespace = nullptr)
-        : cli_(Serial, kCommands, kCommandCount)
+        : cli_(Serial, activeCommands_, activeCommandCount_)
     {
       configureConfig(entries, count, configNamespace);
     }
 
     explicit ESP32SerialCtl(Stream &io)
-        : cli_(io, kCommands, kCommandCount)
+        : cli_(io, activeCommands_, activeCommandCount_)
     {
       configureConfig(nullptr, 0, nullptr);
     }
@@ -1723,20 +1762,20 @@ namespace esp32serialctl
     template <size_t EntryCount>
     ESP32SerialCtl(Stream &io, const ConfigEntry (&entries)[EntryCount],
                    const char *configNamespace = nullptr)
-        : cli_(io, kCommands, kCommandCount)
+        : cli_(io, activeCommands_, activeCommandCount_)
     {
       configureConfig(entries, EntryCount, configNamespace);
     }
 
     ESP32SerialCtl(Stream &io, const ConfigEntry *entries, size_t count,
                    const char *configNamespace = nullptr)
-        : cli_(io, kCommands, kCommandCount)
+        : cli_(io, activeCommands_, activeCommandCount_)
     {
       configureConfig(entries, count, configNamespace);
     }
 
     ESP32SerialCtl(Stream &input, Print &output)
-        : cli_(input, output, kCommands, kCommandCount)
+        : cli_(input, output, activeCommands_, activeCommandCount_)
     {
       configureConfig(nullptr, 0, nullptr);
     }
@@ -1745,14 +1784,14 @@ namespace esp32serialctl
     ESP32SerialCtl(Stream &input, Print &output,
                    const ConfigEntry (&entries)[EntryCount],
                    const char *configNamespace = nullptr)
-        : cli_(input, output, kCommands, kCommandCount)
+        : cli_(input, output, activeCommands_, activeCommandCount_)
     {
       configureConfig(entries, EntryCount, configNamespace);
     }
 
     ESP32SerialCtl(Stream &input, Print &output, const ConfigEntry *entries,
                    size_t count, const char *configNamespace = nullptr)
-        : cli_(input, output, kCommands, kCommandCount)
+        : cli_(input, output, activeCommands_, activeCommandCount_)
     {
       configureConfig(entries, count, configNamespace);
     }
@@ -1861,6 +1900,120 @@ namespace esp32serialctl
       configEntries_ = entries;
       configEntryCount_ = count;
       Base::setCommandSupportFilter(&ESP32SerialCtl::filterCommand);
+    }
+
+    // Generic dispatcher invoked for user-registered commands. It looks up
+    // the CommandEntry associated with the invoked Command and calls the
+    // user handler with argv/argc.
+    static void dispatchToUserHandler(Context &ctx)
+    {
+      const Command &cmd = ctx.command();
+      const Command *commands = ESP32SerialCtl::activeCommands_;
+      const size_t total = ESP32SerialCtl::activeCommandCount_;
+      size_t index = SIZE_MAX;
+      for (size_t i = 0; i < total; ++i)
+      {
+        if (&commands[i] == &cmd)
+        {
+          index = i;
+          break;
+        }
+      }
+      if (index == SIZE_MAX)
+      {
+        ctx.printError(500, "Handler mapping not found");
+        return;
+      }
+      const CommandEntry *entry = ESP32SerialCtl::commandEntryMap_[index];
+      if (!entry || !entry->handler)
+      {
+        ctx.printError(500, "No handler for command");
+        return;
+      }
+
+  const size_t argc = ctx.argc();
+      const char *argvBuf[ESP32SERIALCTL_CMD_ARG_MAX > 16 ? ESP32SERIALCTL_CMD_ARG_MAX : 16];
+      for (size_t i = 0; i < argc; ++i)
+      {
+        argvBuf[i] = ctx.arg(i).c_str();
+      }
+
+      // call user handler
+      int rc = entry->handler(argvBuf, argc, nullptr);
+      if (rc != 0)
+      {
+        ctx.printError(500, "Command handler error");
+      }
+    }
+
+    // Register user CommandEntry array. This will build an internal
+    // combined Command array (built-ins followed by user commands) and
+    // set activeCommands_ to point to it. The registered CommandEntry
+    // pointers are recorded in commandEntryMap_.
+    //
+    // Note: SerialCtl::Command contains const members and is not
+    // assignable. To avoid assignment (which fails to compile), we
+    // allocate raw storage and placement-new each Command element
+    // (copy-construct built-ins, aggregate-construct user entries).
+    static void registerCommands(const CommandEntry *entries, size_t count)
+    {
+      // base built-in commands
+      const Command *base = ESP32SerialCtl::kCommands;
+      const size_t baseCount = ESP32SerialCtl::kCommandCount;
+      const size_t total = baseCount + count;
+
+      // allocate raw storage for Commands and the mapping array
+      void *raw = ::operator new[](sizeof(Command) * total);
+      Command *combined = static_cast<Command *>(raw);
+      const CommandEntry **map = new const CommandEntry *[total];
+
+      // copy-construct built-ins into the raw storage
+      for (size_t i = 0; i < baseCount; ++i)
+      {
+        new (&combined[i]) Command(base[i]);
+        map[i] = nullptr;
+      }
+
+      // construct user entries via aggregate initialization
+      for (size_t i = 0; i < count; ++i)
+      {
+        const CommandEntry &e = entries[i];
+        size_t dst = baseCount + i;
+
+        // pick first non-empty localized description as help
+        const char *help = nullptr;
+        for (size_t j = 0; j < ESP32SERIALCTL_CONFIG_MAX_LOCALES; ++j)
+        {
+          const LocalizedText &lt = e.descriptions[j];
+          if (lt.description && *lt.description)
+          {
+            help = lt.description;
+            break;
+          }
+        }
+        const char *helpStr = help ? help : "";
+
+        // Command layout: group, name, handler, help
+        new (&combined[dst]) Command{nullptr,
+                                     (e.name ? e.name : nullptr),
+                                     &ESP32SerialCtl::dispatchToUserHandler,
+                                     helpStr};
+        map[dst] = &entries[i];
+      }
+
+      // set active pointers
+      activeCommands_ = combined;
+      activeCommandCount_ = total;
+      commandEntryMap_ = map;
+    }
+
+    // Helper used by constructors to allocate+activate commands and return
+    // the pointer suitable for SerialCtl initialization.
+    static Command *allocateAndActivateCommands(const CommandEntry *entries, size_t count)
+    {
+      registerCommands(entries, count);
+      // activeCommands_ now points to newly allocated combined array
+      return const_cast<Command *>(activeCommands_);
     }
 
     static const ConfigEntry *configEntry(size_t index)
@@ -5869,6 +6022,15 @@ namespace esp32serialctl
     static const Command kCommands[];
     static const size_t kCommandCount;
 
+    // Active commands pointer (may point to built-in kCommands or to a
+    // combined array created by registerCommands). Managed per-template
+    // instantiation.
+    static const Command *activeCommands_;
+    static size_t activeCommandCount_;
+
+    // Map from activeCommands_ index to CommandEntry (nullptr for built-ins)
+    static const CommandEntry **commandEntryMap_;
+
     static bool pinAllAccess_;
     static bool pinAllowed_[GPIO_PIN_COUNT];
     static String pinNames_[GPIO_PIN_COUNT];
@@ -5880,6 +6042,9 @@ namespace esp32serialctl
 
     Base cli_;
   };
+
+  // Static storage for activeCommands_ and map will be initialized after
+  // kCommands array is defined.
 
   template <size_t MaxLineLength, size_t MaxTokens>
   const typename ESP32SerialCtl<MaxLineLength, MaxTokens>::Command
@@ -5995,6 +6160,20 @@ namespace esp32serialctl
           {nullptr, "?", &ESP32SerialCtl::handleHelp,
            ": Shortcut for help"},
   };
+
+  // Initialize activeCommands_ to point to built-in kCommands by default.
+  template <size_t MaxLineLength, size_t MaxTokens>
+  const typename ESP32SerialCtl<MaxLineLength, MaxTokens>::Command *
+      ESP32SerialCtl<MaxLineLength, MaxTokens>::activeCommands_ =
+          ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands;
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  size_t ESP32SerialCtl<MaxLineLength, MaxTokens>::activeCommandCount_ =
+      sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands) /
+      sizeof(ESP32SerialCtl<MaxLineLength, MaxTokens>::kCommands[0]);
+
+  template <size_t MaxLineLength, size_t MaxTokens>
+  const CommandEntry **ESP32SerialCtl<MaxLineLength, MaxTokens>::commandEntryMap_ = nullptr;
 
 #if defined(ESP32SERIALCTL_HAS_STORAGE)
   template <size_t MaxLineLength, size_t MaxTokens>

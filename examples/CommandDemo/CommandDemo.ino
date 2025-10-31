@@ -1,27 +1,8 @@
 #include <Arduino.h>
 #include <ESP32SerialCtl.h>
 
-// Simple handler signatures expected by the library (adapt if your handler
-// type differs). Here we implement a minimal handler that prints parsed args.
-int handle_rgb(const char **argv, size_t argc, void *ctx)
-{
-    (void)ctx;
-    int r = argc > 0 ? atoi(argv[0]) : 0;
-    int g = argc > 1 ? atoi(argv[1]) : 0;
-    int b = argc > 2 ? atoi(argv[2]) : 0;
-    Serial.printf("rgb handler: r=%d g=%d b=%d\n", r, g, b);
-    return 0;
-}
-
-int handle_ping(const char **argv, size_t argc, void *ctx)
-{
-    (void)argv;
-    (void)argc;
-    (void)ctx;
-    String value = esp32SerialCtl.configGet("pong");
-    Serial.println(value);
-    return 0;
-}
+int handle_rgb(const char **argv, size_t argc, void *ctx);
+int handle_ping(const char **argv, size_t argc, void *ctx);
 
 static constexpr esp32serialctl::CommandEntry kAppCommands[] = {
     {
@@ -67,6 +48,28 @@ static constexpr esp32serialctl::ConfigEntry kAppConfigEntries[] = {
 
 // Instantiate controller with config entries empty and commands passed in
 static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfigEntries, kAppCommands);
+
+// Simple handler signatures expected by the library (adapt if your handler
+// type differs). Here we implement a minimal handler that prints parsed args.
+int handle_rgb(const char **argv, size_t argc, void *ctx)
+{
+    (void)ctx;
+    int r = argc > 0 ? atoi(argv[0]) : 0;
+    int g = argc > 1 ? atoi(argv[1]) : 0;
+    int b = argc > 2 ? atoi(argv[2]) : 0;
+    Serial.printf("rgb handler: r=%d g=%d b=%d\n", r, g, b);
+    return 0;
+}
+
+int handle_ping(const char **argv, size_t argc, void *ctx)
+{
+    (void)argv;
+    (void)argc;
+    (void)ctx;
+    String value = esp32SerialCtl.configGet("pong");
+    Serial.println(value);
+    return 0;
+}
 
 void setup()
 {
