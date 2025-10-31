@@ -9081,7 +9081,13 @@ OK fs ls
       card.append(form, actions);
 
       const resultPre = document.createElement('pre');
-      resultPre.className = 'result-raw'; resultPre.textContent = '';
+      resultPre.className = 'result-raw';
+      // show localized placeholder by default so users know where results appear
+      try {
+        resultPre.textContent = translate ? translate('results.placeholder') || '' : '';
+      } catch (e) {
+        resultPre.textContent = '';
+      }
       card.append(resultPre);
 
       sendBtn.addEventListener('click', () => {
