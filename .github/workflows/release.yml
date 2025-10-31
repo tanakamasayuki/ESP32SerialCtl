@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_level:
+        description: "Version component to bump when forcing a release (major, minor, patch)"
+        required: false
+        default: "patch"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bump version
+        id: version
+        run: |
+          LEVEL="${{ github.event.inputs.version_level || 'patch' }}"
+          VERSION=$(python tools/bump_version.py --level "$LEVEL")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Stage files
+        run: |
+          git add library.properties
+          git ls-files --modified --others --exclude-standard -- 'examples/**/sketch.yaml' | while read -r file; do
+            git add "$file"
+          done
+
+      - name: Commit changes
+        run: |
+          git commit -m "Release ${{ steps.version.outputs.version }}" || echo "No changes to commit."
+
+      - name: Build release archive
+        id: archive
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCHIVE="${{ github.event.repository.name }}-${VERSION}.zip"
+          git archive --format=zip --prefix="${{ github.event.repository.name }}/" HEAD > "$ARCHIVE"
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: create_tag_and_push
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          # create tag only if it doesn't exist locally
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally; skipping tag creation."
+          else
+            git tag "$TAG"
+          fi
+          git push origin HEAD:main
+          # push the tag; if remote already has same tag, this will be a no-op
+          git push origin "$TAG"
+
+      - name: Publish release
+        if: steps.create_tag_and_push.outcome == 'success'
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            Release.
+
+            - Library version bumped to v${{ steps.version.outputs.version }}.
+          files: |
+            ${{ steps.archive.outputs.archive }}
