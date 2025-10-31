@@ -235,6 +235,12 @@ p {
   display: flex;
 }
 
+/* Hide the raw paste area and the parse/fetch buttons when controls should be hidden
+   while keeping the rendered command area visible. */
+.user-commands-section.hidden-controls .user-commands-controls {
+  display: none !important;
+}
+
 .tab-content.is-hidden {
   display: none !important;
 }

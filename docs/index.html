@@ -795,19 +795,21 @@
             <p>デバイスに登録されたユーザー定義コマンドを表示・実行するための UI です。</p>
           </header>
 
-          <div class="user-commands-section">
+          <div class="user-commands-section hidden-controls">
             <p>
               下に <code>user commands</code> の出力を貼り付けるか、デバイスから取得して解析できます。
             </p>
 
-            <div class="form-field">
-              <label for="user-commands-raw">user commands 出力 (貼り付け)</label>
-              <textarea id="user-commands-raw" rows="6" placeholder="Paste output of 'user commands' here"></textarea>
-            </div>
+            <div class="user-commands-controls">
+              <div class="form-field">
+                <label for="user-commands-raw">user commands 出力 (貼り付け)</label>
+                <textarea id="user-commands-raw" rows="6" placeholder="Paste output of 'user commands' here"></textarea>
+              </div>
 
-            <div class="card-actions">
-              <button class="btn btn-outline" type="button" id="user-commands-parse-button">Parse</button>
-              <button class="btn btn-primary" type="button" id="user-commands-fetch-button">Fetch from device</button>
+              <div class="card-actions">
+                <button class="btn btn-outline" type="button" id="user-commands-parse-button">Parse</button>
+                <button class="btn btn-primary" type="button" id="user-commands-fetch-button">Fetch from device</button>
+              </div>
             </div>
 
             <div id="user-commands-area" class="user-commands-area"></div>

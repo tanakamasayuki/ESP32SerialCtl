@@ -4354,6 +4354,23 @@ OK fs ls
     button.addEventListener('click', () => {
       const targetTab = button.dataset.tab;
       activateTab(targetTab);
+      // auto-fetch user commands when the user opens that tab and we're connected
+      try {
+        if (targetTab === 'usercmds') {
+          if (connectionState === 'connected') {
+            if (typeof userCommandsFetchButton !== 'undefined' && userCommandsFetchButton) {
+              appendLogEntry && appendLogEntry('debug', 'UI: auto-fetch user commands (tab clicked)');
+              userCommandsFetchButton.click();
+            } else {
+              appendLogEntry && appendLogEntry('debug', 'UI: user-commands fetch button not yet available');
+            }
+          } else {
+            appendLogEntry && appendLogEntry('debug', 'UI: user-commands tab opened but not connected');
+          }
+        }
+      } catch (e) {
+        console.error('auto-fetch usercmds error', e);
+      }
     });
   });
 
@@ -8978,10 +8995,10 @@ OK fs ls
     commands.forEach((entry, idx) => {
       console.debug('renderUserCommands: rendering entry', idx, entry && entry.cmd);
       appendLogEntry && appendLogEntry('debug', `renderUserCommands: rendering ${entry && entry.cmd || '(unknown)'} #${idx}`);
-  const card = document.createElement('article');
-  card.className = 'card command-panel';
-  // make dynamically-created command panels visible by default
-  card.classList.add('is-active');
+      const card = document.createElement('article');
+      card.className = 'card command-panel';
+      // make dynamically-created command panels visible by default
+      card.classList.add('is-active');
       const title = document.createElement('h4');
       title.textContent = entry.usage || entry.cmd;
       const desc = document.createElement('p');
