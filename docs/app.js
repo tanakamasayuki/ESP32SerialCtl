@@ -8319,8 +8319,8 @@ OK fs ls
       pwmDutyInput?.focus();
       return;
     }
-    appendLogEntry('debug', `UI: pwm set -> pin=${pin} freq=${freqRaw} duty=${dutyRaw}`);
-    const commandText = `pwm set ${pin} ${freqRaw} ${dutyRaw}`;
+    appendLogEntry('debug', `UI: pwm set -> pin=${pin} freq=${freqRaw} duty=${dutyRaw} bits=12`);
+    const commandText = `pwm set ${pin} ${freqRaw} ${dutyRaw} 12`;
     dispatchPeripheralCommand('pwm-set', commandText, {
       id: `pwm-set-${pin}`,
       button: pwmSetButton,

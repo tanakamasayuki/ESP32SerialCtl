@@ -5473,6 +5473,17 @@ namespace esp32serialctl
       {
         return;
       }
+
+      if (!isGpioOutputEnabled(pin))
+      {
+        pinMode(pin, OUTPUT);
+        if (!isGpioOutputEnabled(pin))
+        {
+          ctx.printError(501, "Output unsupported");
+          return;
+        }
+      }
+
       int current = digitalRead(pin);
       int next = current ? LOW : HIGH;
       digitalWrite(pin, next);
@@ -5714,6 +5725,7 @@ namespace esp32serialctl
       if (ledcReadFreq(pin) != 0)
       {
         ledcDetach(pin);
+        digitalWrite(pin, LOW);
       }
       ctx.printOK("pwm stop");
       char line[48];
