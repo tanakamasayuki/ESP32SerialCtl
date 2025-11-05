@@ -1569,6 +1569,30 @@
     </footer>
   </div>
 
+  <div class="modal" data-modal="connection-error" aria-hidden="true">
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__dialog" role="alertdialog" aria-modal="true" aria-labelledby="connection-error-title">
+      <div class="modal__header">
+        <h2 id="connection-error-title" data-i18n="connection.dialog.title">接続に失敗しました</h2>
+      </div>
+      <div class="modal__body">
+        <p data-i18n="connection.dialog.message">デバイスへの接続に失敗しました。</p>
+        <p data-i18n="connection.dialog.hint">
+          他のプログラムでシリアルポートが開かれている場合は閉じてから再接続してください。
+        </p>
+        <p class="modal__detail is-hidden" data-connection-error-detail></p>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn-primary" type="button" data-modal-retry data-i18n="connection.dialog.retry">
+          再接続を試す
+        </button>
+        <button class="btn btn-secondary" type="button" data-modal-close data-i18n="connection.dialog.close">
+          閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
 

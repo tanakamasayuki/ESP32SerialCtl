@@ -52,6 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
           "connectFirst": "先にデバイスへ接続してください。",
           "disconnectFirst": "切断してから再度接続できます。",
           "waitDisconnect": "現在切断処理中です。完了するまでお待ちください。"
+        },
+        "dialog": {
+          "title": "接続に失敗しました",
+          "message": "デバイスへの接続に失敗しました。",
+          "hint": "他のプログラムでシリアルポートが開かれている場合は閉じてから再接続してください。",
+          "detailPrefix": "詳細: {error}",
+          "retry": "再接続を試す",
+          "close": "閉じる"
         }
       },
       "language": {
@@ -783,6 +791,14 @@ document.addEventListener('DOMContentLoaded', () => {
           "connectFirst": "Please connect to the device before running commands.",
           "disconnectFirst": "Disconnect first if you need to switch devices.",
           "waitDisconnect": "Disconnect in progress. Please wait."
+        },
+        "dialog": {
+          "title": "Connection Failed",
+          "message": "Failed to connect to the device.",
+          "hint": "If another application is using the serial port, close it and try connecting again.",
+          "detailPrefix": "Details: {error}",
+          "retry": "Retry Connection",
+          "close": "Close"
         }
       },
       "language": {
@@ -1514,6 +1530,14 @@ document.addEventListener('DOMContentLoaded', () => {
           "connectFirst": "请先连接设备再执行指令。",
           "disconnectFirst": "若要切换设备，请先断开连接。",
           "waitDisconnect": "正在断开连接，请稍候。"
+        },
+        "dialog": {
+          "title": "连接失败",
+          "message": "未能连接到设备。",
+          "hint": "如果串口正被其他程序占用，请先关闭该程序后再试。",
+          "detailPrefix": "详细信息: {error}",
+          "retry": "重试连接",
+          "close": "关闭"
         }
       },
       "language": {
@@ -2764,6 +2788,80 @@ OK fs ls
   const languageSelect = document.querySelector('#language-select');
   const connectButton = document.querySelector('#connect-button');
   const disconnectButton = document.querySelector('#disconnect-button');
+  const connectionErrorModal = document.querySelector('[data-modal="connection-error"]');
+  const connectionErrorDetail = connectionErrorModal
+    ? connectionErrorModal.querySelector('[data-connection-error-detail]')
+    : null;
+  const connectionErrorRetryButton = connectionErrorModal
+    ? connectionErrorModal.querySelector('[data-modal-retry]')
+    : null;
+  const connectionErrorCloseElements = connectionErrorModal
+    ? Array.from(connectionErrorModal.querySelectorAll('[data-modal-close]'))
+    : [];
+  let connectionErrorLastDetail = '';
+
+  function refreshConnectionErrorDetail() {
+    if (!connectionErrorDetail) {
+      return;
+    }
+    const detail = (connectionErrorLastDetail || '').trim();
+    if (!detail) {
+      connectionErrorDetail.textContent = '';
+      connectionErrorDetail.classList.add('is-hidden');
+      return;
+    }
+    const template = translate('connection.dialog.detailPrefix');
+    const text = template ? interpolate(template, { error: detail }) : detail;
+    connectionErrorDetail.textContent = text;
+    connectionErrorDetail.classList.remove('is-hidden');
+  }
+
+  function showConnectionErrorModal(detail = '') {
+    if (!connectionErrorModal) {
+      return;
+    }
+    connectionErrorLastDetail = (detail || '').trim();
+    refreshConnectionErrorDetail();
+    connectionErrorModal.classList.add('is-visible');
+    connectionErrorModal.setAttribute('aria-hidden', 'false');
+    const bodyEl = document.body;
+    if (bodyEl) {
+      bodyEl.classList.add('modal-open');
+    }
+    window.setTimeout(() => {
+      const focusTarget =
+        connectionErrorRetryButton ||
+        connectionErrorCloseElements.find(
+          (el) => el instanceof HTMLElement && el.tagName === 'BUTTON'
+        );
+      if (focusTarget && typeof focusTarget.focus === 'function') {
+        focusTarget.focus();
+      }
+    }, 50);
+  }
+
+  function hideConnectionErrorModal() {
+    if (!connectionErrorModal) {
+      return;
+    }
+    connectionErrorModal.classList.remove('is-visible');
+    connectionErrorModal.setAttribute('aria-hidden', 'true');
+    const bodyEl = document.body;
+    if (bodyEl) {
+      bodyEl.classList.remove('modal-open');
+    }
+    if (connectButton && typeof connectButton.focus === 'function') {
+      window.setTimeout(() => {
+        if (!connectButton.disabled) {
+          try {
+            connectButton.focus();
+          } catch {
+            /* ignore focus errors */
+          }
+        }
+      }, 120);
+    }
+  }
   const statusLabel = document.querySelector('#connection-status-label');
   const statusPill = document.querySelector('.status-pill');
   const logOutput = document.querySelector('[data-log-output]');
@@ -3958,6 +4056,7 @@ OK fs ls
       }
     }
     applyTranslations();
+    refreshConnectionErrorDetail();
     refreshGpioSettingsLocale();
     refreshPeripheralPinSelects();
     refreshPeripheralResultsLocale();
@@ -7674,6 +7773,9 @@ OK fs ls
       appendLogEntry('error', translate('connection.info.unsupportedHint'));
       return;
     }
+    if (connectionErrorModal?.classList?.contains('is-visible')) {
+      hideConnectionErrorModal();
+    }
     if (isDisconnecting || connectionState === 'disconnecting') {
       appendLogEntry('info', translate('connection.info.waitDisconnect'));
       return;
@@ -7712,9 +7814,16 @@ OK fs ls
       updateCommandButtonsState();
       startReadLoop();
     } catch (error) {
-      appendLogEntry('error', `Connection failed: ${error.message}`);
+      const errorMessage =
+        (error && typeof error.message === 'string' && error.message) ||
+        (error && String(error)) ||
+        'Unknown error';
+      appendLogEntry('error', `Connection failed: ${errorMessage}`);
       await cleanupSerial();
       setConnectionState('disconnected');
+      if (!error || error.name !== 'AbortError') {
+        showConnectionErrorModal(errorMessage);
+      }
     }
   };
 
@@ -8859,6 +8968,31 @@ OK fs ls
         return;
       }
       enqueueAutoCommand('gpio-pins');
+    });
+  }
+
+  if (connectionErrorCloseElements.length) {
+    connectionErrorCloseElements.forEach((element) => {
+      element.addEventListener('click', () => {
+        hideConnectionErrorModal();
+      });
+    });
+  }
+
+  if (connectionErrorRetryButton) {
+    connectionErrorRetryButton.addEventListener('click', () => {
+      hideConnectionErrorModal();
+      window.requestAnimationFrame(() => {
+        connectSerial();
+      });
+    });
+  }
+
+  if (connectionErrorModal) {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && connectionErrorModal.classList.contains('is-visible')) {
+        hideConnectionErrorModal();
+      }
     });
   }
 
