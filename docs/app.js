@@ -60,6 +60,13 @@ document.addEventListener('DOMContentLoaded', () => {
           "detailPrefix": "詳細: {error}",
           "retry": "再接続を試す",
           "close": "閉じる"
+        },
+        "firmwareDialog": {
+          "title": "ESP32SerialCtl が応答しません",
+          "message": "10秒以内に help コマンドの応答を取得できませんでした。",
+          "hint": "ESP32SerialCtl 対応ファームウェアをデバイスへ書き込んでから再接続してください。",
+          "close": "了解",
+          "log": "help コマンドの応答が得られなかったため、接続を終了しました。"
         }
       },
       "language": {
@@ -799,6 +806,13 @@ document.addEventListener('DOMContentLoaded', () => {
           "detailPrefix": "Details: {error}",
           "retry": "Retry Connection",
           "close": "Close"
+        },
+        "firmwareDialog": {
+          "title": "ESP32SerialCtl did not respond",
+          "message": "Could not retrieve the help command within 10 seconds.",
+          "hint": "Please flash the ESP32SerialCtl-compatible firmware to the device before connecting.",
+          "close": "OK",
+          "log": "No help command response received; disconnecting."
         }
       },
       "language": {
@@ -1538,6 +1552,13 @@ document.addEventListener('DOMContentLoaded', () => {
           "detailPrefix": "详细信息: {error}",
           "retry": "重试连接",
           "close": "关闭"
+        },
+        "firmwareDialog": {
+          "title": "ESP32SerialCtl 未响应",
+          "message": "在 10 秒内未获取到 help 指令的响应。",
+          "hint": "请先将支持 ESP32SerialCtl 的固件写入设备，然后再重新连接。",
+          "close": "知道了",
+          "log": "未收到 help 指令响应，已断开连接。"
         }
       },
       "language": {
@@ -2798,7 +2819,27 @@ OK fs ls
   const connectionErrorCloseElements = connectionErrorModal
     ? Array.from(connectionErrorModal.querySelectorAll('[data-modal-close]'))
     : [];
+  const firmwareWarningModal = document.querySelector('[data-modal="firmware-warning"]');
+  const firmwareWarningCloseElements = firmwareWarningModal
+    ? Array.from(firmwareWarningModal.querySelectorAll('[data-modal-close]'))
+    : [];
+  const firmwareWarningPrimaryButton = firmwareWarningCloseElements.find(
+    (element) => element instanceof HTMLElement && element.tagName === 'BUTTON'
+  );
   let connectionErrorLastDetail = '';
+
+  const updateBodyModalState = () => {
+    const bodyElement = document.body;
+    if (!bodyElement) {
+      return;
+    }
+    const hasVisibleModal = document.querySelector('.modal.is-visible');
+    if (hasVisibleModal) {
+      bodyElement.classList.add('modal-open');
+    } else {
+      bodyElement.classList.remove('modal-open');
+    }
+  };
 
   function refreshConnectionErrorDetail() {
     if (!connectionErrorDetail) {
@@ -2824,10 +2865,7 @@ OK fs ls
     refreshConnectionErrorDetail();
     connectionErrorModal.classList.add('is-visible');
     connectionErrorModal.setAttribute('aria-hidden', 'false');
-    const bodyEl = document.body;
-    if (bodyEl) {
-      bodyEl.classList.add('modal-open');
-    }
+    updateBodyModalState();
     window.setTimeout(() => {
       const focusTarget =
         connectionErrorRetryButton ||
@@ -2846,10 +2884,41 @@ OK fs ls
     }
     connectionErrorModal.classList.remove('is-visible');
     connectionErrorModal.setAttribute('aria-hidden', 'true');
-    const bodyEl = document.body;
-    if (bodyEl) {
-      bodyEl.classList.remove('modal-open');
+    updateBodyModalState();
+    if (connectButton && typeof connectButton.focus === 'function') {
+      window.setTimeout(() => {
+        if (!connectButton.disabled) {
+          try {
+            connectButton.focus();
+          } catch {
+            /* ignore focus errors */
+          }
+        }
+      }, 120);
     }
+  }
+
+  function showFirmwareWarningModal() {
+    if (!firmwareWarningModal) {
+      return;
+    }
+    firmwareWarningModal.classList.add('is-visible');
+    firmwareWarningModal.setAttribute('aria-hidden', 'false');
+    updateBodyModalState();
+    window.setTimeout(() => {
+      if (firmwareWarningPrimaryButton && typeof firmwareWarningPrimaryButton.focus === 'function') {
+        firmwareWarningPrimaryButton.focus();
+      }
+    }, 50);
+  }
+
+  function hideFirmwareWarningModal() {
+    if (!firmwareWarningModal) {
+      return;
+    }
+    firmwareWarningModal.classList.remove('is-visible');
+    firmwareWarningModal.setAttribute('aria-hidden', 'true');
+    updateBodyModalState();
     if (connectButton && typeof connectButton.focus === 'function') {
       window.setTimeout(() => {
         if (!connectButton.disabled) {
@@ -4254,16 +4323,50 @@ OK fs ls
     return prefixes;
   };
 
+  const HELP_VERIFY_TIMEOUT_MS = 10000;
   const HELP_AUTO_RETRY_DELAY_MS = 1500;
-  const HELP_AUTO_RETRY_LIMIT = 3;
+  const HELP_AUTO_RETRY_LIMIT = Math.max(
+    5,
+    Math.ceil(HELP_VERIFY_TIMEOUT_MS / HELP_AUTO_RETRY_DELAY_MS)
+  );
   let helpAutoRetryAttempts = 0;
   let helpAutoRetryTimer = null;
+  let helpVerificationTimer = null;
+  let helpListLoaded = false;
 
   const clearHelpAutoRetry = () => {
     if (helpAutoRetryTimer) {
       window.clearTimeout(helpAutoRetryTimer);
       helpAutoRetryTimer = null;
     }
+  };
+
+  const clearHelpVerificationTimer = () => {
+    if (helpVerificationTimer) {
+      window.clearTimeout(helpVerificationTimer);
+      helpVerificationTimer = null;
+    }
+  };
+
+  const startHelpVerificationTimer = () => {
+    clearHelpVerificationTimer();
+    if (helpListLoaded || connectionState !== 'connected') {
+      return;
+    }
+    helpVerificationTimer = window.setTimeout(() => {
+      helpVerificationTimer = null;
+      if (!helpListLoaded && connectionState === 'connected') {
+        const logMessage =
+          translate('connection.firmwareDialog.log') ||
+          'No help command response received; disconnecting.';
+        appendLogEntry('error', logMessage);
+        clearHelpAutoRetry();
+        showFirmwareWarningModal();
+        disconnectSerial().catch(() => {
+          /* ignore disconnect errors */
+        });
+      }
+    }, HELP_VERIFY_TIMEOUT_MS);
   };
 
   const scheduleHelpAutoRetry = () => {
@@ -4297,6 +4400,8 @@ OK fs ls
       appendLogEntry('debug', 'UI: no command prefixes detected in help output');
       return null;
     }
+    helpListLoaded = true;
+    clearHelpVerificationTimer();
     clearHelpAutoRetry();
     helpAutoRetryAttempts = 0;
     appendLogEntry('debug', `UI: help command prefixes -> ${Array.from(prefixes).join(', ')}`);
@@ -7164,6 +7269,13 @@ OK fs ls
       return;
     }
     connectionState = state;
+    if (state === 'connected') {
+      helpListLoaded = false;
+      startHelpVerificationTimer();
+    } else {
+      helpListLoaded = false;
+      clearHelpVerificationTimer();
+    }
     const bodyElement = document.body;
     if (bodyElement) {
       bodyElement.classList.remove(...bodyConnectionClasses);
@@ -7775,6 +7887,9 @@ OK fs ls
     }
     if (connectionErrorModal?.classList?.contains('is-visible')) {
       hideConnectionErrorModal();
+    }
+    if (firmwareWarningModal?.classList?.contains('is-visible')) {
+      hideFirmwareWarningModal();
     }
     if (isDisconnecting || connectionState === 'disconnecting') {
       appendLogEntry('info', translate('connection.info.waitDisconnect'));
@@ -8979,6 +9094,14 @@ OK fs ls
     });
   }
 
+  if (firmwareWarningCloseElements.length) {
+    firmwareWarningCloseElements.forEach((element) => {
+      element.addEventListener('click', () => {
+        hideFirmwareWarningModal();
+      });
+    });
+  }
+
   if (connectionErrorRetryButton) {
     connectionErrorRetryButton.addEventListener('click', () => {
       hideConnectionErrorModal();
@@ -8988,13 +9111,23 @@ OK fs ls
     });
   }
 
-  if (connectionErrorModal) {
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && connectionErrorModal.classList.contains('is-visible')) {
-        hideConnectionErrorModal();
-      }
-    });
-  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+      return;
+    }
+    let handled = false;
+    if (connectionErrorModal?.classList?.contains('is-visible')) {
+      hideConnectionErrorModal();
+      handled = true;
+    }
+    if (firmwareWarningModal?.classList?.contains('is-visible')) {
+      hideFirmwareWarningModal();
+      handled = true;
+    }
+    if (handled) {
+      event.preventDefault();
+    }
+  });
 
   if (connectButton) {
     connectButton.addEventListener('click', connectSerial);

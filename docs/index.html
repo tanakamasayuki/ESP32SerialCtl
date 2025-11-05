@@ -1593,6 +1593,28 @@
     </div>
   </div>
 
+  <div class="modal" data-modal="firmware-warning" aria-hidden="true">
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__dialog" role="alertdialog" aria-modal="true" aria-labelledby="firmware-warning-title">
+      <div class="modal__header">
+        <h2 id="firmware-warning-title" data-i18n="connection.firmwareDialog.title">
+          ESP32SerialCtl が応答しません
+        </h2>
+      </div>
+      <div class="modal__body">
+        <p data-i18n="connection.firmwareDialog.message">10秒以内に help コマンドの応答を取得できませんでした。</p>
+        <p data-i18n="connection.firmwareDialog.hint">
+          対応ファームウェアをデバイスに書き込んでから、再度接続してください。
+        </p>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn-primary" type="button" data-modal-close data-i18n="connection.firmwareDialog.close">
+          了解
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
 
