@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- (EN) Updated the Help Docs references to open the README, Basic CLI example, Arduino docs, and ESP-IDF docs directly, adding localized labels for the Arduino entry.
+- (JA) README や Basic CLI の例、Arduino ドキュメント、ESP-IDF ドキュメントへ直接アクセスするリンクチップに更新し、Arduino 項目の翻訳を追加。
 
 ## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.
