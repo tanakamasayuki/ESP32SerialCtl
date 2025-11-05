@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.
 - (JA) `Wire` 利用時に I2C（`scan/read/write`）CLI コマンドを条件付きで追加し、複数バスの検出と `--bus` 指定に対応。
 - (EN) Default RGB LED pin now follows `RGB_BUILTIN` when the platform defines it.

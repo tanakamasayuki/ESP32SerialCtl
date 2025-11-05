@@ -17,12 +17,8 @@ ESP32SerialCtl を組み込んだ ESP32 デバイスへ接続し、コマンド�
 ## 特長
 - ヘッダーオンリー。`#include <ESP32SerialCtl.h>` だけで利用開始
 - 可変長バッファをテンプレートで指定でき、最小限の RAM 消費
-- `group action [args]` 形式のコマンドをシリアルでパース
-- `;` による複数コマンド連結、`#` によるコメント除去に対応
 - `\"` / `\n` / `\t` / `\\` など C 互換エスケープを備えた引用符付き文字列
 - `--name value` / `--name=value` 形式のオプション解析
-- 真偽値（`on/off/true/false/1/0`）や数値＋単位（`ms`, `s`, `Hz`, `kHz`, `%`）
-  のパーサを標準提供
 - `OK` / `ERR` / ` - ` / `| ` など規約に沿ったレスポンス出力ヘルパー
 - Wi-Fi と Preferences を併用できる環境では、`wifi` / `ntp` コマンドで NVS へ設定を保存し、自動接続や NTP 同期を制御可能
 
@@ -53,42 +49,10 @@ void loop() {
 
 プロンプトは最初の `service()` 実行時と、各レスポンス（`OK` / `ERR`）の後に自動表示されます。
 
-## カスタムコマンド
-
-独自機能を追加したい場合は、`SerialCtl` を直接インスタンス化し、
-コマンドテーブルにハンドラを登録します。
-
-```cpp
-#include <ESP32SerialCtl.h>
-
-using CLI = esp32serialctl::SerialCtl<192, 16>;
-
-static void handlePing(CLI::Context &ctx) {
-  ctx.printBody("pong");
-  ctx.printOK("ping");
-}
-
-static const CLI::Command COMMANDS[] = {
-    {nullptr, "ping", handlePing, "Reply with pong"},
-};
-
-static CLI cli(Serial, COMMANDS, sizeof(COMMANDS) / sizeof(COMMANDS[0]));
-
-void setup() {
-  Serial.begin(115200);
-}
-
-void loop() {
-  cli.service();
-}
-```
-
 ### 静的コマンド登録（CommandEntry）
 
-`SerialCtl::Command` を手作業で作る代わりに、スケッチ内で静的に定義した
-`CommandEntry` 配列を `ESP32SerialCtl` のコンストラクタに渡して登録する方法を
-サポートしています。`ConfigEntry` と同様の扱いで、名前や多言語説明、引数
-仕様をソース上にまとめられます。
+スケッチ内で静的に定義した `CommandEntry` 配列を `ESP32SerialCtl` のコンストラクタに渡して登録する方法を
+サポートしています。`ConfigEntry` と同様の扱いで、名前や多言語説明、引数仕様をソース上にまとめられます。
 
 主な型と定数（`ESP32SerialCtl.h` 内）:
 
@@ -102,7 +66,7 @@ void loop() {
 ```cpp
 static const esp32serialctl::CommandEntry kAppCommands[] = {
   {"ping", {{"ja","pong を返す"}}, {{"", "", false, ""}}, handle_ping},
-  {"rgb",  {{"ja","RGB 設定"}},               {/* arg specs */},   handle_rgb},
+  {"rgb",  {{"ja","RGB 設定"}},    {/* arg specs */},     handle_rgb},
 };
 
 static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, kAppCommands);
@@ -118,27 +82,6 @@ static esp32serialctl::ESP32SerialCtl<> esp32SerialCtl(kAppConfig, kAppCommands)
   のは避けてください。
 
 デバッグや参照が必要な場合は、`examples/CommandDemo` をご参照ください。
-
-### 引数のパース
-- `ctx.arg(index).toBool(value)` で `on` や `false` といった真偽値を取得
-- `ctx.arg(index).toNumber(parsed)` で 10 進 / 16 進数値や単位付き数値を取得
-- `ctx.findOption("name")` でオプションを検索し、`toBool` や `toNumber` などを利用可能
-
-### レスポンス出力
-- `ctx.printOK("message")` -> `OK message`
-- `ctx.printError(code, "reason")` -> `ERR code reason`
-- `ctx.printList("text")` -> ` - text`
-- `ctx.printBody("text")` -> `| text`
-
-### パーサが出力する主なエラーコード
-- `ERR 404 Unknown command`
-- `ERR 431 Too many options`
-- `ERR 413 Too many tokens`
-- `ERR 500 No handler`
-- `ERR 508 Missing closing quote`
-- `ERR 510 Line too long`
-
-これらはハンドラ実行前に自動的に返されます。
 
 ## ビルトインコマンド
 - `sys info` : チップモデル、リビジョン、CPU クロック、フラッシュサイズ、SDK を表示
