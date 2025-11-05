@@ -6964,6 +6964,13 @@ OK fs ls
     disconnecting: 'status-pill--disconnecting',
     connected: 'status-pill--connected'
   };
+  const bodyConnectionClasses = [
+    'state-disconnected',
+    'state-connecting',
+    'state-disconnecting',
+    'state-connected',
+    'state-unsupported'
+  ];
   const connectButtonClasses = [
     'btn-state-idle',
     'btn-state-connecting',
@@ -7058,6 +7065,15 @@ OK fs ls
       return;
     }
     connectionState = state;
+    const bodyElement = document.body;
+    if (bodyElement) {
+      bodyElement.classList.remove(...bodyConnectionClasses);
+      const normalizedState =
+        typeof state === 'string' && state ? `state-${state}` : 'state-disconnected';
+      bodyElement.classList.add(
+        bodyConnectionClasses.includes(normalizedState) ? normalizedState : 'state-disconnected'
+      );
+    }
     if (statusPill) {
       Object.values(statusClassMap).forEach((cls) => statusPill.classList.remove(cls));
       const pillarClass = statusClassMap[state] || statusClassMap.disconnected;

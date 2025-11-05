@@ -4,13 +4,13 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  --color-bg: #f5f7fb;
-  --color-surface: #ffffff;
-  --color-border: #d9dfe7;
+  --color-bg: #fdfbf3;
+  --color-surface: #fffdf6;
+  --color-border: #e5dcc3;
   --color-text: #1f2937;
-  --color-muted: #6b7280;
-  --color-accent: #2563eb;
-  --color-accent-soft: rgba(37, 99, 235, 0.1);
+  --color-muted: #8a7f66;
+  --color-accent: #8c733a;
+  --color-accent-soft: rgba(140, 115, 58, 0.12);
   --color-danger: #dc2626;
   --radius-md: 12px;
   --radius-sm: 8px;
@@ -59,8 +59,26 @@ p {
   justify-content: space-between;
   gap: 24px;
   padding: 32px clamp(24px, 5vw, 48px) 24px;
-  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, #f8f1da 0%, #fdf7e3 100%);
   border-bottom: 1px solid var(--color-border);
+}
+
+body {
+  transition: background-color 0.3s ease;
+}
+
+body.state-connected {
+  --color-bg: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-border: #d9dfe7;
+  --color-text: #1f2937;
+  --color-muted: #6b7280;
+  --color-accent: #2563eb;
+  --color-accent-soft: rgba(37, 99, 235, 0.1);
+}
+
+body.state-connected .topbar {
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
 }
 
 .app-title h1 {
@@ -160,6 +178,7 @@ p {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .side-panel h2 {
@@ -284,22 +303,22 @@ p {
   padding: 8px 16px;
   font-weight: 600;
   font-size: 14px;
-  background: #e5edff;
+  background: var(--color-accent-soft);
   color: var(--color-accent);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
   white-space: nowrap;
 }
 
 .command-tab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .command-tab.is-active {
   background: var(--color-accent);
-  color: white;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 .card {
@@ -312,6 +331,7 @@ p {
   flex-direction: column;
   gap: 16px;
   min-height: 200px;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card.command-panel {
