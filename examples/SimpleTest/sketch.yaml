@@ -1,0 +1,11 @@
+
+profiles:
+  esp32:
+    fqbn: esp32:esp32:esp32
+    platforms:
+      - platform: esp32:esp32 (3.3.2)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    libraries:
+      - ESP32SerialCtl (0.1.2)
+
+default_profile: esp32
