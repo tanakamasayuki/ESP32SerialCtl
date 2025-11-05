@@ -440,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "links": [
               "README.md",
               "examples/BasicCli",
+              "Arduino Docs",
               "ESP-IDF Docs"
             ],
             "action": "リンクを開く"
@@ -1170,6 +1171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "links": [
               "README.md",
               "examples/BasicCli",
+              "Arduino Docs",
               "ESP-IDF Docs"
             ],
             "action": "Open Reference"
@@ -1900,6 +1902,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "links": [
               "README.md",
               "examples/BasicCli",
+              "Arduino Docs",
               "ESP-IDF Docs"
             ],
             "action": "打开链接"
