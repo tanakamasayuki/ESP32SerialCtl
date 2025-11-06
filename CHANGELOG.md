@@ -19,6 +19,8 @@
 - (JA) デフォルトでオンの「書き込み前にフラッシュを消去」チェックボックスを追加し、書き込み前に `erase_flash` を自動実行するように変更。
 - (EN) Increased esptool-js flashing/erase timeouts to better tolerate large images and slower transports.
 - (JA) 大容量イメージや低速転送に耐えられるよう、esptool-js の書き込み・消去タイムアウトを延長。
+- (EN) Abort flashing if the detected chip (e.g., "Detecting chip type... ESP32-S3") does not match the manifest’s expected target, with localized error messages.
+- (JA) 接続ログから検出したチップ名が manifest 想定と一致しない場合、ローカライズ済みメッセージで書き込みを中断するように変更。
 
 ## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.

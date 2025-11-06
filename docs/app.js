@@ -127,7 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseInProgress": "erase_flash コマンドを実行しています…",
             "eraseCompleted": "フラッシュの消去が完了しました。",
             "eraseBaudChangeFailed": "消去用のボーレート変更に失敗しました: {error}",
-            "eraseBaudRestoreFailed": "書き込み速度への復帰に失敗しました: {error}"
+            "eraseBaudRestoreFailed": "書き込み速度への復帰に失敗しました: {error}",
+            "chipMismatch": "ターゲットが一致しません: 想定 {expected} / 実機 {actual}。処理を中断します。"
           }
         }
       },
@@ -935,7 +936,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseInProgress": "Running erase_flash command…",
             "eraseCompleted": "Flash erase completed.",
             "eraseBaudChangeFailed": "Failed to switch to erase baud rate: {error}",
-            "eraseBaudRestoreFailed": "Failed to restore upload baud rate: {error}"
+            "eraseBaudRestoreFailed": "Failed to restore upload baud rate: {error}",
+            "chipMismatch": "Chip mismatch detected. Expected {expected}, but device reports {actual}. Aborting."
           }
         }
       },
@@ -1743,7 +1745,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseInProgress": "正在执行 erase_flash 命令…",
             "eraseCompleted": "Flash 擦除完成。",
             "eraseBaudChangeFailed": "切换到擦除速率失败: {error}",
-            "eraseBaudRestoreFailed": "恢复写入速率失败: {error}"
+            "eraseBaudRestoreFailed": "恢复写入速率失败: {error}",
+            "chipMismatch": "芯片不匹配：预期 {expected}，实际 {actual}。已终止写入。"
           }
         }
       },
@@ -3820,6 +3823,27 @@ OK fs ls
     return esptoolModulePromise;
   };
 
+  const normalizeChipIdentifier = (value) => {
+    if (!value) {
+      return '';
+    }
+    return String(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  };
+
+  const extractChipFamily = (value) => {
+    if (!value) {
+      return '';
+    }
+    const str = String(value);
+    const match = str.match(/(ESP[0-9]+(?:[A-Z0-9\-]*))/i);
+    if (match && match[1]) {
+      return normalizeChipIdentifier(match[1]);
+    }
+    return normalizeChipIdentifier(str);
+  };
+
   const applyExtendedTimeouts = (esploader) => {
     if (!esploader || typeof esploader !== 'object') {
       return;
@@ -3876,7 +3900,7 @@ OK fs ls
       const port = await navigator.serial.requestPort({});
       transport = new Transport(port);
       const terminalAdapter = {
-        clean: () => {},
+        clean: () => { },
         writeLine: (data) => appendFirmwareLog(data),
         write: (data) => appendFirmwareLog(data, { newline: false })
       };
@@ -3967,12 +3991,61 @@ OK fs ls
       appendFirmwareLog(translate('firmware.modal.log.requestPort'));
       const port = await navigator.serial.requestPort({});
       transport = new Transport(port);
+      let detectedChipName = '';
+      let detectionBuffer = '';
+      let pendingDetectChip = false;
+      const captureChipName = (value) => {
+        if (detectedChipName) {
+          return;
+        }
+        if (!value) {
+          return;
+        }
+        const trimmed = String(value).trim();
+        if (!trimmed) {
+          return;
+        }
+                const detectLine = trimmed.match(/Detecting chip type\.*\s*[:\-]?\s*(.*)/i);
+        if (detectLine) {
+          const candidate = (detectLine[1] || '').trim();
+                    if (candidate) {
+            detectedChipName = candidate.split(/\s+/)[0].trim();
+                        pendingDetectChip = false;
+            return;
+          }
+          pendingDetectChip = true;
+                    return;
+        }
+        if (pendingDetectChip) {
+          const candidate = trimmed.split(/\s+/)[0];
+                    if (candidate) {
+            detectedChipName = candidate.trim();
+                        pendingDetectChip = false;
+            return;
+          }
+        }
+        const standaloneMatch = trimmed.match(/^(ESP[0-9A-Za-z\-]+)$/i);
+        if (standaloneMatch && standaloneMatch[1]) {
+          detectedChipName = standaloneMatch[1].trim();
+                    pendingDetectChip = false;
+          return;
+        }
+      };
       const terminalAdapter = {
         clean: () => {
           /* keep existing log */
         },
-        writeLine: (data) => appendFirmwareLog(data),
-        write: (data) => appendFirmwareLog(data, { newline: false })
+        writeLine: (data) => {
+          appendFirmwareLog(data);
+          captureChipName(data);
+        },
+        write: (data) => {
+          appendFirmwareLog(data, { newline: false });
+          detectionBuffer += data;
+          const segments = detectionBuffer.split('\n');
+          detectionBuffer = segments.pop() ?? '';
+          segments.forEach(captureChipName);
+        }
       };
       const loaderOptions = {
         transport,
@@ -3989,6 +4062,21 @@ OK fs ls
           chip: chipName || translate('firmware.modal.log.chipUnknown')
         })
       );
+
+      const expectedChipRaw = manifest.flags?.chip || entry.chip || entry.fqbn || '';
+      const expectedChipId = extractChipFamily(expectedChipRaw);
+      const actualChipName = detectedChipName || '';
+      const actualChipId = extractChipFamily(actualChipName);
+      const actualDisplayName =
+        actualChipName || translate('firmware.modal.log.chipUnknown') || 'unknown';
+                  if (expectedChipId && (!actualChipId || actualChipId !== expectedChipId)) {
+        const mismatchMessage = interpolate(translate('firmware.modal.log.chipMismatch'), {
+          expected: expectedChipRaw || expectedChipId,
+          actual: actualDisplayName
+        });
+        appendFirmwareLog(mismatchMessage);
+        throw new Error(mismatchMessage);
+      }
 
       if (eraseBeforeFlash) {
         appendFirmwareLog(translate('firmware.modal.log.eraseStarting'));
