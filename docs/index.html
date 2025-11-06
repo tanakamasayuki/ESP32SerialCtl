@@ -1644,6 +1644,16 @@
             ボードによって利用できる速度が異なります。迷った場合は 115200 を選択してください。
           </p>
         </div>
+        <div class="form-field checkbox-field">
+          <label class="checkbox">
+            <input type="checkbox" id="firmware-erase-before" checked
+              data-i18n-aria-label="firmware.modal.eraseBeforeAria" />
+            <span data-i18n="firmware.modal.eraseBefore">書き込み前にフラッシュを消去する</span>
+          </label>
+          <p class="field-hint" data-i18n="firmware.modal.eraseBeforeHint">
+            書き込みの前に自動で erase_flash を実行します。
+          </p>
+        </div>
         <div class="firmware-details" data-firmware-details hidden>
           <h3 data-i18n="firmware.modal.details.title">書き込みオプション</h3>
           <dl class="firmware-detail-list">

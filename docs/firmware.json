@@ -10,13 +10,11 @@
       "locales": {
         "ja": {
           "name": "BasicCli (ESP32)",
-          "summary": "標準的なサンプルファームウェア",
-          "description": "GPIO、I2C、FSなど基本的な機能を備えています。"
+          "summary": "標準的なサンプルファームウェア"
         },
         "en": {
           "name": "BasicCli (ESP32)",
-          "summary": "Standard sample firmware.",
-          "description": "Includes basic features like GPIO, I2C, FS, and more."
+          "summary": "Standard sample firmware."
         }
       }
     },
@@ -28,13 +26,11 @@
       "locales": {
         "ja": {
           "name": "BasicCli (ESP32-S3)",
-          "summary": "標準的なサンプルファームウェア",
-          "description": "GPIO、I2C、FSなど基本的な機能を備えています。"
+          "summary": "標準的なサンプルファームウェア"
         },
         "en": {
           "name": "BasicCli (ESP32-S3)",
-          "summary": "Standard sample firmware.",
-          "description": "Includes basic features like GPIO, I2C, FS, and more."
+          "summary": "Standard sample firmware."
         }
       }
     },
@@ -46,13 +42,11 @@
       "locales": {
         "ja": {
           "name": "WiFiTest (ESP32)",
-          "summary": "Wi-Fi接続テスト用サンプルファームウェア",
-          "description": "Wi-Fi接続機能と基本的なGPIO、I2C、FSなどを備えています。"
+          "summary": "Wi-Fi接続テスト用サンプルファームウェア"
         },
         "en": {
           "name": "WiFiTest (ESP32)",
-          "summary": "Wi-Fi connection test sample firmware.",
-          "description": "Includes Wi-Fi connection features and basic GPIO, I2C, FS, and more."
+          "summary": "Wi-Fi connection test sample firmware."
         }
       }
     },
@@ -64,13 +58,11 @@
       "locales": {
         "ja": {
           "name": "WiFiTest (ESP32-S3)",
-          "summary": "Wi-Fi connection test sample firmware.",
-          "description": "Includes Wi-Fi connection features and basic GPIO, I2C, FS, and more."
+          "summary": "Wi-Fi connection test sample firmware."
         },
         "en": {
           "name": "WiFiTest (ESP32-S3)",
-          "summary": "Wi-Fi connection test sample firmware.",
-          "description": "Includes Wi-Fi connection features and basic GPIO, I2C, FS, and more."
+          "summary": "Wi-Fi connection test sample firmware."
         }
       }
     }

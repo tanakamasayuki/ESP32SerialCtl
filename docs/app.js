@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "firmwareLabel": "ファームウェアの選択",
           "firmwareAria": "書き込むファームウェアを選択",
           "erase": "フラッシュを消去",
+          "eraseBefore": "書き込み前にフラッシュを消去する",
+          "eraseBeforeHint": "書き込みの前に自動で erase_flash を実行します。",
+          "eraseBeforeAria": "書き込み前にフラッシュを消去する",
           "summary": {
             "title": "説明"
           },
@@ -122,7 +125,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseStarting": "フラッシュ全体の削除を準備しています。",
             "eraseBaud": "消去モードの転送速度: {baud} bps。",
             "eraseInProgress": "erase_flash コマンドを実行しています…",
-            "eraseCompleted": "フラッシュの消去が完了しました。"
+            "eraseCompleted": "フラッシュの消去が完了しました。",
+            "eraseBaudChangeFailed": "消去用のボーレート変更に失敗しました: {error}",
+            "eraseBaudRestoreFailed": "書き込み速度への復帰に失敗しました: {error}"
           }
         }
       },
@@ -880,6 +885,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "firmwareLabel": "Choose Firmware",
           "firmwareAria": "Select firmware to flash",
           "erase": "Erase Flash",
+          "eraseBefore": "Erase flash before programming",
+          "eraseBeforeHint": "Automatically run erase_flash before uploading a new image.",
+          "eraseBeforeAria": "Erase flash before programming",
           "summary": {
             "title": "Description"
           },
@@ -925,7 +933,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseStarting": "Preparing to erase the entire flash.",
             "eraseBaud": "Erase baud rate: {baud} bps.",
             "eraseInProgress": "Running erase_flash command…",
-            "eraseCompleted": "Flash erase completed."
+            "eraseCompleted": "Flash erase completed.",
+            "eraseBaudChangeFailed": "Failed to switch to erase baud rate: {error}",
+            "eraseBaudRestoreFailed": "Failed to restore upload baud rate: {error}"
           }
         }
       },
@@ -1683,6 +1693,9 @@ document.addEventListener('DOMContentLoaded', () => {
           "firmwareLabel": "选择固件",
           "firmwareAria": "选择要写入的固件",
           "erase": "清空 Flash",
+          "eraseBefore": "写入前先清空 Flash",
+          "eraseBeforeHint": "在烧录新固件前自动执行 erase_flash。",
+          "eraseBeforeAria": "写入前先清空 Flash",
           "summary": {
             "title": "说明"
           },
@@ -1728,7 +1741,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseStarting": "准备擦除整个 Flash。",
             "eraseBaud": "擦除速率: {baud} bps。",
             "eraseInProgress": "正在执行 erase_flash 命令…",
-            "eraseCompleted": "Flash 擦除完成。"
+            "eraseCompleted": "Flash 擦除完成。",
+            "eraseBaudChangeFailed": "切换到擦除速率失败: {error}",
+            "eraseBaudRestoreFailed": "恢复写入速率失败: {error}"
           }
         }
       },
@@ -3037,6 +3052,7 @@ OK fs ls
     : null;
   const firmwareStartButton = document.querySelector('#firmware-start-button');
   const firmwareEraseButton = document.querySelector('#firmware-erase-button');
+  const firmwareEraseBeforeCheckbox = document.querySelector('#firmware-erase-before');
   let connectionErrorLastDetail = '';
   const firmwareDetailMap = new Map();
   if (firmwareDetailNodes) {
@@ -3489,6 +3505,15 @@ OK fs ls
         firmwareBaudSelect.removeAttribute('disabled');
       }
     }
+    if (firmwareEraseBeforeCheckbox) {
+      const disabled = firmwareState.isFlashing || firmwareState.isErasing || firmwareState.isLoadingManifest;
+      firmwareEraseBeforeCheckbox.disabled = disabled;
+      if (disabled) {
+        firmwareEraseBeforeCheckbox.setAttribute('disabled', '');
+      } else {
+        firmwareEraseBeforeCheckbox.removeAttribute('disabled');
+      }
+    }
     firmwareFlashCloseElements.forEach((element) => {
       if (!(element instanceof HTMLButtonElement)) {
         return;
@@ -3553,6 +3578,9 @@ OK fs ls
     if (!firmwareFlashModal.classList.contains('is-visible')) {
       resetFirmwareLog();
       resetFirmwareProgress();
+      if (firmwareEraseBeforeCheckbox) {
+        firmwareEraseBeforeCheckbox.checked = true;
+      }
       firmwareFlashModal.classList.add('is-visible');
       firmwareFlashModal.setAttribute('aria-hidden', 'false');
       updateBodyModalState();
@@ -3793,6 +3821,31 @@ OK fs ls
     return esptoolModulePromise;
   };
 
+  const applyExtendedTimeouts = (esploader) => {
+    if (!esploader || typeof esploader !== 'object') {
+      return;
+    }
+    const ERASE_TIMEOUT_PER_MB = 60000; // 60s per MB
+    const WRITE_TIMEOUT_PER_MB = 80000; // 80s per MB
+    const MD5_TIMEOUT_PER_MB = 20000; // 20s per MB
+    const CHIP_ERASE_TIMEOUT = 240000; // 240s overall
+
+    esploader.ERASE_REGION_TIMEOUT_PER_MB = ERASE_TIMEOUT_PER_MB;
+    esploader.ERASE_WRITE_TIMEOUT_PER_MB = WRITE_TIMEOUT_PER_MB;
+    esploader.MD5_TIMEOUT_PER_MB = MD5_TIMEOUT_PER_MB;
+    esploader.CHIP_ERASE_TIMEOUT = CHIP_ERASE_TIMEOUT;
+    esploader.MAX_TIMEOUT = CHIP_ERASE_TIMEOUT * 2;
+
+    const originalTimeoutPerMb = esploader.timeout_per_mb?.bind?.(esploader);
+    esploader.timeout_per_mb = (secondsPerMb, sizeBytes) => {
+      const fallback = originalTimeoutPerMb
+        ? originalTimeoutPerMb(secondsPerMb, sizeBytes)
+        : secondsPerMb * (sizeBytes / 1_000_000);
+      const override = Math.max(ERASE_TIMEOUT_PER_MB, WRITE_TIMEOUT_PER_MB, fallback);
+      return Math.max(override, 3000);
+    };
+  };
+
   const handleFirmwareErase = async () => {
     if (firmwareState.isFlashing || firmwareState.isErasing) {
       return;
@@ -3832,6 +3885,7 @@ OK fs ls
         terminal: terminalAdapter
       };
       const esploader = new ESPLoader(loaderOptions);
+      applyExtendedTimeouts(esploader);
       appendFirmwareLog(translate('firmware.modal.log.connecting'));
       const chipName = await esploader.main_fn();
       appendFirmwareLog(
@@ -3888,7 +3942,9 @@ OK fs ls
       appendFirmwareLog(translate('firmware.modal.log.noSelection'));
       return;
     }
-    const baudrate = Number.parseInt(firmwareBaudSelect?.value, 10) || 115200;
+    const targetBaudrate = Number.parseInt(firmwareBaudSelect?.value, 10) || 115200;
+    const eraseBeforeFlash = !firmwareEraseBeforeCheckbox || firmwareEraseBeforeCheckbox.checked;
+    const initialBaudrate = eraseBeforeFlash ? 115200 : targetBaudrate;
     firmwareState.isFlashing = true;
     firmwareState.postFlash = false;
     applyFirmwareStartButtonLabel();
@@ -3902,7 +3958,7 @@ OK fs ls
     try {
       appendFirmwareLog(
         interpolate(translate('firmware.modal.log.starting'), {
-          baud: baudrate.toLocaleString()
+          baud: targetBaudrate.toLocaleString()
         })
       );
       const { ESPLoader, Transport } = await loadEsptoolModule();
@@ -3918,11 +3974,12 @@ OK fs ls
       };
       const loaderOptions = {
         transport,
-        baudrate,
+        baudrate: initialBaudrate,
         romBaudrate: 115200,
         terminal: terminalAdapter
       };
       const esploader = new ESPLoader(loaderOptions);
+      applyExtendedTimeouts(esploader);
       appendFirmwareLog(translate('firmware.modal.log.connecting'));
       const chipName = await esploader.main_fn();
       appendFirmwareLog(
@@ -3930,6 +3987,31 @@ OK fs ls
           chip: chipName || translate('firmware.modal.log.chipUnknown')
         })
       );
+
+      if (eraseBeforeFlash) {
+        appendFirmwareLog(translate('firmware.modal.log.eraseStarting'));
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.eraseBaud'), {
+            baud: initialBaudrate.toLocaleString()
+          })
+        );
+        appendFirmwareLog(translate('firmware.modal.log.eraseInProgress'));
+        await esploader.erase_flash();
+        appendFirmwareLog(translate('firmware.modal.log.eraseCompleted'));
+      }
+
+      if (targetBaudrate !== initialBaudrate) {
+        try {
+          esploader.baudrate = targetBaudrate;
+          await esploader.change_baud();
+        } catch (restoreError) {
+          appendFirmwareLog(
+            interpolate(translate('firmware.modal.log.eraseBaudRestoreFailed'), {
+              error: restoreError?.message || String(restoreError)
+            })
+          );
+        }
+      }
 
       const segments = Array.isArray(manifest.segments) ? manifest.segments : [];
       if (!segments.length) {

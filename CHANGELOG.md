@@ -15,6 +15,10 @@
 - (JA) ファームウェア書き込みモーダルをスクロール対応・ログ領域拡大に調整し、書き込み成功後はボタンを「デバイスに接続」に切り替えてメイン接続フローを自動で起動するよう改良。
 - (EN) Added an “Erase Flash” action to the firmware modal that leverages `erase_flash`, reuses the WebSerial transport, and logs localized status updates.
 - (JA) ファームウェアモーダルに「フラッシュを消去」ボタンを追加し、`erase_flash` を実行する WebSerial ワークフローとローカライズ済みステータス表示を実装。
+- (EN) Added a default-enabled “Erase before flashing” checkbox so the combined workflow wipes flash with `erase_flash` before programming, with localized labels.
+- (JA) デフォルトでオンの「書き込み前にフラッシュを消去」チェックボックスを追加し、書き込み前に `erase_flash` を自動実行するように変更。
+- (EN) Increased esptool-js flashing/erase timeouts to better tolerate large images and slower transports.
+- (JA) 大容量イメージや低速転送に耐えられるよう、esptool-js の書き込み・消去タイムアウトを延長。
 
 ## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.

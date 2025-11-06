@@ -1238,6 +1238,21 @@ body.state-connected .topbar {
   color: var(--color-muted);
 }
 
+.checkbox-field .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.checkbox-field input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
 .firmware-summary,
 .firmware-details,
 .firmware-status {
