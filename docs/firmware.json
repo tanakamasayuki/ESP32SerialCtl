@@ -1,0 +1,42 @@
+{
+  "version": "1",
+  "basePath": "./firmware",
+  "firmwares": [
+    {
+      "id": "BasicCli.esp32",
+      "dir": "BasicCli.esp32",
+      "fqbn": "esp32:esp32:esp32",
+      "manifest": "manifest.json",
+      "locales": {
+        "ja": {
+          "name": "BasicCli (ESP32)",
+          "summary": "標準的なサンプルファームウェア",
+          "description": "GPIO、I2C、FSなど基本的な機能を備えています。"
+        },
+        "en": {
+          "name": "BasicCli (ESP32)",
+          "summary": "Standard sample firmware.",
+          "description": "Includes basic features like GPIO, I2C, FS, and more."
+        }
+      }
+    },
+    {
+      "id": "BasicCli.esp32s3",
+      "dir": "BasicCli.esp32s3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "manifest": "manifest.json",
+      "locales": {
+        "ja": {
+          "name": "BasicCli (ESP32-S3)",
+          "summary": "標準的なサンプルファームウェア",
+          "description": "GPIO、I2C、FSなど基本的な機能を備えています。"
+        },
+        "en": {
+          "name": "BasicCli (ESP32-S3)",
+          "summary": "Standard sample firmware.",
+          "description": "Includes basic features like GPIO, I2C, FS, and more."
+        }
+      }
+    }
+  ]
+}

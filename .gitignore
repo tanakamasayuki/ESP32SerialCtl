@@ -3,6 +3,7 @@ __pycache__/
 
 # Generated bundle and helper downloads
 tools/cache/
+build
 
 # User settings
 .vscode/
