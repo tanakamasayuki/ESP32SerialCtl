@@ -3400,12 +3400,11 @@ OK fs ls
       firmwareBaudSelect.append(option);
     });
     applyFirmwareBaudLabels();
-    const preferredValue =
-      !Number.isNaN(manifestBaud) && manifestBaud > 0
+    const preferredValue = sorted.includes(115200)
+      ? '115200'
+      : !Number.isNaN(manifestBaud) && manifestBaud > 0
         ? String(manifestBaud)
-        : sorted.includes(115200)
-          ? '115200'
-          : String(sorted[0]);
+        : String(sorted[0]);
     firmwareBaudSelect.value = preferredValue;
   };
 
@@ -3825,10 +3824,11 @@ OK fs ls
     if (!esploader || typeof esploader !== 'object') {
       return;
     }
-    const ERASE_TIMEOUT_PER_MB = 60000; // 60s per MB
-    const WRITE_TIMEOUT_PER_MB = 80000; // 80s per MB
-    const MD5_TIMEOUT_PER_MB = 20000; // 20s per MB
-    const CHIP_ERASE_TIMEOUT = 240000; // 240s overall
+    const ERASE_TIMEOUT_PER_MB = 120000; // 120s per MB
+    const WRITE_TIMEOUT_PER_MB = 150000; // 150s per MB
+    const MD5_TIMEOUT_PER_MB = 40000; // 40s per MB
+    const CHIP_ERASE_TIMEOUT = 360000; // 360s overall
+    const MIN_BLOCK_TIMEOUT = 20000; // 20s minimum per block
 
     esploader.ERASE_REGION_TIMEOUT_PER_MB = ERASE_TIMEOUT_PER_MB;
     esploader.ERASE_WRITE_TIMEOUT_PER_MB = WRITE_TIMEOUT_PER_MB;
@@ -3841,8 +3841,10 @@ OK fs ls
       const fallback = originalTimeoutPerMb
         ? originalTimeoutPerMb(secondsPerMb, sizeBytes)
         : secondsPerMb * (sizeBytes / 1_000_000);
-      const override = Math.max(ERASE_TIMEOUT_PER_MB, WRITE_TIMEOUT_PER_MB, fallback);
-      return Math.max(override, 3000);
+      const sizeMb = sizeBytes > 0 ? sizeBytes / 1_000_000 : 1;
+      const scaledErase = ERASE_TIMEOUT_PER_MB * sizeMb;
+      const scaledWrite = WRITE_TIMEOUT_PER_MB * sizeMb;
+      return Math.max(fallback, scaledErase, scaledWrite, MIN_BLOCK_TIMEOUT);
     };
   };
 
