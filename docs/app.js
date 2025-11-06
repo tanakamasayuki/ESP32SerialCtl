@@ -43,7 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "actions": {
           "connect": "デバイスに接続",
-          "disconnect": "切断"
+          "disconnect": "切断",
+          "flash": "ファームウェアを転送"
         },
         "info": {
           "disabledTitle": "UI プレビューのため現在は操作できません",
@@ -67,6 +68,57 @@ document.addEventListener('DOMContentLoaded', () => {
           "hint": "ESP32SerialCtl 対応ファームウェアをデバイスへ書き込んでから再接続してください。",
           "close": "了解",
           "log": "help コマンドの応答が得られなかったため、接続を終了しました。"
+        }
+      },
+      "firmware": {
+        "modal": {
+          "title": "ファームウェアを書き込む",
+          "description": "対応するファームウェアを選択し、WebSerial を使って ESP32 に書き込みます。",
+          "firmwareLabel": "ファームウェアの選択",
+          "firmwareAria": "書き込むファームウェアを選択",
+          "summary": {
+            "title": "説明"
+          },
+          "baudrateLabel": "転送速度",
+          "baudrateAria": "転送速度を選択",
+          "baudrateHint": "ボードによって利用できる速度が異なります。迷った場合は 115200 を選択してください。",
+          "details": {
+            "title": "書き込みオプション",
+            "chip": "ターゲット",
+            "flashMode": "Flash モード",
+            "flashFreq": "Flash 周波数",
+            "flashSize": "Flash サイズ",
+            "unknown": "不明",
+            "keep": "設定を保持"
+          },
+          "segments": {
+            "title": "書き込みセグメント"
+          },
+          "cancel": "キャンセル",
+          "start": "書き込みを開始",
+          "baudrateOption": "{baud} bps",
+          "log": {
+            "placeholder": "処理の進行状況がここに表示されます。",
+            "loadingManifest": "manifest.json を読み込んでいます…",
+            "manifestReady": "manifest.json の読み込みが完了しました。",
+            "manifestError": "manifest.json の読み込みに失敗しました: {error}",
+            "noSelection": "ファームウェアが選択されていません。",
+            "starting": "書き込みを開始します (転送速度: {baud} bps)。",
+            "requestPort": "シリアルポートを選択してください。",
+            "connecting": "接続中…",
+            "connected": "デバイスに接続しました (チップ: {chip})。",
+            "chipUnknown": "不明なチップ",
+            "noSegments": "manifest.json に書き込みセグメントが含まれていません。",
+            "preparingSegments": "{count} 個のセグメントを準備しています。",
+            "loadingSegment": "{offset} のセグメント {file} を読み込み中…",
+            "segmentEmpty": "{file} (offset {offset}) の内容が空です。",
+            "flashing": "書き込み中…",
+            "completed": "書き込みが完了しました。",
+            "hardReset": "デバイスをハードリセットしました。",
+            "resetFailed": "リセットに失敗しました: {error}",
+            "error": "エラー: {error}",
+            "disconnectFailed": "ポートのクローズに失敗しました: {error}"
+          }
         }
       },
       "language": {
@@ -789,7 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "actions": {
           "connect": "Connect Device",
-          "disconnect": "Disconnect"
+          "disconnect": "Disconnect",
+          "flash": "Transfer Firmware"
         },
         "info": {
           "disabledTitle": "Preview only – controls are disabled",
@@ -813,6 +866,57 @@ document.addEventListener('DOMContentLoaded', () => {
           "hint": "Please flash the ESP32SerialCtl-compatible firmware to the device before connecting.",
           "close": "OK",
           "log": "No help command response received; disconnecting."
+        }
+      },
+      "firmware": {
+        "modal": {
+          "title": "Flash Firmware",
+          "description": "Select a firmware package and program your ESP32 over WebSerial.",
+          "firmwareLabel": "Choose Firmware",
+          "firmwareAria": "Select firmware to flash",
+          "summary": {
+            "title": "Description"
+          },
+          "baudrateLabel": "Transfer Speed",
+          "baudrateAria": "Select transfer speed",
+          "baudrateHint": "Supported baud rates vary by board. If unsure, use 115200.",
+          "details": {
+            "title": "Flash Options",
+            "chip": "Target",
+            "flashMode": "Flash Mode",
+            "flashFreq": "Flash Frequency",
+            "flashSize": "Flash Size",
+            "unknown": "Unknown",
+            "keep": "Keep current setting"
+          },
+          "segments": {
+            "title": "Flash Segments"
+          },
+          "cancel": "Cancel",
+          "start": "Start Flashing",
+          "baudrateOption": "{baud} bps",
+          "log": {
+            "placeholder": "Progress and messages will appear here.",
+            "loadingManifest": "Loading manifest.json…",
+            "manifestReady": "Manifest loaded successfully.",
+            "manifestError": "Failed to load manifest.json: {error}",
+            "noSelection": "No firmware selected.",
+            "starting": "Starting flash (baud: {baud} bps).",
+            "requestPort": "Please choose a serial port.",
+            "connecting": "Connecting…",
+            "connected": "Connected to device (chip: {chip}).",
+            "chipUnknown": "Unknown chip",
+            "noSegments": "No flash segments were defined in manifest.json.",
+            "preparingSegments": "Preparing {count} segment(s).",
+            "loadingSegment": "Loading segment {file} at {offset}…",
+            "segmentEmpty": "Segment {file} (offset {offset}) is empty.",
+            "flashing": "Writing firmware…",
+            "completed": "Flash completed.",
+            "hardReset": "Hard reset requested.",
+            "resetFailed": "Failed to reset device: {error}",
+            "error": "Error: {error}",
+            "disconnectFailed": "Failed to close port: {error}"
+          }
         }
       },
       "language": {
@@ -1535,7 +1639,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         "actions": {
           "connect": "连接设备",
-          "disconnect": "断开连接"
+          "disconnect": "断开连接",
+          "flash": "写入固件"
         },
         "info": {
           "disabledTitle": "预览模式，控件已禁用",
@@ -1559,6 +1664,57 @@ document.addEventListener('DOMContentLoaded', () => {
           "hint": "请先将支持 ESP32SerialCtl 的固件写入设备，然后再重新连接。",
           "close": "知道了",
           "log": "未收到 help 指令响应，已断开连接。"
+        }
+      },
+      "firmware": {
+        "modal": {
+          "title": "写入固件",
+          "description": "选择固件包，并通过 WebSerial 将其烧录到 ESP32。",
+          "firmwareLabel": "选择固件",
+          "firmwareAria": "选择要写入的固件",
+          "summary": {
+            "title": "说明"
+          },
+          "baudrateLabel": "传输速率",
+          "baudrateAria": "选择传输速率",
+          "baudrateHint": "不同开发板支持的速率不同，不确定时请选择 115200。",
+          "details": {
+            "title": "写入参数",
+            "chip": "目标",
+            "flashMode": "Flash 模式",
+            "flashFreq": "Flash 频率",
+            "flashSize": "Flash 容量",
+            "unknown": "未知",
+            "keep": "保持当前设置"
+          },
+          "segments": {
+            "title": "写入段"
+          },
+          "cancel": "取消",
+          "start": "开始写入",
+          "baudrateOption": "{baud} bps",
+          "log": {
+            "placeholder": "这里将显示写入过程与日志。",
+            "loadingManifest": "正在加载 manifest.json…",
+            "manifestReady": "manifest.json 加载完成。",
+            "manifestError": "manifest.json 加载失败: {error}",
+            "noSelection": "尚未选择固件。",
+            "starting": "开始写入 (速率: {baud} bps)。",
+            "requestPort": "请选择串口。",
+            "connecting": "正在连接…",
+            "connected": "已连接到设备 (芯片: {chip})。",
+            "chipUnknown": "未知芯片",
+            "noSegments": "manifest.json 中未定义写入段。",
+            "preparingSegments": "正在准备 {count} 个写入段。",
+            "loadingSegment": "正在加载 {offset} 的段 {file}…",
+            "segmentEmpty": "{file} (offset {offset}) 内容为空。",
+            "flashing": "固件写入中…",
+            "completed": "写入完成。",
+            "hardReset": "已请求硬复位。",
+            "resetFailed": "复位失败: {error}",
+            "error": "错误: {error}",
+            "disconnectFailed": "关闭串口失败: {error}"
+          }
         }
       },
       "language": {
@@ -2826,7 +2982,72 @@ OK fs ls
   const firmwareWarningPrimaryButton = firmwareWarningCloseElements.find(
     (element) => element instanceof HTMLElement && element.tagName === 'BUTTON'
   );
+  const firmwareFlashButton = document.querySelector('#firmware-flash-button');
+  const firmwareFlashModal = document.querySelector('[data-modal="firmware-flash"]');
+  const firmwareFlashCloseElements = firmwareFlashModal
+    ? Array.from(firmwareFlashModal.querySelectorAll('[data-modal-close]'))
+    : [];
+  const firmwareSelect = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('#firmware-select')
+    : null;
+  const firmwareBaudSelect = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('#firmware-baudrate')
+    : null;
+  const firmwareSummarySection = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('[data-firmware-summary]')
+    : null;
+  const firmwareSummaryText = firmwareSummarySection
+    ? firmwareSummarySection.querySelector('[data-firmware-summary-text]')
+    : null;
+  const firmwareDetailsSection = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('[data-firmware-details]')
+    : null;
+  const firmwareDetailNodes = firmwareDetailsSection
+    ? firmwareDetailsSection.querySelectorAll('[data-firmware-detail]')
+    : null;
+  const firmwareSegmentsList = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('[data-firmware-segments]')
+    : null;
+  const firmwareProgressContainer = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('[data-flash-progress]')
+    : null;
+  const firmwareProgressBar = firmwareProgressContainer
+    ? firmwareProgressContainer.querySelector('progress')
+    : null;
+  const firmwareProgressLabel = firmwareProgressContainer
+    ? firmwareProgressContainer.querySelector('[data-flash-progress-label]')
+    : null;
+  const firmwareLogElement = firmwareFlashModal
+    ? firmwareFlashModal.querySelector('[data-flash-log]')
+    : null;
+  const firmwareStartButton = document.querySelector('#firmware-start-button');
   let connectionErrorLastDetail = '';
+  const firmwareDetailMap = new Map();
+  if (firmwareDetailNodes) {
+    firmwareDetailNodes.forEach((node) => {
+      const key = node.dataset.firmwareDetail;
+      if (key && !firmwareDetailMap.has(key)) {
+        firmwareDetailMap.set(key, node);
+      }
+    });
+  }
+
+  const FIRMWARE_CONFIG_PATH = './firmware.json';
+
+  const firmwareState = {
+    available: false,
+    config: null,
+    entryMap: new Map(),
+    manifestCache: new Map(),
+    binaryCache: new Map(),
+    selectionToken: 0,
+    currentEntryId: null,
+    currentManifest: null,
+    isFlashing: false,
+    isLoadingManifest: false,
+    postFlash: false
+  };
+  let esptoolModulePromise = null;
 
   const updateBodyModalState = () => {
     const bodyElement = document.body;
@@ -2931,6 +3152,767 @@ OK fs ls
       }, 120);
     }
   }
+  const FIRMWARE_LOG_MAX_LENGTH = 16000;
+  let firmwareLogBuffer = '';
+
+  const applyFirmwareLog = () => {
+    if (!firmwareLogElement) {
+      return;
+    }
+    const content = firmwareLogBuffer.trim()
+      ? firmwareLogBuffer
+      : translate('firmware.modal.log.placeholder');
+    firmwareLogElement.textContent = content;
+    firmwareLogElement.scrollTop = firmwareLogElement.scrollHeight;
+  };
+
+  const resetFirmwareLog = () => {
+    firmwareLogBuffer = '';
+    applyFirmwareLog();
+  };
+
+  const appendFirmwareLog = (message, { newline = true } = {}) => {
+    if (!message) {
+      return;
+    }
+    const text = newline ? `${message}\n` : message;
+    firmwareLogBuffer = `${firmwareLogBuffer}${text}`;
+    if (firmwareLogBuffer.length > FIRMWARE_LOG_MAX_LENGTH) {
+      firmwareLogBuffer = firmwareLogBuffer.slice(-FIRMWARE_LOG_MAX_LENGTH);
+    }
+    applyFirmwareLog();
+  };
+
+  const setFirmwareProgressVisible = (visible) => {
+    if (!firmwareProgressContainer) {
+      return;
+    }
+    if (visible) {
+      firmwareProgressContainer.hidden = false;
+      firmwareProgressContainer.removeAttribute('hidden');
+    } else {
+      firmwareProgressContainer.hidden = true;
+      firmwareProgressContainer.setAttribute('hidden', '');
+    }
+  };
+
+  const updateFirmwareProgress = (written, total) => {
+    if (!firmwareProgressBar || !firmwareProgressLabel) {
+      return;
+    }
+    const safeTotal = total > 0 ? total : 1;
+    const percent = Math.max(0, Math.min(100, Math.round((written / safeTotal) * 100)));
+    firmwareProgressBar.max = safeTotal;
+    firmwareProgressBar.value = Math.min(written, safeTotal);
+    firmwareProgressLabel.textContent = `${percent}%`;
+  };
+
+  const resetFirmwareProgress = () => {
+    if (firmwareProgressBar) {
+      firmwareProgressBar.max = 100;
+      firmwareProgressBar.value = 0;
+    }
+    if (firmwareProgressLabel) {
+      firmwareProgressLabel.textContent = '0%';
+    }
+    setFirmwareProgressVisible(false);
+  };
+
+  const resetFirmwareDetails = () => {
+    if (firmwareSummarySection) {
+      firmwareSummarySection.hidden = true;
+      firmwareSummarySection.setAttribute('hidden', '');
+    }
+    if (firmwareSummaryText) {
+      firmwareSummaryText.textContent = '';
+    }
+    if (firmwareDetailsSection) {
+      firmwareDetailsSection.hidden = true;
+      firmwareDetailsSection.setAttribute('hidden', '');
+    }
+    firmwareDetailMap.forEach((node) => {
+      node.textContent = '--';
+    });
+    if (firmwareSegmentsList) {
+      firmwareSegmentsList.innerHTML = '';
+    }
+    resetFirmwareProgress();
+  };
+
+  const getFirmwareEntryById = (id) => {
+    if (!id) {
+      return null;
+    }
+    return firmwareState.entryMap.get(id) || null;
+  };
+
+  const resolveLocaleRecord = (locales = {}) => {
+    const normalized = locales[currentLanguage];
+    if (normalized) {
+      return normalized;
+    }
+    const fallback = locales[LANGUAGE_FALLBACK];
+    if (fallback) {
+      return fallback;
+    }
+    const first = Object.values(locales).find((value) => Boolean(value));
+    return first || {};
+  };
+
+  const getFirmwareLocaleInfo = (entry) => {
+    if (!entry) {
+      return { name: '', summary: '', description: '' };
+    }
+    const record = resolveLocaleRecord(entry.locales || {});
+    return {
+      name: record?.name || entry.id || '',
+      summary: record?.summary || '',
+      description: record?.description || ''
+    };
+  };
+
+  const refreshFirmwareSummary = () => {
+    if (!firmwareSummarySection || !firmwareSummaryText) {
+      return;
+    }
+    const entry = getFirmwareEntryById(firmwareState.currentEntryId);
+    if (!entry) {
+      firmwareSummarySection.hidden = true;
+      firmwareSummarySection.setAttribute('hidden', '');
+      firmwareSummaryText.textContent = '';
+      return;
+    }
+    const info = getFirmwareLocaleInfo(entry);
+    const summaryText = info.summary || info.description || '';
+    if (!summaryText) {
+      firmwareSummarySection.hidden = true;
+      firmwareSummarySection.setAttribute('hidden', '');
+      firmwareSummaryText.textContent = '';
+      return;
+    }
+    firmwareSummarySection.hidden = false;
+    firmwareSummarySection.removeAttribute('hidden');
+    firmwareSummaryText.textContent = summaryText;
+  };
+
+  const refreshFirmwareSelectLabels = () => {
+    if (!firmwareSelect) {
+      return;
+    }
+    const options = Array.from(firmwareSelect.options);
+    options.forEach((option) => {
+      const entry = getFirmwareEntryById(option.value);
+      if (!entry) {
+        return;
+      }
+      const info = getFirmwareLocaleInfo(entry);
+      option.textContent = info.name || entry.id;
+    });
+  };
+
+  const populateFirmwareSelectOptions = () => {
+    if (!firmwareSelect) {
+      return;
+    }
+    firmwareSelect.innerHTML = '';
+    firmwareState.entryMap.forEach((entry, id) => {
+      const option = document.createElement('option');
+      option.value = id;
+      option.dataset.firmwareId = id;
+      firmwareSelect.append(option);
+    });
+    refreshFirmwareSelectLabels();
+    if (firmwareSelect.options.length > 0) {
+      const first = firmwareSelect.options[0]?.value;
+      if (first) {
+        firmwareSelect.value = first;
+      }
+    }
+  };
+
+  const COMMON_BAUD_RATES = [115200, 230400, 460800, 921600, 1500000, 2000000];
+
+  const applyFirmwareBaudLabels = () => {
+    if (!firmwareBaudSelect) {
+      return;
+    }
+    Array.from(firmwareBaudSelect.options).forEach((option) => {
+      const value = Number.parseInt(option.value, 10);
+      if (Number.isNaN(value)) {
+        return;
+      }
+      const template = translate('firmware.modal.baudrateOption');
+      const label = template
+        ? interpolate(template, { baud: value.toLocaleString() })
+        : `${value.toLocaleString()} bps`;
+      option.textContent = label;
+    });
+  };
+
+  const updateFirmwareBaudOptions = (manifest) => {
+    if (!firmwareBaudSelect) {
+      return;
+    }
+    const values = new Set(COMMON_BAUD_RATES);
+    const manifestBaud = Number.parseInt(manifest?.flags?.baud, 10);
+    if (!Number.isNaN(manifestBaud) && manifestBaud > 0) {
+      values.add(manifestBaud);
+    }
+    const sorted = Array.from(values).sort((a, b) => a - b);
+    firmwareBaudSelect.innerHTML = '';
+    sorted.forEach((value) => {
+      const option = document.createElement('option');
+      option.value = String(value);
+      option.dataset.baud = String(value);
+      firmwareBaudSelect.append(option);
+    });
+    applyFirmwareBaudLabels();
+    const preferredValue =
+      !Number.isNaN(manifestBaud) && manifestBaud > 0
+        ? String(manifestBaud)
+        : sorted.includes(115200)
+          ? '115200'
+          : String(sorted[0]);
+    firmwareBaudSelect.value = preferredValue;
+  };
+
+  const refreshFirmwareDetails = () => {
+    if (!firmwareDetailsSection) {
+      return;
+    }
+    const manifest = firmwareState.currentManifest;
+    if (!manifest) {
+      firmwareDetailsSection.hidden = true;
+      firmwareDetailsSection.setAttribute('hidden', '');
+      firmwareDetailMap.forEach((node) => {
+        node.textContent = '--';
+      });
+      if (firmwareSegmentsList) {
+        firmwareSegmentsList.innerHTML = '';
+      }
+      return;
+    }
+    const flags = manifest.flags || {};
+    const map = {
+      chip: flags.chip || translate('firmware.modal.details.unknown'),
+      'flash-mode': flags['flash-mode'] || 'keep',
+      'flash-freq': flags['flash-freq'] || 'keep',
+      'flash-size': flags['flash-size'] || 'keep'
+    };
+    firmwareDetailMap.forEach((node, key) => {
+      const value = map[key] ?? '--';
+      if (typeof value === 'string' && value === 'keep') {
+        node.textContent = translate('firmware.modal.details.keep');
+      } else {
+        node.textContent = value || '--';
+      }
+    });
+    if (firmwareSegmentsList) {
+      firmwareSegmentsList.innerHTML = '';
+      const segments = Array.isArray(manifest.segments) ? manifest.segments : [];
+      segments.forEach((segment) => {
+        const li = document.createElement('li');
+        const offset = segment?.offset || '0x0';
+        const file = segment?.file || '';
+        li.textContent = `${offset}  ${file}`;
+        firmwareSegmentsList.append(li);
+      });
+    }
+    firmwareDetailsSection.hidden = false;
+    firmwareDetailsSection.removeAttribute('hidden');
+  };
+
+  const applyFirmwareStartButtonLabel = () => {
+    if (!firmwareStartButton) {
+      return;
+    }
+    const key = firmwareState.postFlash ? 'connection.actions.connect' : 'firmware.modal.start';
+    const fallback = firmwareState.postFlash ? 'Connect Device' : 'Start Flashing';
+    const label = translate(key) || fallback;
+    firmwareStartButton.textContent = label;
+  };
+
+  const refreshFirmwareStartButtonState = () => {
+    if (!firmwareStartButton) {
+      return;
+    }
+    const disabled =
+      firmwareState.isFlashing ||
+      firmwareState.isLoadingManifest ||
+      !firmwareState.currentManifest ||
+      !firmwareState.currentEntryId;
+    firmwareStartButton.disabled = disabled;
+    if (disabled) {
+      firmwareStartButton.setAttribute('disabled', '');
+    } else {
+      firmwareStartButton.removeAttribute('disabled');
+    }
+    applyFirmwareStartButtonLabel();
+    applyDisabledTitles();
+  };
+
+  const refreshFirmwareControlsState = () => {
+    if (firmwareSelect) {
+      const disabled = !firmwareState.available || firmwareState.isFlashing;
+      firmwareSelect.disabled = disabled;
+      if (disabled) {
+        firmwareSelect.setAttribute('disabled', '');
+      } else {
+        firmwareSelect.removeAttribute('disabled');
+      }
+    }
+    if (firmwareBaudSelect) {
+      const disabled =
+        !firmwareState.currentManifest || firmwareState.isFlashing || firmwareState.isLoadingManifest;
+      firmwareBaudSelect.disabled = disabled;
+      if (disabled) {
+        firmwareBaudSelect.setAttribute('disabled', '');
+      } else {
+        firmwareBaudSelect.removeAttribute('disabled');
+      }
+    }
+    firmwareFlashCloseElements.forEach((element) => {
+      if (!(element instanceof HTMLButtonElement)) {
+        return;
+      }
+      if (firmwareState.isFlashing) {
+        element.disabled = true;
+        element.setAttribute('disabled', '');
+      } else {
+        element.disabled = false;
+        element.removeAttribute('disabled');
+      }
+    });
+    refreshFirmwareStartButtonState();
+  };
+
+  const refreshFirmwareFlashButtonState = () => {
+    if (!firmwareFlashButton) {
+      return;
+    }
+    const shouldShow = firmwareState.available;
+    if (shouldShow) {
+      firmwareFlashButton.hidden = false;
+      firmwareFlashButton.removeAttribute('hidden');
+    } else {
+      firmwareFlashButton.hidden = true;
+      firmwareFlashButton.setAttribute('hidden', '');
+    }
+    const shouldDisable =
+      !firmwareState.available || firmwareState.isFlashing || connectionState !== 'disconnected';
+    firmwareFlashButton.disabled = shouldDisable;
+    if (shouldDisable) {
+      firmwareFlashButton.setAttribute('disabled', '');
+    } else {
+      firmwareFlashButton.removeAttribute('disabled');
+    }
+    applyDisabledTitles();
+  };
+
+  const refreshFirmwareLocale = () => {
+    refreshFirmwareSelectLabels();
+    refreshFirmwareSummary();
+    refreshFirmwareDetails();
+    applyFirmwareLog();
+    applyFirmwareBaudLabels();
+    applyFirmwareStartButtonLabel();
+  };
+
+  const showFirmwareFlashModal = () => {
+    if (!firmwareFlashModal || !firmwareState.available) {
+      return;
+    }
+    if (!firmwareFlashModal.classList.contains('is-visible')) {
+      resetFirmwareLog();
+      resetFirmwareProgress();
+      firmwareFlashModal.classList.add('is-visible');
+      firmwareFlashModal.setAttribute('aria-hidden', 'false');
+      updateBodyModalState();
+      window.setTimeout(() => {
+        const focusTarget =
+          firmwareSelect ||
+          firmwareStartButton ||
+          firmwareFlashModal.querySelector('button, select, input, textarea');
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+          try {
+            focusTarget.focus();
+          } catch {
+            /* ignore focus errors */
+          }
+        }
+      }, 80);
+    }
+  };
+
+  const hideFirmwareFlashModal = () => {
+    if (!firmwareFlashModal || firmwareState.isFlashing) {
+      return;
+    }
+    if (!firmwareFlashModal.classList.contains('is-visible')) {
+      return;
+    }
+    firmwareState.postFlash = false;
+    applyFirmwareStartButtonLabel();
+    firmwareFlashModal.classList.remove('is-visible');
+    firmwareFlashModal.setAttribute('aria-hidden', 'true');
+    updateBodyModalState();
+    if (firmwareFlashButton && typeof firmwareFlashButton.focus === 'function') {
+      window.setTimeout(() => {
+        if (!firmwareFlashButton.disabled) {
+          try {
+            firmwareFlashButton.focus();
+          } catch {
+            /* ignore */
+          }
+        }
+      }, 120);
+    }
+  };
+
+  const joinFirmwarePath = (...segments) => {
+    const base = (firmwareState.config?.basePath ?? '.').replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalizedSegments = segments
+      .filter(Boolean)
+      .map((segment) => String(segment).replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, ''));
+    const parts = [base, ...normalizedSegments].filter(Boolean);
+    return parts.join('/').replace(/\/{2,}/g, '/');
+  };
+
+  const loadFirmwareManifest = async (entry) => {
+    if (!entry) {
+      throw new Error('Firmware entry not found');
+    }
+    if (firmwareState.manifestCache.has(entry.id)) {
+      return firmwareState.manifestCache.get(entry.id);
+    }
+    const manifestPath = joinFirmwarePath(entry.dir, entry.manifest);
+    const response = await fetch(manifestPath, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Failed to load manifest (${response.status})`);
+    }
+    const manifest = await response.json();
+    firmwareState.manifestCache.set(entry.id, manifest);
+    return manifest;
+  };
+
+  const arrayBufferToBinaryString = (buffer) => {
+    const view = new Uint8Array(buffer);
+    const chunk = 0x8000;
+    let result = '';
+    for (let offset = 0; offset < view.length; offset += chunk) {
+      const slice = view.subarray(offset, offset + chunk);
+      result += String.fromCharCode(...slice);
+    }
+    return result;
+  };
+
+  const loadFirmwareSegmentBinary = async (entry, segment) => {
+    if (!entry || !segment) {
+      throw new Error('Invalid firmware segment');
+    }
+    const cacheKey = `${entry.id}::${segment.file}`;
+    if (firmwareState.binaryCache.has(cacheKey)) {
+      return firmwareState.binaryCache.get(cacheKey);
+    }
+    const segmentPath = joinFirmwarePath(entry.dir, segment.file);
+    const response = await fetch(segmentPath);
+    if (!response.ok) {
+      throw new Error(`Failed to load ${segment.file} (${response.status})`);
+    }
+    const buffer = await response.arrayBuffer();
+    const content = arrayBufferToBinaryString(buffer);
+    firmwareState.binaryCache.set(cacheKey, content);
+    return content;
+  };
+
+  const parseOffsetValue = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim().toLowerCase();
+      if (trimmed.startsWith('0x')) {
+        const parsedHex = Number.parseInt(trimmed, 16);
+        if (!Number.isNaN(parsedHex)) {
+          return parsedHex;
+        }
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    throw new Error(`Invalid flash offset: ${value}`);
+  };
+
+  const selectFirmwareEntry = async (entryId) => {
+    firmwareState.selectionToken += 1;
+    const token = firmwareState.selectionToken;
+    firmwareState.currentEntryId = entryId || null;
+    firmwareState.currentManifest = null;
+    firmwareState.isLoadingManifest = Boolean(entryId);
+    firmwareState.postFlash = false;
+    applyFirmwareStartButtonLabel();
+    refreshFirmwareSummary();
+    refreshFirmwareDetails();
+    refreshFirmwareControlsState();
+    resetFirmwareProgress();
+    resetFirmwareLog();
+    if (!entryId) {
+      firmwareState.isLoadingManifest = false;
+      refreshFirmwareControlsState();
+      return;
+    }
+    const entry = getFirmwareEntryById(entryId);
+    if (!entry) {
+      firmwareState.isLoadingManifest = false;
+      refreshFirmwareControlsState();
+      throw new Error(`Unknown firmware id: ${entryId}`);
+    }
+    try {
+      appendFirmwareLog(translate('firmware.modal.log.loadingManifest'));
+    } catch {
+      /* ignore */
+    }
+    try {
+      const manifest = await loadFirmwareManifest(entry);
+      if (token !== firmwareState.selectionToken) {
+        return;
+      }
+      firmwareState.currentManifest = manifest;
+      updateFirmwareBaudOptions(manifest);
+      refreshFirmwareDetails();
+      refreshFirmwareSummary();
+      appendFirmwareLog(translate('firmware.modal.log.manifestReady'));
+    } catch (error) {
+      if (token !== firmwareState.selectionToken) {
+        return;
+      }
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.manifestError'), {
+          error: error?.message || String(error)
+        })
+      );
+      firmwareState.currentManifest = null;
+    } finally {
+      if (token === firmwareState.selectionToken) {
+        firmwareState.isLoadingManifest = false;
+        refreshFirmwareControlsState();
+      }
+    }
+  };
+
+  const loadFirmwareConfig = async () => {
+    try {
+      const response = await fetch(FIRMWARE_CONFIG_PATH, { cache: 'no-store' });
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Failed to load firmware.json (${response.status})`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn('[ESP32SerialCtl] firmware.json load failed:', error);
+      return null;
+    }
+  };
+
+  const initializeFirmwareSupport = async () => {
+    if (!firmwareFlashButton || !firmwareSelect) {
+      return;
+    }
+    const config = await loadFirmwareConfig();
+    if (!config || !Array.isArray(config.firmwares) || !config.firmwares.length) {
+      refreshFirmwareFlashButtonState();
+      return;
+    }
+    firmwareState.config = config;
+    firmwareState.entryMap.clear();
+    config.firmwares.forEach((entry) => {
+      if (entry && entry.id) {
+        firmwareState.entryMap.set(entry.id, entry);
+      }
+    });
+    firmwareState.available = firmwareState.entryMap.size > 0;
+    if (!firmwareState.available) {
+      refreshFirmwareFlashButtonState();
+      return;
+    }
+    populateFirmwareSelectOptions();
+    refreshFirmwareFlashButtonState();
+    firmwareSelect.disabled = true;
+    firmwareSelect.setAttribute('disabled', '');
+    firmwareBaudSelect?.setAttribute('disabled', '');
+    resetFirmwareDetails();
+    resetFirmwareLog();
+    const defaultId = firmwareSelect.options[0]?.value || null;
+    if (defaultId) {
+      await selectFirmwareEntry(defaultId);
+    }
+    firmwareSelect.disabled = false;
+    firmwareSelect.removeAttribute('disabled');
+    refreshFirmwareControlsState();
+    refreshFirmwareFlashButtonState();
+  };
+
+  const loadEsptoolModule = async () => {
+    if (!esptoolModulePromise) {
+      esptoolModulePromise = import('https://unpkg.com/esptool-js@0.3.0/bundle.js?module');
+    }
+    return esptoolModulePromise;
+  };
+
+  const handleFirmwareFlashStart = async () => {
+    if (firmwareState.isFlashing) {
+      return;
+    }
+    const entry = getFirmwareEntryById(firmwareState.currentEntryId);
+    const manifest = firmwareState.currentManifest;
+    if (!entry || !manifest) {
+      appendFirmwareLog(translate('firmware.modal.log.noSelection'));
+      return;
+    }
+    const baudrate = Number.parseInt(firmwareBaudSelect?.value, 10) || 115200;
+    firmwareState.isFlashing = true;
+    firmwareState.postFlash = false;
+    applyFirmwareStartButtonLabel();
+    refreshFirmwareControlsState();
+    refreshFirmwareFlashButtonState();
+    resetFirmwareProgress();
+    setFirmwareProgressVisible(true);
+    updateFirmwareProgress(0, 100);
+
+    let transport = null;
+    try {
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.starting'), {
+          baud: baudrate.toLocaleString()
+        })
+      );
+      const { ESPLoader, Transport } = await loadEsptoolModule();
+      appendFirmwareLog(translate('firmware.modal.log.requestPort'));
+      const port = await navigator.serial.requestPort({});
+      transport = new Transport(port);
+      const terminalAdapter = {
+        clean: () => {
+          /* keep existing log */
+        },
+        writeLine: (data) => appendFirmwareLog(data),
+        write: (data) => appendFirmwareLog(data, { newline: false })
+      };
+      const loaderOptions = {
+        transport,
+        baudrate,
+        romBaudrate: 115200,
+        terminal: terminalAdapter
+      };
+      const esploader = new ESPLoader(loaderOptions);
+      appendFirmwareLog(translate('firmware.modal.log.connecting'));
+      const chipName = await esploader.main_fn();
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.connected'), {
+          chip: chipName || translate('firmware.modal.log.chipUnknown')
+        })
+      );
+
+      const segments = Array.isArray(manifest.segments) ? manifest.segments : [];
+      if (!segments.length) {
+        throw new Error(translate('firmware.modal.log.noSegments'));
+      }
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.preparingSegments'), {
+          count: segments.length
+        })
+      );
+      const fileArray = [];
+      const segmentSizes = [];
+      for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+        const offset = parseOffsetValue(segment?.offset);
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.loadingSegment'), {
+            offset: segment?.offset || `0x${offset.toString(16)}`,
+            file: segment?.file || ''
+          })
+        );
+        const binary = await loadFirmwareSegmentBinary(entry, segment);
+        if (!binary || !binary.length) {
+          throw new Error(
+            interpolate(translate('firmware.modal.log.segmentEmpty'), {
+              file: segment?.file || '',
+              offset: segment?.offset || `0x${offset.toString(16)}`
+            })
+          );
+        }
+        fileArray.push({ data: binary, address: offset });
+        segmentSizes.push(binary.length);
+      }
+
+      let cumulative = 0;
+      const prefixBytes = segmentSizes.map((size) => {
+        const current = cumulative;
+        cumulative += size;
+        return current;
+      });
+      const totalBytes = cumulative;
+      updateFirmwareProgress(0, totalBytes || 1);
+
+      const flags = manifest.flags || {};
+      const flashOptions = {
+        fileArray,
+        flashSize: flags['flash-size'] || 'keep',
+        flashMode: flags['flash-mode'] || 'keep',
+        flashFreq: flags['flash-freq'] || 'keep',
+        eraseAll: false,
+        compress: manifest.compress !== false,
+        reportProgress: (fileIndex, written) => {
+          const offset = prefixBytes[fileIndex] || 0;
+          updateFirmwareProgress(offset + written, totalBytes || written || 1);
+        }
+      };
+
+      appendFirmwareLog(translate('firmware.modal.log.flashing'));
+      await esploader.write_flash(flashOptions);
+      updateFirmwareProgress(totalBytes, totalBytes || 1);
+      appendFirmwareLog(translate('firmware.modal.log.completed'));
+      firmwareState.postFlash = true;
+      applyFirmwareStartButtonLabel();
+      try {
+        await esploader.hard_reset();
+        appendFirmwareLog(translate('firmware.modal.log.hardReset'));
+      } catch (resetError) {
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.resetFailed'), {
+            error: resetError?.message || String(resetError)
+          })
+        );
+      }
+    } catch (error) {
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.error'), {
+          error: error?.message || String(error)
+        })
+      );
+    } finally {
+      firmwareState.isFlashing = false;
+      try {
+        if (transport) {
+          await transport.disconnect();
+          await transport.waitForUnlock(200);
+        }
+      } catch (disconnectError) {
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.disconnectFailed'), {
+            error: disconnectError?.message || String(disconnectError)
+          })
+        );
+      }
+      refreshFirmwareControlsState();
+      refreshFirmwareFlashButtonState();
+      applyDisabledTitles();
+    }
+  };
   const statusLabel = document.querySelector('#connection-status-label');
   const statusPill = document.querySelector('.status-pill');
   const logOutput = document.querySelector('[data-log-output]');
@@ -4130,6 +5112,7 @@ OK fs ls
     refreshPeripheralPinSelects();
     refreshPeripheralResultsLocale();
     refreshConnectionLabel();
+    refreshFirmwareLocale();
     applyDisabledTitles();
     refreshLanguageSensitiveUI();
     refreshB64writeStatus();
@@ -7257,6 +8240,7 @@ OK fs ls
     if (connectionState === state) {
       refreshConnectionLabel();
       updateCommandButtonsState();
+      refreshFirmwareFlashButtonState();
       applyDisabledTitles();
       updateLogButtonsState();
       if (currentFsSelection) {
@@ -7269,6 +8253,7 @@ OK fs ls
       return;
     }
     connectionState = state;
+    refreshFirmwareFlashButtonState();
     if (state === 'connected') {
       helpListLoaded = false;
       startHelpVerificationTimer();
@@ -9102,6 +10087,18 @@ OK fs ls
     });
   }
 
+  if (firmwareFlashCloseElements.length) {
+    firmwareFlashCloseElements.forEach((element) => {
+      element.addEventListener('click', (event) => {
+        if (firmwareState.isFlashing) {
+          event.preventDefault();
+          return;
+        }
+        hideFirmwareFlashModal();
+      });
+    });
+  }
+
   if (connectionErrorRetryButton) {
     connectionErrorRetryButton.addEventListener('click', () => {
       hideConnectionErrorModal();
@@ -9124,6 +10121,13 @@ OK fs ls
       hideFirmwareWarningModal();
       handled = true;
     }
+    if (
+      firmwareFlashModal?.classList?.contains('is-visible') &&
+      !firmwareState.isFlashing
+    ) {
+      hideFirmwareFlashModal();
+      handled = true;
+    }
     if (handled) {
       event.preventDefault();
     }
@@ -9134,6 +10138,54 @@ OK fs ls
   }
   if (disconnectButton) {
     disconnectButton.addEventListener('click', disconnectSerial);
+  }
+  if (firmwareFlashButton) {
+    firmwareFlashButton.addEventListener('click', () => {
+      if (firmwareState.available) {
+        showFirmwareFlashModal();
+      }
+    });
+  }
+  if (firmwareSelect) {
+    firmwareSelect.addEventListener('change', (event) => {
+      const target = event.target;
+      const value = target ? target.value : null;
+      selectFirmwareEntry(value).catch((error) => {
+        appendLogEntry(
+          'error',
+          `Firmware manifest load failed: ${error?.message || String(error)}`
+        );
+      });
+    });
+  }
+  if (firmwareStartButton) {
+    firmwareStartButton.addEventListener('click', () => {
+      if (firmwareState.postFlash) {
+        hideFirmwareFlashModal();
+        window.requestAnimationFrame(() => {
+          if (connectButton) {
+            if (connectButton.disabled) {
+              connectSerial().catch((error) => {
+                appendLogEntry(
+                  'error',
+                  `Auto-connect failed: ${error?.message || String(error)}`
+                );
+              });
+            } else {
+              connectButton.click();
+            }
+          }
+        });
+        return;
+      }
+      handleFirmwareFlashStart().catch((error) => {
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.error'), {
+            error: error?.message || String(error)
+          })
+        );
+      });
+    });
   }
 
   if (languageSelect) {
@@ -9160,6 +10212,9 @@ OK fs ls
   }
 
   updateCommandButtonsState();
+  initializeFirmwareSupport().catch((error) => {
+    console.warn('[ESP32SerialCtl] firmware support init failed:', error);
+  });
 
   // --- User commands parsing & interactive UI ------------------------------
   // Elements: textarea for raw output, parse/fetch buttons, and render area

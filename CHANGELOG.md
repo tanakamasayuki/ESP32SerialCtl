@@ -9,6 +9,10 @@
 - (JA) シリアルポートを占有している別アプリを閉じて再試行するよう案内する接続失敗ダイアログとリトライ操作を追加。
 - (EN) After connecting, retry the `help` command for 10 seconds, show firmware guidance, and disconnect automatically if no response is received.
 - (JA) 接続後に 10 秒間 `help` コマンドを再試行し、応答がなければファームウェア更新の案内を表示して自動的に切断するように変更。
+- (EN) Added a localized firmware flashing workflow that auto-detects `docs/firmware.json`, surfaces manifest options, and programs ESP32 targets via esptool-js WebSerial support.
+- (JA) `docs/firmware.json` の自動検出や manifest オプション表示に対応したローカライズ済みファームウェア書き込みフローを追加し、esptool-js の WebSerial で ESP32 へ転送できるようにした。
+- (EN) Improved the flashing modal with scrollable content, wider log area, and a post-flash button that switches to “Connect Device” and triggers the main connection flow.
+- (JA) ファームウェア書き込みモーダルをスクロール対応・ログ領域拡大に調整し、書き込み成功後はボタンを「デバイスに接続」に切り替えてメイン接続フローを自動で起動するよう改良。
 
 ## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.

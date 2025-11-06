@@ -37,6 +37,42 @@
           "description": "Includes basic features like GPIO, I2C, FS, and more."
         }
       }
+    },
+    {
+      "id": "WiFiTest.esp32",
+      "dir": "WiFiTest.esp32",
+      "fqbn": "esp32:esp32:esp32",
+      "manifest": "manifest.json",
+      "locales": {
+        "ja": {
+          "name": "WiFiTest (ESP32)",
+          "summary": "Wi-Fi接続テスト用サンプルファームウェア",
+          "description": "Wi-Fi接続機能と基本的なGPIO、I2C、FSなどを備えています。"
+        },
+        "en": {
+          "name": "WiFiTest (ESP32)",
+          "summary": "Wi-Fi connection test sample firmware.",
+          "description": "Includes Wi-Fi connection features and basic GPIO, I2C, FS, and more."
+        }
+      }
+    },
+    {
+      "id": "WiFiTest.esp32s3",
+      "dir": "WiFiTest.esp32s3",
+      "fqbn": "esp32:esp32:esp32s3",
+      "manifest": "manifest.json",
+      "locales": {
+        "ja": {
+          "name": "WiFiTest (ESP32-S3)",
+          "summary": "Wi-Fi connection test sample firmware.",
+          "description": "Includes Wi-Fi connection features and basic GPIO, I2C, FS, and more."
+        },
+        "en": {
+          "name": "WiFiTest (ESP32-S3)",
+          "summary": "Wi-Fi connection test sample firmware.",
+          "description": "Includes Wi-Fi connection features and basic GPIO, I2C, FS, and more."
+        }
+      }
     }
   ]
 }

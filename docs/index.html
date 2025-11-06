@@ -32,6 +32,10 @@
           <button class="btn btn-secondary" id="disconnect-button" disabled data-i18n="connection.actions.disconnect">
             切断
           </button>
+          <button class="btn btn-outline" id="firmware-flash-button" type="button" hidden disabled
+            data-i18n="connection.actions.flash">
+            ファームウェアを転送
+          </button>
         </div>
         <div class="language-switcher">
           <label for="language-select" data-i18n="language.label">表示言語</label>
@@ -1610,6 +1614,76 @@
       <div class="modal__footer">
         <button class="btn btn-primary" type="button" data-modal-close data-i18n="connection.firmwareDialog.close">
           了解
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" data-modal="firmware-flash" aria-hidden="true">
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="firmware-flash-title">
+      <div class="modal__header">
+        <h2 id="firmware-flash-title" data-i18n="firmware.modal.title">ファームウェアを書き込む</h2>
+      </div>
+      <div class="modal__body">
+        <p class="modal__description" data-i18n="firmware.modal.description">
+          対応するファームウェアを選択し、WebSerial を使って ESP32 に書き込みます。
+        </p>
+        <div class="form-field">
+          <label for="firmware-select" data-i18n="firmware.modal.firmwareLabel">ファームウェアの選択</label>
+          <select id="firmware-select" data-i18n-aria-label="firmware.modal.firmwareAria" disabled></select>
+        </div>
+        <div class="firmware-summary" data-firmware-summary hidden>
+          <h3 data-i18n="firmware.modal.summary.title">説明</h3>
+          <p data-firmware-summary-text></p>
+        </div>
+        <div class="form-field">
+          <label for="firmware-baudrate" data-i18n="firmware.modal.baudrateLabel">転送速度</label>
+          <select id="firmware-baudrate" data-i18n-aria-label="firmware.modal.baudrateAria" disabled></select>
+          <p class="field-hint" data-i18n="firmware.modal.baudrateHint">
+            ボードによって利用できる速度が異なります。迷った場合は 115200 を選択してください。
+          </p>
+        </div>
+        <div class="firmware-details" data-firmware-details hidden>
+          <h3 data-i18n="firmware.modal.details.title">書き込みオプション</h3>
+          <dl class="firmware-detail-list">
+            <div>
+              <dt data-i18n="firmware.modal.details.chip">ターゲット</dt>
+              <dd data-firmware-detail="chip">--</dd>
+            </div>
+            <div>
+              <dt data-i18n="firmware.modal.details.flashMode">Flash モード</dt>
+              <dd data-firmware-detail="flash-mode">--</dd>
+            </div>
+            <div>
+              <dt data-i18n="firmware.modal.details.flashFreq">Flash 周波数</dt>
+              <dd data-firmware-detail="flash-freq">--</dd>
+            </div>
+            <div>
+              <dt data-i18n="firmware.modal.details.flashSize">Flash サイズ</dt>
+              <dd data-firmware-detail="flash-size">--</dd>
+            </div>
+          </dl>
+          <div class="firmware-segments">
+            <h4 data-i18n="firmware.modal.segments.title">書き込みセグメント</h4>
+            <ul data-firmware-segments></ul>
+          </div>
+        </div>
+        <div class="firmware-status">
+          <div class="flash-progress" data-flash-progress hidden>
+            <progress max="100" value="0"></progress>
+            <span data-flash-progress-label>0%</span>
+          </div>
+          <pre class="flash-log" data-flash-log aria-live="polite"></pre>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn-secondary" type="button" data-modal-close data-i18n="firmware.modal.cancel">
+          キャンセル
+        </button>
+        <button class="btn btn-primary" type="button" id="firmware-start-button" disabled
+          data-i18n="firmware.modal.start">
+          書き込みを開始
         </button>
       </div>
     </div>
