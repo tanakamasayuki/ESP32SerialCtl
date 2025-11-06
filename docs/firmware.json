@@ -58,7 +58,7 @@
       "locales": {
         "ja": {
           "name": "WiFiTest (ESP32-S3)",
-          "summary": "Wi-Fi connection test sample firmware."
+          "summary": "Wi-Fi接続テスト用サンプルファームウェア"
         },
         "en": {
           "name": "WiFiTest (ESP32-S3)",
