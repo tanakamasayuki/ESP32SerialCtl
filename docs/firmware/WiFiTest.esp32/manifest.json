@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "generatedAt": "2025-11-06T06:54:25.016Z",
+  "fqbn": "esp32:esp32:esp32",
+  "tool": "esptool_py",
+  "pattern": "\"{path}/{cmd}\" {upload.pattern_args}",
+  "flags": {
+    "chip": "esp32",
+    "port": "{serial.port}",
+    "baud": "921600",
+    "before": "default-reset",
+    "after": "hard-reset",
+    "flash-mode": "keep",
+    "flash-freq": "keep",
+    "flash-size": "keep"
+  },
+  "shortFlags": [
+    {
+      "flag": "-z",
+      "value": true
+    }
+  ],
+  "commands": [
+    "write-flash"
+  ],
+  "segments": [
+    {
+      "offset": "0x1000",
+      "file": "WiFiTest.ino.bootloader.bin"
+    },
+    {
+      "offset": "0x8000",
+      "file": "WiFiTest.ino.partitions.bin"
+    },
+    {
+      "offset": "0xe000",
+      "file": "boot_app0.bin"
+    },
+    {
+      "offset": "0x10000",
+      "file": "WiFiTest.ino.bin"
+    }
+  ],
+  "compress": true
+}
