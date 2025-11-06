@@ -13,6 +13,8 @@
 - (JA) `docs/firmware.json` の自動検出や manifest オプション表示に対応したローカライズ済みファームウェア書き込みフローを追加し、esptool-js の WebSerial で ESP32 へ転送できるようにした。
 - (EN) Improved the flashing modal with scrollable content, wider log area, and a post-flash button that switches to “Connect Device” and triggers the main connection flow.
 - (JA) ファームウェア書き込みモーダルをスクロール対応・ログ領域拡大に調整し、書き込み成功後はボタンを「デバイスに接続」に切り替えてメイン接続フローを自動で起動するよう改良。
+- (EN) Added an “Erase Flash” action to the firmware modal that leverages `erase_flash`, reuses the WebSerial transport, and logs localized status updates.
+- (JA) ファームウェアモーダルに「フラッシュを消去」ボタンを追加し、`erase_flash` を実行する WebSerial ワークフローとローカライズ済みステータス表示を実装。
 
 ## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.

@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "description": "対応するファームウェアを選択し、WebSerial を使って ESP32 に書き込みます。",
           "firmwareLabel": "ファームウェアの選択",
           "firmwareAria": "書き込むファームウェアを選択",
+          "erase": "フラッシュを消去",
           "summary": {
             "title": "説明"
           },
@@ -117,7 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
             "hardReset": "デバイスをハードリセットしました。",
             "resetFailed": "リセットに失敗しました: {error}",
             "error": "エラー: {error}",
-            "disconnectFailed": "ポートのクローズに失敗しました: {error}"
+            "disconnectFailed": "ポートのクローズに失敗しました: {error}",
+            "eraseStarting": "フラッシュ全体の削除を準備しています。",
+            "eraseBaud": "消去モードの転送速度: {baud} bps。",
+            "eraseInProgress": "erase_flash コマンドを実行しています…",
+            "eraseCompleted": "フラッシュの消去が完了しました。"
           }
         }
       },
@@ -874,6 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "description": "Select a firmware package and program your ESP32 over WebSerial.",
           "firmwareLabel": "Choose Firmware",
           "firmwareAria": "Select firmware to flash",
+          "erase": "Erase Flash",
           "summary": {
             "title": "Description"
           },
@@ -915,7 +921,11 @@ document.addEventListener('DOMContentLoaded', () => {
             "hardReset": "Hard reset requested.",
             "resetFailed": "Failed to reset device: {error}",
             "error": "Error: {error}",
-            "disconnectFailed": "Failed to close port: {error}"
+            "disconnectFailed": "Failed to close port: {error}",
+            "eraseStarting": "Preparing to erase the entire flash.",
+            "eraseBaud": "Erase baud rate: {baud} bps.",
+            "eraseInProgress": "Running erase_flash command…",
+            "eraseCompleted": "Flash erase completed."
           }
         }
       },
@@ -1672,6 +1682,7 @@ document.addEventListener('DOMContentLoaded', () => {
           "description": "选择固件包，并通过 WebSerial 将其烧录到 ESP32。",
           "firmwareLabel": "选择固件",
           "firmwareAria": "选择要写入的固件",
+          "erase": "清空 Flash",
           "summary": {
             "title": "说明"
           },
@@ -1713,7 +1724,11 @@ document.addEventListener('DOMContentLoaded', () => {
             "hardReset": "已请求硬复位。",
             "resetFailed": "复位失败: {error}",
             "error": "错误: {error}",
-            "disconnectFailed": "关闭串口失败: {error}"
+            "disconnectFailed": "关闭串口失败: {error}",
+            "eraseStarting": "准备擦除整个 Flash。",
+            "eraseBaud": "擦除速率: {baud} bps。",
+            "eraseInProgress": "正在执行 erase_flash 命令…",
+            "eraseCompleted": "Flash 擦除完成。"
           }
         }
       },
@@ -3021,6 +3036,7 @@ OK fs ls
     ? firmwareFlashModal.querySelector('[data-flash-log]')
     : null;
   const firmwareStartButton = document.querySelector('#firmware-start-button');
+  const firmwareEraseButton = document.querySelector('#firmware-erase-button');
   let connectionErrorLastDetail = '';
   const firmwareDetailMap = new Map();
   if (firmwareDetailNodes) {
@@ -3045,6 +3061,7 @@ OK fs ls
     currentManifest: null,
     isFlashing: false,
     isLoadingManifest: false,
+    isErasing: false,
     postFlash: false
   };
   let esptoolModulePromise = null;
@@ -3438,6 +3455,7 @@ OK fs ls
     }
     const disabled =
       firmwareState.isFlashing ||
+      firmwareState.isErasing ||
       firmwareState.isLoadingManifest ||
       !firmwareState.currentManifest ||
       !firmwareState.currentEntryId;
@@ -3475,7 +3493,7 @@ OK fs ls
       if (!(element instanceof HTMLButtonElement)) {
         return;
       }
-      if (firmwareState.isFlashing) {
+      if (firmwareState.isFlashing || firmwareState.isErasing) {
         element.disabled = true;
         element.setAttribute('disabled', '');
       } else {
@@ -3483,6 +3501,16 @@ OK fs ls
         element.removeAttribute('disabled');
       }
     });
+    if (firmwareEraseButton) {
+      const eraseDisabled =
+        !firmwareState.currentEntryId || firmwareState.isFlashing || firmwareState.isErasing;
+      firmwareEraseButton.disabled = eraseDisabled;
+      if (eraseDisabled) {
+        firmwareEraseButton.setAttribute('disabled', '');
+      } else {
+        firmwareEraseButton.removeAttribute('disabled');
+      }
+    }
     refreshFirmwareStartButtonState();
   };
 
@@ -3552,6 +3580,7 @@ OK fs ls
       return;
     }
     firmwareState.postFlash = false;
+    firmwareState.isErasing = false;
     applyFirmwareStartButtonLabel();
     firmwareFlashModal.classList.remove('is-visible');
     firmwareFlashModal.setAttribute('aria-hidden', 'true');
@@ -3652,6 +3681,7 @@ OK fs ls
     firmwareState.currentManifest = null;
     firmwareState.isLoadingManifest = Boolean(entryId);
     firmwareState.postFlash = false;
+    firmwareState.isErasing = false;
     applyFirmwareStartButtonLabel();
     refreshFirmwareSummary();
     refreshFirmwareDetails();
@@ -3761,6 +3791,91 @@ OK fs ls
       esptoolModulePromise = import('https://unpkg.com/esptool-js@0.3.0/bundle.js?module');
     }
     return esptoolModulePromise;
+  };
+
+  const handleFirmwareErase = async () => {
+    if (firmwareState.isFlashing || firmwareState.isErasing) {
+      return;
+    }
+    if (!firmwareState.currentEntryId) {
+      appendFirmwareLog(translate('firmware.modal.log.noSelection'));
+      return;
+    }
+    firmwareState.isErasing = true;
+    firmwareState.postFlash = false;
+    applyFirmwareStartButtonLabel();
+    refreshFirmwareControlsState();
+    refreshFirmwareFlashButtonState();
+    setFirmwareProgressVisible(false);
+    appendFirmwareLog(translate('firmware.modal.log.eraseStarting'));
+    const baudrate = 115200;
+    appendFirmwareLog(
+      interpolate(translate('firmware.modal.log.eraseBaud'), {
+        baud: baudrate.toLocaleString()
+      })
+    );
+    let transport = null;
+    try {
+      const { ESPLoader, Transport } = await loadEsptoolModule();
+      appendFirmwareLog(translate('firmware.modal.log.requestPort'));
+      const port = await navigator.serial.requestPort({});
+      transport = new Transport(port);
+      const terminalAdapter = {
+        clean: () => {},
+        writeLine: (data) => appendFirmwareLog(data),
+        write: (data) => appendFirmwareLog(data, { newline: false })
+      };
+      const loaderOptions = {
+        transport,
+        baudrate,
+        romBaudrate: 115200,
+        terminal: terminalAdapter
+      };
+      const esploader = new ESPLoader(loaderOptions);
+      appendFirmwareLog(translate('firmware.modal.log.connecting'));
+      const chipName = await esploader.main_fn();
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.connected'), {
+          chip: chipName || translate('firmware.modal.log.chipUnknown')
+        })
+      );
+      appendFirmwareLog(translate('firmware.modal.log.eraseInProgress'));
+      await esploader.erase_flash();
+      appendFirmwareLog(translate('firmware.modal.log.eraseCompleted'));
+      try {
+        await esploader.hard_reset();
+        appendFirmwareLog(translate('firmware.modal.log.hardReset'));
+      } catch (resetError) {
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.resetFailed'), {
+            error: resetError?.message || String(resetError)
+          })
+        );
+      }
+    } catch (error) {
+      appendFirmwareLog(
+        interpolate(translate('firmware.modal.log.error'), {
+          error: error?.message || String(error)
+        })
+      );
+    } finally {
+      firmwareState.isErasing = false;
+      refreshFirmwareControlsState();
+      refreshFirmwareFlashButtonState();
+      applyFirmwareStartButtonLabel();
+      try {
+        if (transport) {
+          await transport.disconnect();
+          await transport.waitForUnlock(200);
+        }
+      } catch (disconnectError) {
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.disconnectFailed'), {
+            error: disconnectError?.message || String(disconnectError)
+          })
+        );
+      }
+    }
   };
 
   const handleFirmwareFlashStart = async () => {
@@ -10179,6 +10294,17 @@ OK fs ls
         return;
       }
       handleFirmwareFlashStart().catch((error) => {
+        appendFirmwareLog(
+          interpolate(translate('firmware.modal.log.error'), {
+            error: error?.message || String(error)
+          })
+        );
+      });
+    });
+  }
+  if (firmwareEraseButton) {
+    firmwareEraseButton.addEventListener('click', () => {
+      handleFirmwareErase().catch((error) => {
         appendFirmwareLog(
           interpolate(translate('firmware.modal.log.error'), {
             error: error?.message || String(error)
