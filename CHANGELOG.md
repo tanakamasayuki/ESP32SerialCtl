@@ -1,4 +1,4 @@
-# Changelog
+# Changelog / 変更履歴
 
 ## Unreleased
 - (EN) Updated the Help Docs references to open the README, Basic CLI example, Arduino docs, and ESP-IDF docs directly, adding localized labels for the Arduino entry.
@@ -21,6 +21,8 @@
 - (JA) 大容量イメージや低速転送に耐えられるよう、esptool-js の書き込み・消去タイムアウトを延長。
 - (EN) Abort flashing if the detected chip (e.g., "Detecting chip type... ESP32-S3") does not match the manifest’s expected target, with localized error messages.
 - (JA) 接続ログから検出したチップ名が manifest 想定と一致しない場合、ローカライズ済みメッセージで書き込みを中断するように変更。
+- (EN) Updated release scripts
+- (JA) リリーススクリプト更新
 
 ## 1.0.0
 - (EN) Added conditional I2C (`scan/read/write`) CLI commands with multi-bus detection and `--bus` selector when `Wire` is available.

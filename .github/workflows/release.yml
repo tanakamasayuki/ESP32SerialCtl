@@ -45,9 +45,10 @@ jobs:
       - name: Stage files
         run: |
           git add library.properties
-          git ls-files --modified --others --exclude-standard -- 'examples/**/sketch.yaml' | while read -r file; do
-            git add "$file"
-          done
+          if [ -f CHANGELOG.md ]; then
+            git add CHANGELOG.md
+          fi
+          # Leave sketch.yaml updates unstaged so the repo keeps using local dir references.
           # If bump_version.py created a version header, include it in the commit
           if [ -n "${{ steps.version.outputs.version_header }}" ] && [ -f "${{ steps.version.outputs.version_header }}" ]; then
             git add "${{ steps.version.outputs.version_header }}"
@@ -62,7 +63,13 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           ARCHIVE="${{ github.event.repository.name }}-${VERSION}.zip"
-          git archive --format=zip --prefix="${{ github.event.repository.name }}/" HEAD > "$ARCHIVE"
+          PREFIX="${{ github.event.repository.name }}"
+          WORKDIR="$(pwd)"
+          TEMP_DIR="$(mktemp -d)"
+
+          # Copy tracked files with their working tree contents (including unstaged sketch.yaml changes).
+          rsync -a --files-from=<(git ls-files) ./ "$TEMP_DIR/$PREFIX/"
+          (cd "$TEMP_DIR" && zip -r "$WORKDIR/$ARCHIVE" "$PREFIX")
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
 
       - name: Create tag and push
