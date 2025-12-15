@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 1.0.1
 - (EN) Updated the Help Docs references to open the README, Basic CLI example, Arduino docs, and ESP-IDF docs directly, adding localized labels for the Arduino entry.
 - (JA) README や Basic CLI の例、Arduino ドキュメント、ESP-IDF ドキュメントへ直接アクセスするリンクチップに更新し、Arduino 項目の翻訳を追加。
 - (EN) Refreshed the web console theme so the idle state is monochrome, switching to the blue accent palette only after a successful connection.
