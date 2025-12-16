@@ -14,6 +14,8 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_BRANCH: release
 
     steps:
       - name: Checkout
@@ -48,7 +50,7 @@ jobs:
           if [ -f CHANGELOG.md ]; then
             git add CHANGELOG.md
           fi
-          # Leave sketch.yaml updates unstaged so the repo keeps using local dir references.
+          # Leave sketch.yaml updates unstaged on main; they will be committed on the release branch.
           # If bump_version.py created a version header, include it in the commit
           if [ -n "${{ steps.version.outputs.version_header }}" ] && [ -f "${{ steps.version.outputs.version_header }}" ]; then
             git add "${{ steps.version.outputs.version_header }}"
@@ -57,6 +59,23 @@ jobs:
       - name: Commit changes
         run: |
           git commit -m "Release ${{ steps.version.outputs.version }}" || echo "No changes to commit."
+
+      - name: Push main branch
+        run: git push origin HEAD:main
+
+      - name: Prepare release branch with release-only files
+        id: release_branch
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git checkout -B "$RELEASE_BRANCH"
+          git ls-files 'examples/sketch.yaml' 'examples/**/sketch.yaml' | sort -u | xargs -r git add
+          if git diff --cached --quiet; then
+            echo "No release-only changes to commit."
+          else
+            git commit -m "Release assets v${VERSION}"
+          fi
+          echo "branch=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Build release archive
         id: archive
@@ -67,7 +86,7 @@ jobs:
           WORKDIR="$(pwd)"
           TEMP_DIR="$(mktemp -d)"
 
-          # Copy tracked files with their working tree contents (including unstaged sketch.yaml changes).
+          # Copy tracked files from the release branch working tree.
           rsync -a --files-from=<(git ls-files) ./ "$TEMP_DIR/$PREFIX/"
           (cd "$TEMP_DIR" && zip -r "$WORKDIR/$ARCHIVE" "$PREFIX")
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
@@ -78,13 +97,14 @@ jobs:
         id: create_tag_and_push
         run: |
           TAG="v${{ steps.version.outputs.version }}"
+          git checkout "$RELEASE_BRANCH"
           # create tag only if it doesn't exist locally
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists locally; skipping tag creation."
           else
             git tag "$TAG"
           fi
-          git push origin HEAD:main
+          git push origin "$RELEASE_BRANCH" --force-with-lease
           # push the tag; if remote already has same tag, this will be a no-op
           git push origin "$TAG"
 

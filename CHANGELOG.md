@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) Release workflow now rebuilds the release branch and tags it so rewritten sketch.yaml files are part of the tagged release contents
+- (JA) リリースワークフローでreleaseブランチを作り直し、書き換え済みsketch.yamlをタグの内容に含めるように変更
 
 ## 1.0.1
 - (EN) Updated the Help Docs references to open the README, Basic CLI example, Arduino docs, and ESP-IDF docs directly, adding localized labels for the Arduino entry.
