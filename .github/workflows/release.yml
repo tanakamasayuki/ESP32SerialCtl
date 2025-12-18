@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_BRANCH: release
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
     steps:
       - name: Checkout
@@ -50,7 +51,7 @@ jobs:
           if [ -f CHANGELOG.md ]; then
             git add CHANGELOG.md
           fi
-          # Leave sketch.yaml updates unstaged on main; they will be committed on the release branch.
+          # Leave sketch.yaml updates unstaged on the default branch; they will be committed on the release branch.
           # If bump_version.py created a version header, include it in the commit
           if [ -n "${{ steps.version.outputs.version_header }}" ] && [ -f "${{ steps.version.outputs.version_header }}" ]; then
             git add "${{ steps.version.outputs.version_header }}"
@@ -60,8 +61,8 @@ jobs:
         run: |
           git commit -m "Release ${{ steps.version.outputs.version }}" || echo "No changes to commit."
 
-      - name: Push main branch
-        run: git push origin HEAD:main
+      - name: Push default branch
+        run: git push origin HEAD:"$DEFAULT_BRANCH"
 
       - name: Prepare release branch with release-only files
         id: release_branch
