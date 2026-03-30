@@ -128,6 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseCompleted": "フラッシュの消去が完了しました。",
             "eraseBaudChangeFailed": "消去用のボーレート変更に失敗しました: {error}",
             "eraseBaudRestoreFailed": "書き込み速度への復帰に失敗しました: {error}",
+            "baudrateStabilizing": "ボーレート変更後の通信安定化を待っています…",
+            "retryingSafeBaud": "高速転送でタイムアウトしました。115200 bps で 1 回だけ再試行します。",
             "chipMismatch": "ターゲットが一致しません: 想定 {expected} / 実機 {actual}。処理を中断します。"
           }
         }
@@ -937,6 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseCompleted": "Flash erase completed.",
             "eraseBaudChangeFailed": "Failed to switch to erase baud rate: {error}",
             "eraseBaudRestoreFailed": "Failed to restore upload baud rate: {error}",
+            "baudrateStabilizing": "Waiting for the serial link to stabilize after the baud-rate switch…",
+            "retryingSafeBaud": "High-speed transfer timed out. Retrying once at 115200 bps.",
             "chipMismatch": "Chip mismatch detected. Expected {expected}, but device reports {actual}. Aborting."
           }
         }
@@ -1746,6 +1750,8 @@ document.addEventListener('DOMContentLoaded', () => {
             "eraseCompleted": "Flash 擦除完成。",
             "eraseBaudChangeFailed": "切换到擦除速率失败: {error}",
             "eraseBaudRestoreFailed": "恢复写入速率失败: {error}",
+            "baudrateStabilizing": "正在等待切换速率后的串口链路稳定…",
+            "retryingSafeBaud": "高速传输发生超时。将仅以 115200 bps 重试一次。",
             "chipMismatch": "芯片不匹配：预期 {expected}，实际 {actual}。已终止写入。"
           }
         }
@@ -3581,7 +3587,7 @@ OK fs ls
       resetFirmwareLog();
       resetFirmwareProgress();
       if (firmwareEraseBeforeCheckbox) {
-        firmwareEraseBeforeCheckbox.checked = true;
+        firmwareEraseBeforeCheckbox.checked = false;
       }
       firmwareFlashModal.classList.add('is-visible');
       firmwareFlashModal.setAttribute('aria-hidden', 'false');
@@ -3818,7 +3824,7 @@ OK fs ls
 
   const loadEsptoolModule = async () => {
     if (!esptoolModulePromise) {
-      esptoolModulePromise = import('https://unpkg.com/esptool-js@0.3.0/bundle.js?module');
+      esptoolModulePromise = import('https://unpkg.com/esptool-js@0.5.7/bundle.js?module');
     }
     return esptoolModulePromise;
   };
@@ -3860,8 +3866,9 @@ OK fs ls
     esploader.CHIP_ERASE_TIMEOUT = CHIP_ERASE_TIMEOUT;
     esploader.MAX_TIMEOUT = CHIP_ERASE_TIMEOUT * 2;
 
-    const originalTimeoutPerMb = esploader.timeout_per_mb?.bind?.(esploader);
-    esploader.timeout_per_mb = (secondsPerMb, sizeBytes) => {
+    const originalTimeoutPerMb =
+      esploader.timeoutPerMb?.bind?.(esploader) || esploader.timeout_per_mb?.bind?.(esploader);
+    const extendedTimeoutPerMb = (secondsPerMb, sizeBytes) => {
       const fallback = originalTimeoutPerMb
         ? originalTimeoutPerMb(secondsPerMb, sizeBytes)
         : secondsPerMb * (sizeBytes / 1_000_000);
@@ -3870,6 +3877,21 @@ OK fs ls
       const scaledWrite = WRITE_TIMEOUT_PER_MB * sizeMb;
       return Math.max(fallback, scaledErase, scaledWrite, MIN_BLOCK_TIMEOUT);
     };
+    esploader.timeoutPerMb = extendedTimeoutPerMb;
+    esploader.timeout_per_mb = extendedTimeoutPerMb;
+  };
+
+  const sleep = (ms) =>
+    new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+
+  const isRetryableFlashTimeout = (error, baudrate) => {
+    if (!(baudrate > 115200)) {
+      return false;
+    }
+    const message = error?.message || String(error || '');
+    return /timeout/i.test(message);
   };
 
   const handleFirmwareErase = async () => {
@@ -3913,17 +3935,17 @@ OK fs ls
       const esploader = new ESPLoader(loaderOptions);
       applyExtendedTimeouts(esploader);
       appendFirmwareLog(translate('firmware.modal.log.connecting'));
-      const chipName = await esploader.main_fn();
+      const chipName = await esploader.main();
       appendFirmwareLog(
         interpolate(translate('firmware.modal.log.connected'), {
           chip: chipName || translate('firmware.modal.log.chipUnknown')
         })
       );
       appendFirmwareLog(translate('firmware.modal.log.eraseInProgress'));
-      await esploader.erase_flash();
+      await esploader.eraseFlash();
       appendFirmwareLog(translate('firmware.modal.log.eraseCompleted'));
       try {
-        await esploader.hard_reset();
+        await esploader.after('hard_reset');
         appendFirmwareLog(translate('firmware.modal.log.hardReset'));
       } catch (resetError) {
         appendFirmwareLog(
@@ -3968,9 +3990,8 @@ OK fs ls
       appendFirmwareLog(translate('firmware.modal.log.noSelection'));
       return;
     }
-    const targetBaudrate = Number.parseInt(firmwareBaudSelect?.value, 10) || 115200;
+    const selectedBaudrate = Number.parseInt(firmwareBaudSelect?.value, 10) || 115200;
     const eraseBeforeFlash = !firmwareEraseBeforeCheckbox || firmwareEraseBeforeCheckbox.checked;
-    const initialBaudrate = eraseBeforeFlash ? 115200 : targetBaudrate;
     firmwareState.isFlashing = true;
     firmwareState.postFlash = false;
     applyFirmwareStartButtonLabel();
@@ -3980,200 +4001,233 @@ OK fs ls
     setFirmwareProgressVisible(true);
     updateFirmwareProgress(0, 100);
 
-    let transport = null;
     try {
       appendFirmwareLog(
         interpolate(translate('firmware.modal.log.starting'), {
-          baud: targetBaudrate.toLocaleString()
+          baud: selectedBaudrate.toLocaleString()
         })
       );
       const { ESPLoader, Transport } = await loadEsptoolModule();
       appendFirmwareLog(translate('firmware.modal.log.requestPort'));
       const port = await navigator.serial.requestPort({});
-      transport = new Transport(port);
-      let detectedChipName = '';
-      let detectionBuffer = '';
-      let pendingDetectChip = false;
-      const captureChipName = (value) => {
-        if (detectedChipName) {
-          return;
-        }
-        if (!value) {
-          return;
-        }
-        const trimmed = String(value).trim();
-        if (!trimmed) {
-          return;
-        }
-                const detectLine = trimmed.match(/Detecting chip type\.*\s*[:\-]?\s*(.*)/i);
-        if (detectLine) {
-          const candidate = (detectLine[1] || '').trim();
-                    if (candidate) {
-            detectedChipName = candidate.split(/\s+/)[0].trim();
-                        pendingDetectChip = false;
-            return;
-          }
-          pendingDetectChip = true;
-                    return;
-        }
-        if (pendingDetectChip) {
-          const candidate = trimmed.split(/\s+/)[0];
-                    if (candidate) {
-            detectedChipName = candidate.trim();
-                        pendingDetectChip = false;
-            return;
-          }
-        }
-        const standaloneMatch = trimmed.match(/^(ESP[0-9A-Za-z\-]+)$/i);
-        if (standaloneMatch && standaloneMatch[1]) {
-          detectedChipName = standaloneMatch[1].trim();
-                    pendingDetectChip = false;
-          return;
-        }
-      };
-      const terminalAdapter = {
-        clean: () => {
-          /* keep existing log */
-        },
-        writeLine: (data) => {
-          appendFirmwareLog(data);
-          captureChipName(data);
-        },
-        write: (data) => {
-          appendFirmwareLog(data, { newline: false });
-          detectionBuffer += data;
-          const segments = detectionBuffer.split('\n');
-          detectionBuffer = segments.pop() ?? '';
-          segments.forEach(captureChipName);
-        }
-      };
-      const loaderOptions = {
-        transport,
-        baudrate: initialBaudrate,
-        romBaudrate: 115200,
-        terminal: terminalAdapter
-      };
-      const esploader = new ESPLoader(loaderOptions);
-      applyExtendedTimeouts(esploader);
-      appendFirmwareLog(translate('firmware.modal.log.connecting'));
-      const chipName = await esploader.main_fn();
-      appendFirmwareLog(
-        interpolate(translate('firmware.modal.log.connected'), {
-          chip: chipName || translate('firmware.modal.log.chipUnknown')
-        })
-      );
-
-      const expectedChipRaw = manifest.flags?.chip || entry.chip || entry.fqbn || '';
-      const expectedChipId = extractChipFamily(expectedChipRaw);
-      const actualChipName = detectedChipName || '';
-      const actualChipId = extractChipFamily(actualChipName);
-      const actualDisplayName =
-        actualChipName || translate('firmware.modal.log.chipUnknown') || 'unknown';
-                  if (expectedChipId && (!actualChipId || actualChipId !== expectedChipId)) {
-        const mismatchMessage = interpolate(translate('firmware.modal.log.chipMismatch'), {
-          expected: expectedChipRaw || expectedChipId,
-          actual: actualDisplayName
-        });
-        appendFirmwareLog(mismatchMessage);
-        throw new Error(mismatchMessage);
-      }
-
-      if (eraseBeforeFlash) {
-        appendFirmwareLog(translate('firmware.modal.log.eraseStarting'));
-        appendFirmwareLog(
-          interpolate(translate('firmware.modal.log.eraseBaud'), {
-            baud: initialBaudrate.toLocaleString()
-          })
-        );
-        appendFirmwareLog(translate('firmware.modal.log.eraseInProgress'));
-        await esploader.erase_flash();
-        appendFirmwareLog(translate('firmware.modal.log.eraseCompleted'));
-      }
-
-      if (targetBaudrate !== initialBaudrate) {
+      const BAUDRATE_STABILIZE_DELAY_MS = 200;
+      const runFlashAttempt = async (targetBaudrate) => {
+        const initialBaudrate = eraseBeforeFlash ? 115200 : targetBaudrate;
+        let transport = null;
         try {
-          esploader.baudrate = targetBaudrate;
-          await esploader.change_baud();
-        } catch (restoreError) {
+          transport = new Transport(port);
+          let detectedChipName = '';
+          let detectionBuffer = '';
+          let pendingDetectChip = false;
+          const captureChipName = (value) => {
+            if (detectedChipName) {
+              return;
+            }
+            if (!value) {
+              return;
+            }
+            const trimmed = String(value).trim();
+            if (!trimmed) {
+              return;
+            }
+            const detectLine = trimmed.match(/Detecting chip type\.*\s*[:\-]?\s*(.*)/i);
+            if (detectLine) {
+              const candidate = (detectLine[1] || '').trim();
+              if (candidate) {
+                detectedChipName = candidate.split(/\s+/)[0].trim();
+                pendingDetectChip = false;
+                return;
+              }
+              pendingDetectChip = true;
+              return;
+            }
+            if (pendingDetectChip) {
+              const candidate = trimmed.split(/\s+/)[0];
+              if (candidate) {
+                detectedChipName = candidate.trim();
+                pendingDetectChip = false;
+                return;
+              }
+            }
+            const standaloneMatch = trimmed.match(/^(ESP[0-9A-Za-z\-]+)$/i);
+            if (standaloneMatch && standaloneMatch[1]) {
+              detectedChipName = standaloneMatch[1].trim();
+              pendingDetectChip = false;
+            }
+          };
+          const terminalAdapter = {
+            clean: () => {
+              /* keep existing log */
+            },
+            writeLine: (data) => {
+              appendFirmwareLog(data);
+              captureChipName(data);
+            },
+            write: (data) => {
+              appendFirmwareLog(data, { newline: false });
+              detectionBuffer += data;
+              const segments = detectionBuffer.split('\n');
+              detectionBuffer = segments.pop() ?? '';
+              segments.forEach(captureChipName);
+            }
+          };
+          const loaderOptions = {
+            transport,
+            baudrate: initialBaudrate,
+            romBaudrate: 115200,
+            terminal: terminalAdapter
+          };
+          const esploader = new ESPLoader(loaderOptions);
+          applyExtendedTimeouts(esploader);
+          appendFirmwareLog(translate('firmware.modal.log.connecting'));
+          const chipName = await esploader.main();
           appendFirmwareLog(
-            interpolate(translate('firmware.modal.log.eraseBaudRestoreFailed'), {
-              error: restoreError?.message || String(restoreError)
+            interpolate(translate('firmware.modal.log.connected'), {
+              chip: chipName || translate('firmware.modal.log.chipUnknown')
             })
           );
-        }
-      }
 
-      const segments = Array.isArray(manifest.segments) ? manifest.segments : [];
-      if (!segments.length) {
-        throw new Error(translate('firmware.modal.log.noSegments'));
-      }
-      appendFirmwareLog(
-        interpolate(translate('firmware.modal.log.preparingSegments'), {
-          count: segments.length
-        })
-      );
-      const fileArray = [];
-      const segmentSizes = [];
-      for (let index = 0; index < segments.length; index += 1) {
-        const segment = segments[index];
-        const offset = parseOffsetValue(segment?.offset);
-        appendFirmwareLog(
-          interpolate(translate('firmware.modal.log.loadingSegment'), {
-            offset: segment?.offset || `0x${offset.toString(16)}`,
-            file: segment?.file || ''
-          })
-        );
-        const binary = await loadFirmwareSegmentBinary(entry, segment);
-        if (!binary || !binary.length) {
-          throw new Error(
-            interpolate(translate('firmware.modal.log.segmentEmpty'), {
-              file: segment?.file || '',
-              offset: segment?.offset || `0x${offset.toString(16)}`
+          const expectedChipRaw = manifest.flags?.chip || entry.chip || entry.fqbn || '';
+          const expectedChipId = extractChipFamily(expectedChipRaw);
+          const actualChipName = detectedChipName || '';
+          const actualChipId = extractChipFamily(actualChipName);
+          const actualDisplayName =
+            actualChipName || translate('firmware.modal.log.chipUnknown') || 'unknown';
+          if (expectedChipId && (!actualChipId || actualChipId !== expectedChipId)) {
+            const mismatchMessage = interpolate(translate('firmware.modal.log.chipMismatch'), {
+              expected: expectedChipRaw || expectedChipId,
+              actual: actualDisplayName
+            });
+            appendFirmwareLog(mismatchMessage);
+            throw new Error(mismatchMessage);
+          }
+
+          if (eraseBeforeFlash) {
+            appendFirmwareLog(translate('firmware.modal.log.eraseStarting'));
+            appendFirmwareLog(
+              interpolate(translate('firmware.modal.log.eraseBaud'), {
+                baud: initialBaudrate.toLocaleString()
+              })
+            );
+            appendFirmwareLog(translate('firmware.modal.log.eraseInProgress'));
+            await esploader.eraseFlash();
+            appendFirmwareLog(translate('firmware.modal.log.eraseCompleted'));
+          }
+
+          if (targetBaudrate !== initialBaudrate) {
+            try {
+              esploader.baudrate = targetBaudrate;
+              await esploader.changeBaud();
+              appendFirmwareLog(translate('firmware.modal.log.baudrateStabilizing'));
+              await sleep(BAUDRATE_STABILIZE_DELAY_MS);
+            } catch (restoreError) {
+              appendFirmwareLog(
+                interpolate(translate('firmware.modal.log.eraseBaudRestoreFailed'), {
+                  error: restoreError?.message || String(restoreError)
+                })
+              );
+            }
+          }
+
+          const segments = Array.isArray(manifest.segments) ? manifest.segments : [];
+          if (!segments.length) {
+            throw new Error(translate('firmware.modal.log.noSegments'));
+          }
+          appendFirmwareLog(
+            interpolate(translate('firmware.modal.log.preparingSegments'), {
+              count: segments.length
             })
           );
-        }
-        fileArray.push({ data: binary, address: offset });
-        segmentSizes.push(binary.length);
-      }
+          const fileArray = [];
+          const segmentSizes = [];
+          for (let index = 0; index < segments.length; index += 1) {
+            const segment = segments[index];
+            const offset = parseOffsetValue(segment?.offset);
+            appendFirmwareLog(
+              interpolate(translate('firmware.modal.log.loadingSegment'), {
+                offset: segment?.offset || `0x${offset.toString(16)}`,
+                file: segment?.file || ''
+              })
+            );
+            const binary = await loadFirmwareSegmentBinary(entry, segment);
+            if (!binary || !binary.length) {
+              throw new Error(
+                interpolate(translate('firmware.modal.log.segmentEmpty'), {
+                  file: segment?.file || '',
+                  offset: segment?.offset || `0x${offset.toString(16)}`
+                })
+              );
+            }
+            fileArray.push({ data: binary, address: offset });
+            segmentSizes.push(binary.length);
+          }
 
-      let cumulative = 0;
-      const prefixBytes = segmentSizes.map((size) => {
-        const current = cumulative;
-        cumulative += size;
-        return current;
-      });
-      const totalBytes = cumulative;
-      updateFirmwareProgress(0, totalBytes || 1);
+          let cumulative = 0;
+          const prefixBytes = segmentSizes.map((size) => {
+            const current = cumulative;
+            cumulative += size;
+            return current;
+          });
+          const totalBytes = cumulative;
+          updateFirmwareProgress(0, totalBytes || 1);
 
-      const flags = manifest.flags || {};
-      const flashOptions = {
-        fileArray,
-        flashSize: flags['flash-size'] || 'keep',
-        flashMode: flags['flash-mode'] || 'keep',
-        flashFreq: flags['flash-freq'] || 'keep',
-        eraseAll: false,
-        compress: manifest.compress !== false,
-        reportProgress: (fileIndex, written) => {
-          const offset = prefixBytes[fileIndex] || 0;
-          updateFirmwareProgress(offset + written, totalBytes || written || 1);
+          const flags = manifest.flags || {};
+          const flashOptions = {
+            fileArray,
+            flashSize: flags['flash-size'] || 'keep',
+            flashMode: flags['flash-mode'] || 'keep',
+            flashFreq: flags['flash-freq'] || 'keep',
+            eraseAll: false,
+            compress: manifest.compress !== false,
+            reportProgress: (fileIndex, written) => {
+              const offset = prefixBytes[fileIndex] || 0;
+              updateFirmwareProgress(offset + written, totalBytes || written || 1);
+            }
+          };
+
+          appendFirmwareLog(translate('firmware.modal.log.flashing'));
+          await esploader.writeFlash(flashOptions);
+          updateFirmwareProgress(totalBytes, totalBytes || 1);
+          appendFirmwareLog(translate('firmware.modal.log.completed'));
+          firmwareState.postFlash = true;
+          applyFirmwareStartButtonLabel();
+          try {
+            await esploader.after('hard_reset');
+            appendFirmwareLog(translate('firmware.modal.log.hardReset'));
+          } catch (resetError) {
+            appendFirmwareLog(
+              interpolate(translate('firmware.modal.log.resetFailed'), {
+                error: resetError?.message || String(resetError)
+              })
+            );
+          }
+        } finally {
+          try {
+            if (transport) {
+              await transport.disconnect();
+              await transport.waitForUnlock(200);
+            }
+          } catch (disconnectError) {
+            appendFirmwareLog(
+              interpolate(translate('firmware.modal.log.disconnectFailed'), {
+                error: disconnectError?.message || String(disconnectError)
+              })
+            );
+          }
         }
       };
 
-      appendFirmwareLog(translate('firmware.modal.log.flashing'));
-      await esploader.write_flash(flashOptions);
-      updateFirmwareProgress(totalBytes, totalBytes || 1);
-      appendFirmwareLog(translate('firmware.modal.log.completed'));
-      firmwareState.postFlash = true;
-      applyFirmwareStartButtonLabel();
       try {
-        await esploader.hard_reset();
-        appendFirmwareLog(translate('firmware.modal.log.hardReset'));
-      } catch (resetError) {
-        appendFirmwareLog(
-          interpolate(translate('firmware.modal.log.resetFailed'), {
-            error: resetError?.message || String(resetError)
-          })
-        );
+        await runFlashAttempt(selectedBaudrate);
+      } catch (error) {
+        if (isRetryableFlashTimeout(error, selectedBaudrate)) {
+          appendFirmwareLog(translate('firmware.modal.log.retryingSafeBaud'));
+          resetFirmwareProgress();
+          updateFirmwareProgress(0, 100);
+          await runFlashAttempt(115200);
+        } else {
+          throw error;
+        }
       }
     } catch (error) {
       appendFirmwareLog(
@@ -4183,18 +4237,6 @@ OK fs ls
       );
     } finally {
       firmwareState.isFlashing = false;
-      try {
-        if (transport) {
-          await transport.disconnect();
-          await transport.waitForUnlock(200);
-        }
-      } catch (disconnectError) {
-        appendFirmwareLog(
-          interpolate(translate('firmware.modal.log.disconnectFailed'), {
-            error: disconnectError?.message || String(disconnectError)
-          })
-        );
-      }
       refreshFirmwareControlsState();
       refreshFirmwareFlashButtonState();
       applyDisabledTitles();
