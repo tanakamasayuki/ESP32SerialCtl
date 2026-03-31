@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -31,7 +31,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -92,6 +92,43 @@ jobs:
           (cd "$TEMP_DIR" && zip -r "$WORKDIR/$ARCHIVE" "$PREFIX")
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
 
+      - name: Build release notes
+        id: release_notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python <<'PY'
+          import os
+          import pathlib
+          import re
+
+          version = os.environ["VERSION"]
+          changelog_path = pathlib.Path("CHANGELOG.md")
+          notes = ""
+
+          if changelog_path.exists():
+              content = changelog_path.read_text(encoding="utf-8")
+              pattern = re.compile(
+                  rf"^## {re.escape(version)}\s*$\n(?P<body>.*?)(?=^## |\Z)",
+                  re.MULTILINE | re.DOTALL,
+              )
+              match = pattern.search(content)
+              if match:
+                  notes = match.group("body").strip()
+
+          release_body = f"Release v{version}."
+          if notes:
+              release_body = f"{release_body}\n\n## Changelog\n{notes}"
+          else:
+              release_body = f"{release_body}\n\n- Library version bumped to v{version}."
+
+          output_path = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as fh:
+              fh.write("body<<EOF\n")
+              fh.write(release_body)
+              fh.write("\nEOF\n")
+          PY
+
       - name: Create tag and push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -111,15 +148,22 @@ jobs:
 
       - name: Publish release
         if: steps.create_tag_and_push.outcome == 'success'
-        uses: softprops/action-gh-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
-          body: |
-            Release.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.archive.outputs.archive }}
+          RELEASE_BODY: ${{ steps.release_notes.outputs.body }}
+          TARGET: ${{ steps.release_branch.outputs.branch }}
+        run: |
+          NOTES_FILE="$(mktemp)"
+          printf '%s\n' "$RELEASE_BODY" > "$NOTES_FILE"
 
-            - Library version bumped to v${{ steps.version.outputs.version }}.
-          files: |
-            ${{ steps.archive.outputs.archive }}
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
+            gh release upload "$TAG" "$ARCHIVE" --clobber
+          else
+            gh release create "$TAG" "$ARCHIVE" \
+              --title "$TAG" \
+              --notes-file "$NOTES_FILE" \
+              --target "$TARGET"
+          fi
