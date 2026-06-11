@@ -70,6 +70,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           git checkout -B "$RELEASE_BRANCH"
+          git rm -r --ignore-unmatch tests
           git ls-files 'examples/sketch.yaml' 'examples/**/sketch.yaml' | sort -u | xargs -r git add
           if git diff --cached --quiet; then
             echo "No release-only changes to commit."
@@ -88,7 +89,7 @@ jobs:
           TEMP_DIR="$(mktemp -d)"
 
           # Copy tracked files from the release branch working tree.
-          rsync -a --files-from=<(git ls-files) ./ "$TEMP_DIR/$PREFIX/"
+          rsync -a --files-from=<(git ls-files -- . ':!:tests' ':!:tests/**') ./ "$TEMP_DIR/$PREFIX/"
           (cd "$TEMP_DIR" && zip -r "$WORKDIR/$ARCHIVE" "$PREFIX")
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
 
