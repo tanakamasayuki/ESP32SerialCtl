@@ -1,3 +1,5 @@
+// en: Register application commands and argument descriptions
+// ja: 独自コマンドと引数の説明を登録する
 #include <Arduino.h>
 #include <ESP32SerialCtl.h>
 
@@ -88,6 +90,8 @@ void setup()
 
 void loop()
 {
+    // en: Process pending commands regularly; blocking the caller postpones new input.
+    // ja: 保留コマンドを定期的に処理します。呼び出し元を止めると次の入力も遅れます。
     esp32SerialCtl.service();
     delay(1);
 }

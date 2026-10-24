@@ -1,3 +1,5 @@
+// en: Read application settings and expose configuration commands
+// ja: アプリ設定を読み、設定操作を公開する
 #include <Arduino.h>
 #include <ESP32SerialCtl.h>
 
@@ -54,6 +56,8 @@ void setup()
 
 void loop()
 {
+    // en: Process pending commands regularly; blocking the caller postpones new input.
+    // ja: 保留コマンドを定期的に処理します。呼び出し元を止めると次の入力も遅れます。
     esp32SerialCtl.service();
     delay(1);
 }

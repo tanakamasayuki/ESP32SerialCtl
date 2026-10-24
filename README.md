@@ -4,6 +4,8 @@ English | [日本語](README.ja.md)
 
 ESP32SerialCtl is a header-only serial CLI library for Arduino-compatible ESP32 projects. It targets a predictable, lightweight text protocol that works well for both humans and automation. The sources follow the Arduino library layout (`src/ESP32SerialCtl.h`), so you can copy the folder into your `libraries` directory and start using it.
 
+Start with the [example workflow](docs/GUIDE_EXAMPLES.md) and [individual example READMEs](examples/README.md) for setup, API sequence, verification and adaptation notes.
+
 ## WebSerial Console
 
 A WebSerial control panel is available on GitHub Pages. Connect from your browser to an ESP32 running ESP32SerialCtl to send commands and manage files.
